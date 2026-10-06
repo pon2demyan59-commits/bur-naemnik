@@ -87,7 +87,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    this.load.image('drill', './public/assets/game/drill.webp');
+    this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
       loading.textContent = 'Не удалось загрузить оформление. Обновите страницу.';

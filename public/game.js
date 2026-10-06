@@ -74,6 +74,7 @@ function updateHeat(heat, cutting, dt) { return Math.max(0,Math.min(1,heat + (cu
 
 
 const middle = n => n * CELL + CELL / 2;
+const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor() { super('Base'); }
   init({save} = {}) { this.world = new BaseWorld(save?.progress); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; this.trackDustTime=0; this.sparkTime=0; this.speed=0; this.heat=0; this.trackPhase=0; this.cutting=false; this.moveTarget=null; }
@@ -86,8 +87,9 @@ class Base extends globalThis.Phaser.Scene {
     this.drillSprite = this.add.image(0,0,'drill').setOrigin(.39,.5).setDisplaySize(96,96);
     this.headHeat = this.add.graphics();
     this.trackMotion = this.add.graphics();
-    this.rig.add([this.drillSprite,this.trackMotion,this.headHeat]);
-    this.shadow = this.add.ellipse(this.rig.x,this.rig.y+7,84,52,0x071919,.35).setDepth(19);
+    this.visual = this.add.container(0,0,[this.drillSprite,this.trackMotion,this.headHeat]).setScale(.82,1);
+    this.rig.add(this.visual);
+    this.shadow = this.add.ellipse(this.rig.x,this.rig.y+7,68,52,0x071919,.35).setDepth(19);
     this.makeEffects();
     this.cameras.main.setBounds(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL).startFollow(this.rig,true,.10,.10);
     this.cameras.main.setZoom(this.scale.width < 600 ? .82 : 1.12);
@@ -233,6 +235,7 @@ class Base extends globalThis.Phaser.Scene {
     }).setDepth(22);
   }
   localPoint(x,y=0) {
+    x*=.82;
     const a=this.rig.rotation,c=Math.cos(a),s=Math.sin(a);
     return {x:this.rig.x+x*c-y*s,y:this.rig.y+x*s+y*c};
   }
@@ -247,6 +250,7 @@ class Base extends globalThis.Phaser.Scene {
   advanceVehicle(time,dt,direction) {
     if(this.moving) {
       const target=this.moveTarget;
+      this.rig.angle=smoothHeading(this.rig.angle,heading[target.direction],dt);
       const distance=Math.hypot(target.px-this.rig.x,target.py-this.rig.y);
       // Keep speed across consecutive cells; gently finish the current cell on release.
       const desired=direction===target.direction?280:Math.max(65,Math.min(280,distance*8));
@@ -264,7 +268,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.world.heard){this.world.heard=true;this.refreshHUD();this.persist();}
     const [dx,dy,angle]={left:[-1,0,180],right:[1,0,0],up:[0,-1,-90],down:[0,1,90]}[direction];
     this.rig.angle=smoothHeading(this.rig.angle,angle,dt);
-    if(Math.abs(wrapDegrees(angle-this.rig.angle))>5) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
+    if(Math.abs(wrapDegrees(angle-this.rig.angle))>.5) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
     const x=this.world.x+dx,y=this.world.y+dy;
     if(!this.world.inside(x,y)){this.speed=damp(this.speed,0,12,dt);return;}
     if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.speed=damp(this.speed,0,12,dt);this.refreshHUD();return;}
@@ -291,17 +295,28 @@ class Base extends globalThis.Phaser.Scene {
   animateVehicle(time,dt) {
     this.heat=updateHeat(this.heat,this.cutting,dt);
     const moving=this.moving && this.speed>20;
-    const vibration=this.cutting?1.1:moving?.45:0;
+    const vibration = this.cutting ? 1.1 : moving ? .45 : 0;
     this.drillSprite.setPosition(Math.sin(time*.11)*vibration*.4,Math.sin(time*.065)*vibration);
     this.headHeat.setPosition(this.drillSprite.x,this.drillSprite.y);
     this.trackMotion.setPosition(this.drillSprite.x,this.drillSprite.y);
     this.shadow.setPosition(this.rig.x,this.rig.y+7).setAngle(this.rig.angle);
-    this.trackPhase=(this.trackPhase+(this.cutting?110:this.speed)*dt)%9;
+    // Broad plates move slowly enough to read on a small screen rather than flicker.
+    const beltSpeed = this.cutting ? 34 : moving ? this.speed*.14 : 0;
+    this.trackPhase=(this.trackPhase+beltSpeed*dt)%7;
     this.trackMotion.clear();
-    if(moving||this.cutting) {
-      this.trackMotion.lineStyle(1.5,0xefddb8,.38);
-      for(let x=-28;x<28;x+=9) for(const y of [-24,24])
-        this.trackMotion.lineBetween(x-this.trackPhase,y-3,x-this.trackPhase,y+3);
+    for(const y of [-24,24]) {
+      this.trackMotion.fillStyle(0x17282c,1);
+      this.trackMotion.fillRoundedRect(-32,y-4.5,65,9,2);
+      for(let x=-39-this.trackPhase;x<33;x+=7) {
+        const left=Math.max(-31,x),right=Math.min(32,x+5.5);
+        if(right<=left)continue;
+        this.trackMotion.fillStyle(0x697780,1);
+        this.trackMotion.fillRect(left,y-3.5,right-left,7);
+        this.trackMotion.lineStyle(1,0xc3d0cd,.95);
+        this.trackMotion.lineBetween(left,y-3,right,y-3);
+        this.trackMotion.lineStyle(1,0x26393e,1);
+        this.trackMotion.lineBetween(left,y+3,right,y+3);
+      }
     }
     this.headHeat.clear();
     if(this.heat>.01) {
@@ -431,7 +446,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    this.load.image('drill', './public/assets/game/drill.webp');
+    this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
       loading.textContent = 'Не удалось загрузить оформление. Обновите страницу.';
