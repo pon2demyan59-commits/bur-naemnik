@@ -87,7 +87,8 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    this.load.image('dirt', './public/assets/game/dirt-square.webp');
+    this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
+    this.load.image('bunker-floor', './public/assets/game/bunker-floor.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
@@ -95,7 +96,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill') || !this.textures.exists('dirt')) return;
+    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill') || !this.textures.exists('soil-surface') || !this.textures.exists('bunker-floor')) return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }

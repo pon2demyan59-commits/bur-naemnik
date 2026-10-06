@@ -1,3 +1,4 @@
+import { WorldTerrain } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { writeSave } from './storage.js';
 import { driveStep, driveFits } from './drive-controller.js';
@@ -46,13 +47,8 @@ export class Base extends globalThis.Phaser.Scene {
     this.cameras.main.fadeIn(300,12,26,27);
   }
   makeTextures() {
-    if(this.textures.exists('base-floor')) return;
+    if(this.textures.exists('serega')) return;
     const g=this.make.graphics({x:0,y:0,add:false});
-    g.fillStyle(0x3f5958);g.fillRect(0,0,CELL,CELL);
-    g.fillStyle(0x496360);g.fillRoundedRect(2,2,CELL-4,CELL-4,7);
-    g.lineStyle(1,0x78918b,.28);g.strokeRoundedRect(3,3,CELL-6,CELL-6,6);
-    g.lineStyle(2,0x273f3d,.55);g.lineBetween(8,48,21,48);g.lineBetween(21,48,25,52);
-    g.generateTexture('base-floor',CELL,CELL);g.clear();
     g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.clear();
     g.fillStyle(0x081e1d,.5);g.fillEllipse(16,34,25,9);
     g.fillStyle(0x234e55);g.fillRoundedRect(7,16,19,15,5);
@@ -63,16 +59,12 @@ export class Base extends globalThis.Phaser.Scene {
     g.generateTexture('serega',32,40);g.destroy();
   }
   makeMap() {
-    this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,'base-floor').setOrigin(0).setDepth(0);
+    const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,'bunker-floor').setOrigin(0).setDepth(0);
+    const source=this.textures.get('bunker-floor').getSourceImage();floor.setTileScale(256/source.width,256/source.height);
     const border=this.add.graphics().setDepth(1);
     border.fillStyle(0x203b3c);border.fillRect(0,0,3200,128);border.fillRect(0,3072,3200,128);border.fillRect(0,0,128,3200);border.fillRect(3072,0,128,3200);
     border.lineStyle(8,0x809187);border.strokeRect(128,128,2944,2944);
-    this.blocks=new Map();
-    for(let y=2;y<48;y++)for(let x=2;x<48;x++) if(this.world.blocked(x,y)) {
-      const block=this.add.image(middle(x),middle(y),'dirt').setDisplaySize(CELL,CELL).setDepth(3);
-      this.blocks.set(y*50+x,block);
-      if(this.world.damage.has(y*50+x)) block.setTint(0xd2aa6b);
-    }
+    this.terrain=new WorldTerrain(this,this.world);
     const bx=middle(25),by=middle(8),vault=this.add.graphics().setDepth(2);
     vault.fillStyle(0x162f30,.6);vault.fillRoundedRect(bx-265,by-110,530,230,24);
     vault.fillStyle(0x396b69);vault.fillRoundedRect(bx-245,by-115,490,200,24);
@@ -194,11 +186,11 @@ export class Base extends globalThis.Phaser.Scene {
       this.cutting=true;
       const key=y*BASE_SIZE+x;
       const broken=this.world.drill(x,y,dt);
-      const block=this.blocks.get(key);if(block)block.setTint(0xdcc28a);
+      this.terrain.paintCell(x,y);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        block?.destroy();this.blocks.delete(key);this.drillBar.clear();
+        this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
         this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
