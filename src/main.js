@@ -1,9 +1,11 @@
 import { readSave, readSettings, writeSettings } from './storage.js';
+import { Base } from './base-scene.js';
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
 const settings = readSettings();
 let audio;
+let game;
 function clickSound() {
   if (!settings.sound) return;
   try {
@@ -45,11 +47,8 @@ function showSettings() {
   openDialog('НАСТРОЙКИ', panel);
 }
 function requestGameplay() {
-  const save = readSave();
-  // A future base scene handles this event and prevents the fallback dialog.
-  const handled = !window.dispatchEvent(new CustomEvent('bur:play', { cancelable: true, detail: { save } }));
-  if (!handled) openDialog(save ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ',
-    'Главная и меню готовы. Игровая база ещё в разработке. Следующий этап — площадка 50×50 и спасение Серёги Т.');
+  game.scene.stop('Menu');
+  game.scene.start('Base', { save: readSave() });
 }
 class ArtworkScene extends Phaser.Scene {
   showArt(key) {
@@ -88,13 +87,14 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    this.load.image('drill', './public/assets/game/drill.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
       loading.textContent = 'Не удалось загрузить оформление. Обновите страницу.';
     });
   }
   create() {
-    if (!this.textures.exists('title') || !this.textures.exists('console')) return;
+    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill')) return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
@@ -113,7 +113,7 @@ class Menu extends ArtworkScene {
     const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
     this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
     this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('КАК ИГРАТЬ',
-      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. Подробное управление добавим вместе с первой игровой локацией.'));
+      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти человека рядом. На телефоне — кнопки направлений и спасения.'));
     this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
       'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
     this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
@@ -124,9 +124,9 @@ class Menu extends ArtworkScene {
   }
 }
 if (!Phaser) document.querySelector('#loading').textContent = 'Движок не загрузился. Обновите страницу.';
-else new Phaser.Game({
+else game = new Phaser.Game({
   type: location.protocol === 'file:' ? Phaser.CANVAS : Phaser.AUTO, parent: 'canvas-host', backgroundColor: '#0c1a1b',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   loader: { imageLoadType: 'HTMLImageElement' },
-  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu],
+  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base],
 });

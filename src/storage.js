@@ -17,3 +17,7 @@ export function writeSettings(value) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(value)); return true; }
   catch { return false; }
 }
+export function writeSave(progress) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ version:1, progress })); return true; }
+  catch { return false; }
+}

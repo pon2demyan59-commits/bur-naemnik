@@ -45,3 +45,41 @@ p { line-height: 1.6; }
  .back-button { top: auto; bottom: max(3%, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+.base-hud { position: absolute; inset: 0; color: #f6e7bf; pointer-events: none; }
+.base-top { display: flex; justify-content: space-between; align-items: center; padding: max(16px,env(safe-area-inset-top)) 20px 0; gap: 12px; }
+.base-location { padding: 11px 18px; background: #183e3deb; border: 2px solid #799486; border-radius: 14px; font-weight: 900; letter-spacing: .05em; box-shadow: 0 4px 0 #102926; }
+.base-location span { display: block; font-size: 12px; color: #c3c9b1; margin-top: 5px; font-weight: normal; }
+.hud-button { color: #31230b; background: linear-gradient(#ffe3a0,#dca345); border: 3px solid #637f70; border-radius: 12px; padding: 13px 18px; font-weight: 900; min-height: 48px; box-shadow: 0 4px 0 #143333; }
+.hud-button:disabled { filter: saturate(.2); opacity: .65; cursor: default; }
+.radio-card { position: absolute; top: 98px; left: 20px; width: 310px; padding: 18px; border-radius: 18px; border: 3px solid #587d70; background: linear-gradient(135deg,#244b47f5,#153632f5); box-shadow: 0 6px #102823,0 12px 30px #0005; }
+.radio-title { color: #bbcbbb; font-size: 11px; letter-spacing: .16em; margin-bottom: 12px; }
+.radio-led { display: inline-block; width: 8px; height: 8px; background: #edc66c; border-radius: 50%; box-shadow: 0 0 10px #ffd278; margin-right: 6px; }
+.radio-card strong { color: #ffd478; font-size: 21px; }
+.radio-card p { font-size: 14px; line-height: 1.5; margin: 10px 0; }
+.quest-track { color: #a3c7b0; border-top: 1px solid #668b7055; padding-top: 10px; font-size: 12px; }
+.base-bottom { position: absolute; bottom: max(18px,env(safe-area-inset-bottom)); left: 20px; right: 20px; display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.base-tip { padding: 12px; border-radius: 12px; background: #153936d9; font-size: 12px; line-height: 1.6; }
+#base-save { padding: 8px; font-size: 11px; background: #12312dcc; border-radius: 8px; }
+.touch-pad { display: none; }
+@media (pointer: coarse), (max-width: 700px) {
+ .base-top { padding: 10px; }
+ .base-location { padding: 8px 12px; font-size: 13px; }
+ .hud-button { font-size: 12px; padding: 10px 12px; }
+ .radio-card { top: 83px; left: 10px; width: min(275px,calc(100% - 20px)); padding: 12px; }
+ .radio-card strong { font-size: 18px; }
+ .radio-card p { font-size: 12px; }
+ .base-tip { display: none; }
+ .base-bottom { bottom: max(20px,env(safe-area-inset-bottom)); left: auto; right: 12px; flex-direction: column; align-items: end; max-width: 45%; }
+ .touch-pad { display: grid; position: absolute; left: 12px; bottom: max(20px,env(safe-area-inset-bottom)); grid-template-columns: repeat(3,48px); grid-template-rows: repeat(2,48px); gap: 5px; }
+ .touch-pad button { font-size: 21px; color: #ffda80; border: 2px solid #789e8c; border-radius: 12px; background: #193f3cec; touch-action: none; }
+ .touch-pad button:active { background: #b78137; }
+ .touch-pad [data-dir="up"] { grid-column: 2; }
+ .touch-pad [data-dir="left"] { grid-row: 2; grid-column: 1; }
+ .touch-pad [data-dir="down"] { grid-row: 2; grid-column: 2; }
+ .touch-pad [data-dir="right"] { grid-row: 2; grid-column: 3; }
+}
+@media (max-height: 520px) {
+ .radio-card { top: 80px; width: 240px; padding: 10px; }
+ .radio-card p { font-size: 12px; }
+ .base-tip { display: none; }
+}
