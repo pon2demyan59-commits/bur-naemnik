@@ -17,6 +17,42 @@ export function soilFacePolygon(mask,side) {
   const outer=[[[0,0],[64,0]],[[64,0],[64,64]],[[64,64],[0,64]],[[0,64],[0,0]]][side];
   return [inner[0],inner[1],outer[1],outer[0]];
 }
+// NW, NE, SE, SW: diagonals expose inside bends hidden by cardinal masks.
+export function terrainCornerTypes(world,x,y) {
+  if(!world.inside(x,y)||!world.blocked(x,y))return [-1,-1,-1,-1];
+  const soil=(cx,cy)=>world.inside(cx,cy)&&world.blocked(cx,cy);
+  return [[-1,-1],[1,-1],[1,1],[-1,1]].map(([dx,dy],corner)=>{
+    const horizontal=soil(x+dx,y),vertical=soil(x,y+dy);
+    if(!horizontal&&!vertical)return corner+4;
+    if(horizontal&&vertical&&!soil(x+dx,y+dy))return corner;
+    return -1;
+  });
+}
+function cornerPatch(ctx,type,variant,face) {
+  const corner=type%4,right=corner===1||corner===2,bottom=corner>=2;
+  const width=right?16:11,height=bottom?27:8;
+  ctx.save();ctx.translate(right?64:0,bottom?64:0);ctx.scale(right?-1:1,bottom?-1:1);
+  ctx.beginPath();
+  if(type<4) {
+    // A concave ellipse joins the two neighboring cut faces at their exact insets.
+    ctx.moveTo(0,0);ctx.lineTo(width,0);
+    ctx.bezierCurveTo(width,height*.552,width*.552,height,0,height);ctx.closePath();
+  } else {
+    // Shave the pointed top corner into a small rounded clay rim.
+    const r=5;ctx.moveTo(width,height);ctx.lineTo(width+r,height);
+    ctx.quadraticCurveTo(width,height,width,height+r);ctx.closePath();
+  }
+  ctx.save();ctx.clip();
+  const panel=variant%4;
+  ctx.drawImage(face,panel*face.width/4,0,face.width/4,face.height,0,0,64,height+6);
+  const shade=ctx.createLinearGradient(0,0,0,height+5);
+  shade.addColorStop(0,'rgba(25,19,14,.48)');shade.addColorStop(1,'rgba(39,23,13,.05)');
+  ctx.fillStyle=shade;ctx.fillRect(0,0,64,height+6);ctx.restore();
+  ctx.beginPath();
+  if(type<4){ctx.moveTo(width,0);ctx.bezierCurveTo(width,height*.552,width*.552,height,0,height);}
+  else {ctx.moveTo(width+5,height);ctx.quadraticCurveTo(width,height,width,height+5);}
+  ctx.strokeStyle='rgba(248,193,107,.9)';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.stroke();ctx.restore();
+}
 function cutEdge(ctx,side,variant,face,mask) {
   const polygon=soilFacePolygon(mask,side);
   const inner=polygon.slice(0,2),outer=[polygon[3],polygon[2]];
@@ -94,7 +130,7 @@ function floorFixture(ctx,type,sprites) {
 }
 function makeTerrainAtlas(scene) {
   if(scene.textures.exists('terrain-atlas'))return;
-  const texture=scene.textures.createCanvas('terrain-atlas',1088,1224);
+  const texture=scene.textures.createCanvas('terrain-atlas',1088,1768);
   const sprites=Object.fromEntries(['pipe','cap','vent','drain','cable'].map(name=>[name,spriteSource(scene,'prop-'+name)]));
   const ctx=texture.getContext(),source=scene.textures.get('soil-surface').getSourceImage(),face=scene.textures.get('soil-cut').getSourceImage();
   for(let variant=0;variant<16;variant++)for(let mask=0;mask<16;mask++) {
@@ -112,6 +148,11 @@ function makeTerrainAtlas(scene) {
   }
   for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
   for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
+  for(let variant=0;variant<16;variant++)for(let type=0;type<8;type++) {
+    const index=288+variant*8+type;
+    ctx.save();ctx.translate(index%16*68+2,Math.floor(index/16)*68+2);
+    ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();cornerPatch(ctx,type,variant,face);ctx.restore();
+  }
   texture.refresh();
 }
 export class WorldTerrain {
@@ -121,15 +162,21 @@ export class WorldTerrain {
     const tiles=this.map.addTilesetImage('terrain-atlas','terrain-atlas',CELL,CELL,2,4);
     this.fixtures=this.map.createBlankLayer('bunker-fixtures',tiles).setDepth(2);
     this.layer=this.map.createBlankLayer('soil',tiles).setDepth(3);
+    this.corners=Array.from({length:4},(_,i)=>this.map.createBlankLayer('soil-corner-'+i,tiles).setDepth(3.1));
     for(let y=0;y<BASE_SIZE;y++)for(let x=0;x<BASE_SIZE;x++)this.paintCell(x,y);
     scene.events.once('shutdown',()=>this.map.destroy());
   }
   paintCell(x,y) {
     if(x<0||y<0||x>=BASE_SIZE||y>=BASE_SIZE)return;
     const tile=this.layer.putTileAt(terrainTileIndex(this.world,x,y),x,y);
+    terrainCornerTypes(this.world,x,y).forEach((type,i)=>{
+      if(type<0)this.corners[i].removeTileAt(x,y);
+      else this.corners[i].putTileAt(288+((y%4)*4+x%4)*8+type,x,y);
+    });
     const fixture=floorFixtureIndex(this.world,x,y);
     if(fixture<0)this.fixtures.removeTileAt(x,y);else this.fixtures.putTileAt(fixture,x,y);
     tile.tint=this.world.damage.has(y*BASE_SIZE+x)?0xf4d6aa:0xffffff;
+    for(const layer of this.corners){const corner=layer.getTileAt(x,y);if(corner)corner.tint=tile.tint;}
   }
   refreshAround(x,y) {
     for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(Math.abs(dx)+Math.abs(dy)<=2)this.paintCell(x+dx,y+dy);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { terrainTileIndex, floorFixtureIndex, soilCornerBounds, soilFacePolygon } from '../src/terrain.js';
+import { terrainTileIndex, floorFixtureIndex, soilCornerBounds, soilFacePolygon, terrainCornerTypes } from '../src/terrain.js';
 function world(cells) {return {inside:(x,y)=>x>=0&&y>=0&&x<50&&y<50,blocked:(x,y)=>cells.has(y*50+x)};}
 test('adjacent earth has no internal cut edges; excavation exposes only bordering cells',()=>{
   const cells=new Set();for(let y=9;y<=11;y++)for(let x=9;x<=11;x++)cells.add(y*50+x);
@@ -40,4 +40,14 @@ test('excavating neighboring rubble does not move or regenerate floor fixtures',
   assert.ok(before>=272);
   cells.delete(9*50+7);cells.delete(10*50+6);cells.delete(10*50+8);
   assert.equal(floorFixtureIndex(w,7,10),before);
+});
+
+test('diagonal excavation rounds the inside bend and refreshes its corner without removing soil',()=>{
+  const cells=new Set();for(let y=9;y<=11;y++)for(let x=9;x<=11;x++)cells.add(y*50+x);
+  const w=world(cells);assert.deepEqual(terrainCornerTypes(w,10,10),[-1,-1,-1,-1]);
+  cells.delete(11*50+11);
+  assert.deepEqual(terrainCornerTypes(w,10,10),[-1,-1,2,-1]);
+  assert.equal(terrainTileIndex(w,10,10)%16,0);
+  assert.deepEqual(terrainCornerTypes(w,11,11),[-1,-1,-1,-1]);
+  assert.deepEqual(terrainCornerTypes(world(new Set([10*50+10])),10,10),[4,5,6,7]);
 });
