@@ -1,5 +1,6 @@
 import { readSave, readSettings, writeSettings } from './storage.js';
 import { Base } from './base-scene.js';
+import { Floor } from './floor-scene.js';
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
@@ -48,7 +49,7 @@ function showSettings() {
 }
 function requestGameplay() {
   game.scene.stop('Menu');
-  game.scene.start('Base', { save: readSave() });
+  const save=readSave();game.scene.start(save?.progress?.location==='floor'?'Floor':'Base',{save});
 }
 class ArtworkScene extends Phaser.Scene {
   showArt(key) {
@@ -91,6 +92,7 @@ class Boot extends Phaser.Scene {
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
+    this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
@@ -99,7 +101,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['title','console','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['title','console','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
@@ -118,7 +120,7 @@ class Menu extends ArtworkScene {
     const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
     this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
     this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('КАК ИГРАТЬ',
-      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти человека рядом. На телефоне — кнопки направлений и спасения.'));
+      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти Серёгу вплотную или открыть пульт с платформы лифта. После спасения расчисти три подсвеченных блока у въезда. На телефоне — кнопки направлений и взаимодействия.'));
     this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
       'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
     this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
@@ -133,5 +135,5 @@ else game = new Phaser.Game({
   type: location.protocol === 'file:' ? Phaser.CANVAS : Phaser.AUTO, parent: 'canvas-host', backgroundColor: '#0c1a1b',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   loader: { imageLoadType: 'HTMLImageElement' },
-  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base],
+  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });

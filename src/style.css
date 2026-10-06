@@ -83,3 +83,12 @@ p { line-height: 1.6; }
  .radio-card p { font-size: 12px; }
  .base-tip { display: none; }
 }
+.quest-toast { position:absolute; top:35%; left:50%; transform:translateX(-50%); width:min(520px,calc(100% - 30px)); padding:20px; border:3px solid #d6b566; border-radius:14px; background:#183d38f5; color:#ffe19a; text-align:center; font-weight:900; box-shadow:0 6px 0 #0d2828,0 12px 40px #0008; }
+.lift-console { padding:15px; border:4px solid #77827c; border-radius:12px; background:linear-gradient(135deg,#414f4a,#263a38); box-shadow:inset 0 2px 2px #bac0a566; display:flex; flex-direction:column; gap:12px; }
+.lift-display { padding:16px; border:5px solid #132724; background:#123831; box-shadow:inset 0 3px 10px #0007; border-radius:6px; color:#dddf95; text-align:center; font-weight:900; font-size:27px; }
+.lift-status { font-size:13px; line-height:1.4; margin:0; color:#d3d3b6; }
+.floor-button { min-height:52px; padding:12px; border:3px solid #829086; border-radius:8px; background:linear-gradient(#c1c8af,#879689); color:#25342e; font-weight:900; box-shadow:0 3px #111f1d,inset 0 2px #e9e5c477; }
+.floor-button.selected { background:linear-gradient(#efd18c,#bba064); border-color:#ffdf87; }
+.floor-button:disabled { background:#46514c; color:#a5aaa1; cursor:default; box-shadow:inset 0 2px 8px #0004; }
+.lift-console .metal-button:disabled { opacity:.5; cursor:default; }
+@media(max-width:600px){.dialog-shell{padding:18px;}h2{font-size:21px;}.lift-console{padding:10px;}.lift-display{font-size:23px;}}

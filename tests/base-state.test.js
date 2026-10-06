@@ -9,7 +9,8 @@ test('drilling damage survives a save and remains until the rubble breaks',()=>{
 });
 test('rescue requires reaching the person and cannot repeat',()=>{
  const world=new BaseWorld();assert.equal(world.canRescue(),false);
- world.x=RESCUE.x-1;world.y=RESCUE.y;assert.equal(world.canRescue(),true);
+ world.x=RESCUE.x-1;world.y=RESCUE.y;assert.equal(world.canRescue(),false);
+ const px=(RESCUE.x+.5)*64-54,py=(RESCUE.y+.5)*64;assert.equal(world.canRescue(px,py),true);
  world.rescued=true;assert.equal(new BaseWorld(world.snapshot()).canRescue(),false);
 });
 test('invalid saved positions and damaged records do not break the base',()=>{

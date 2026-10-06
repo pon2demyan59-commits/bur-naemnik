@@ -34,6 +34,8 @@ const validCell = n => Number.isInteger(n) && n >= 0 && n < BASE_SIZE * BASE_SIZ
 function initialRubble(x, y) {
   if (x < 2 || y < 2 || x >= 48 || y >= 48) return false;
   if ((x >= 19 && x <= 23 && y >= 23 && y <= 29) || (x === RESCUE.x && y === RESCUE.y)) return false;
+  // Space reserved for the physical freight lift; three entrance blocks jam it.
+  if(x>=30&&x<=36&&y>=18&&y<=24)return y===24&&x>=32&&x<=34;
   // A fixed, reproducible starting base, not a regenerated level.
   if (x >= 24 && x <= 26 && y >= 24 && y <= 28) return true;
   if (y >= 6 && y <= 10 && x >= 18 && x <= 32) return false;
@@ -46,6 +48,7 @@ class BaseWorld {
     this.cleared = new Set(Array.isArray(progress.cleared) ? progress.cleared.filter(validCell) : []);
     this.damage = new Map(Array.isArray(progress.damage) ? progress.damage.filter(v => Array.isArray(v) && validCell(v[0]) && Number.isFinite(v[1]) && v[1] > 0 && v[1] < 1) : []);
     this.rescued = progress.rescued === true;
+    this.liftAnnounced = progress.liftAnnounced === true;
     this.heard = progress.heard === true || this.rescued;
     if (this.blocked(this.x, this.y) || (!this.rescued && this.x === RESCUE.x && this.y === RESCUE.y)) { this.x = SPAWN.x; this.y = SPAWN.y; }
   }
@@ -57,8 +60,10 @@ class BaseWorld {
     if (damage >= 1) { this.cleared.add(key); this.damage.delete(key); return true; }
     this.damage.set(key, damage); return false;
   }
-  canRescue() { return !this.rescued && Math.abs(this.x - RESCUE.x) + Math.abs(this.y - RESCUE.y) <= 1; }
-  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard }; }
+  canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {
+    return !this.rescued&&Math.hypot(px-(RESCUE.x+.5)*CELL,py-(RESCUE.y+.5)*CELL)<=58;
+  }
+  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced }; }
 }
 
 function wrapDegrees(angle) { return ((angle + 180) % 360 + 360) % 360 - 180; }
@@ -365,6 +370,89 @@ function bunkerFloorTexture(scene) {
 }
 
 
+const LIFT = {x:33,y:21};
+const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
+const FLOOR_LIFT = {x:25,y:7};
+function liftBlockCount(world) { return LIFT_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length; }
+function liftFrameCell(x,y,center=LIFT) {
+  const dx=x-center.x,dy=y-center.y;
+  return Math.abs(dx)<=3&&dy>=-3&&dy<=3&&!(Math.abs(dx)<=1&&dy>=-1);
+}
+function liftDestinations(progress) {
+  const base=progress.base||progress,highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0)));
+  const cards=new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),...(base.rescued?[1]:[])]);
+  return [{floor:0,enabled:true},...Array.from({length:Math.min(100,highest+1)},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
+}
+// Separate mine state: the lift never swaps the base's excavated cells with a floor.
+class FloorWorld {
+  constructor(progress={}) {
+    this.floor=1;this.x=Number.isInteger(progress.x)?progress.x:FLOOR_LIFT.x;
+    this.y=Number.isInteger(progress.y)?progress.y:FLOOR_LIFT.y;
+    this.cleared=new Set(Array.isArray(progress.cleared)?progress.cleared.filter(n=>Number.isInteger(n)&&n>=0&&n<BASE_SIZE*BASE_SIZE):[]);
+    this.damage=new Map(Array.isArray(progress.damage)?progress.damage.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<BASE_SIZE*BASE_SIZE&&Number.isFinite(v[1])&&v[1]>0&&v[1]<1):[]);
+    this.rescued=true;this.heard=true;
+    if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftFrameCell(this.x,this.y,FLOOR_LIFT)){this.x=25;this.y=7;}
+  }
+  inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
+  blocked(x,y){return this.inside(x,y)&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
+  drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount;if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
+  canRescue(){return false;}
+  snapshot(){return {location:'floor',floor:1,x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+}
+
+
+
+class LiftView {
+  constructor(scene,center) {
+    this.scene=scene;this.x=(center.x+.5)*CELL;this.y=(center.y+.5)*CELL;
+    const texture=scene.textures.get('freight-lift'),scale=384/1077;
+    const originX=this.x-1077*scale/2,originY=this.y-1063*scale/2;
+    const pieces={top:[127,40,1077,280],bottom:[127,885,1077,218],left:[127,320,206,565],right:[998,320,206,565],deck:[333,320,665,565],gate:[334,280,664,32]};
+    const image=(key,depth)=>{const [x,y,w,h]=pieces[key];if(!texture.has(key))texture.add(key,0,x,y,w,h);return scene.add.image(originX+(x-127)*scale,originY+(y-40)*scale,'freight-lift',key).setOrigin(0).setScale(scale).setDepth(depth);};
+    this.deckX=originX+(333-127)*scale;this.deckY=originY+(320-40)*scale;
+    this.deckW=665*scale;this.deckH=565*scale;
+    this.shaft=scene.add.rectangle(this.deckX,this.deckY,this.deckW,this.deckH,0x0c1719).setOrigin(0).setDepth(2);
+    this.platform=image('deck',2.2);this.parts=['top','bottom','left','right'].map(key=>image(key,25));
+    this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
+    const gateClip=scene.make.graphics({x:0,y:0,add:false});gateClip.fillRect(this.deckX,this.deckY+this.deckH-15,this.deckW,24);this.gateMask=gateClip.createGeometryMask();this.gates.forEach(g=>g.setMask(this.gateMask));
+    const shaftClip=scene.make.graphics({x:0,y:0,add:false});shaftClip.fillRect(this.deckX,this.deckY,this.deckW,this.deckH+2);this.mask=shaftClip.createGeometryMask();
+    this.indicator=scene.add.circle(this.x+169,this.y+24,4,0x86f672).setDepth(27);
+    scene.events.once('shutdown',()=>{this.mask.destroy();this.gateMask.destroy();shaftClip.destroy();gateClip.destroy();});
+  }
+  contains(rig){return rig.x>this.deckX+48&&rig.x<this.deckX+this.deckW-48&&rig.y>this.deckY+48&&rig.y<this.deckY+this.deckH-48;}
+  powered(value){this.indicator.setFillStyle(value?0x74ee87:0xffad46);this.parts.forEach(p=>p.setDepth(value?25:2.5));}
+  motor(duration=.8) {
+    if(!readSettings().sound)return;
+    try {
+      const audio=new (window.AudioContext||window.webkitAudioContext)(),osc=audio.createOscillator(),gain=audio.createGain(),filter=audio.createBiquadFilter();
+      audio.resume().catch(()=>{});osc.type='sawtooth';osc.frequency.setValueAtTime(65,audio.currentTime);osc.frequency.linearRampToValueAtTime(90,audio.currentTime+duration*.6);
+      filter.type='lowpass';filter.frequency.value=180;gain.gain.setValueAtTime(.001,audio.currentTime);gain.gain.linearRampToValueAtTime(.025,audio.currentTime+.08);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);
+      osc.connect(filter);filter.connect(gain);gain.connect(audio.destination);osc.start();osc.stop(audio.currentTime+duration);osc.onended=()=>audio.close().catch(()=>{});
+    } catch { /* Mechanical sound is optional when browser audio is unavailable. */ }
+  }
+  tween(config){return new Promise(resolve=>this.scene.tweens.add({...config,onComplete:resolve}));}
+  async depart(rig,shadow,targetFloor) {
+    const s=this.scene;this.motor(1.1);s.cameras.main.stopFollow();s.cameras.main.shake(180,.001);rig.setPosition(this.x,this.deckY+this.deckH/2);shadow.setVisible(false);
+    await Promise.all(this.gates.map((gate,i)=>this.tween({targets:gate,x:this.x+(i===0?-1:1)*this.deckW/4,duration:330,ease:'Cubic.Out'})));
+    rig.setMask(this.mask);this.platform.setMask(this.mask);this.indicator.setFillStyle(0xffcb55);
+    const dy=targetFloor===0?-55:55;
+    await Promise.all([this.tween({targets:rig,y:rig.y+dy,alpha:.1,scale:.92,duration:850,ease:'Sine.In'}),this.tween({targets:this.platform,y:this.platform.y+dy,alpha:.15,duration:850,ease:'Sine.In'})]);
+    await new Promise(resolve=>{s.cameras.main.once('camerafadeoutcomplete',resolve);s.cameras.main.fadeOut(230,8,19,21);});
+  }
+  async arrive(rig,shadow) {
+    this.scene.cameras.main.stopFollow();this.scene.cameras.main.centerOn(this.x,this.deckY+this.deckH/2);
+    rig.setPosition(this.x,this.deckY+this.deckH/2+45).setAlpha(.15).setScale(.92).setMask(this.mask);shadow.setVisible(false);
+    const y=this.platform.y;this.platform.setY(y+45).setAlpha(.15).setMask(this.mask);
+    this.gates.forEach((g,i)=>g.x=this.x+(i===0?-1:1)*this.deckW/4);
+    await Promise.all([this.tween({targets:rig,y:this.deckY+this.deckH/2,alpha:1,scale:1,duration:650,ease:'Sine.Out'}),this.tween({targets:this.platform,y,alpha:1,duration:650,ease:'Sine.Out'})]);
+    await Promise.all(this.gates.map((gate,i)=>this.tween({targets:gate,x:this.x+(i===0?-1:1)*this.deckW,duration:330,ease:'Cubic.Out'})));
+    rig.clearMask();this.platform.clearMask();shadow.setVisible(true);this.powered(true);this.scene.cameras.main.startFollow(rig,true,.10,.10);
+  }
+}
+
+
+
+
 
 
 
@@ -372,8 +460,18 @@ function bunkerFloorTexture(scene) {
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
-  constructor() { super('Base'); }
-  init({save} = {}) { this.world = new BaseWorld(save?.progress); this.parked=save?.progress?.drive; this.touchDirections=new Map(); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; this.trackDustTime=0; this.sparkTime=0; this.speed=0; this.heat=0; this.beltPhases=[0,0];this.turnVelocity=0; this.cutting=false; }
+  constructor(key='Base') { super(key); }
+  init({save,arrival=false} = {}) {
+    const p=save?.progress||{};this.campaign=p;
+    this.floorNumber=this.sys.settings.key==='Floor'?1:0;
+    const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
+    this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
+    this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.leaving=false;
+    this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
+    if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
+    this.touchDirections=new Map();this.moving=false;this.hold=null;this.lastSave=0;
+    this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
+  }
   create() {
     this.makeTextures();
     this.makeMap();
@@ -396,20 +494,25 @@ class Base extends globalThis.Phaser.Scene {
     this.keys=this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ESC');
     this.input.keyboard.addCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     this.input.keyboard.on('keydown-ESC',this.goMenu,this);
-    this.input.keyboard.on('keydown-E',this.rescue,this);
-    this.input.keyboard.on('keydown-SPACE',this.rescue,this);
+    this.input.keyboard.on('keydown-E',this.interact,this);
+    this.input.keyboard.on('keydown-SPACE',this.interact,this);
     this.clearInput = () => { this.hold=null; this.touchDirections.clear(); this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
     this.fit = size => { this.cameras.main.setSize(size.width,size.height); this.cameras.main.setZoom(size.width < 600 ? .82 : 1.12); };
     this.scale.on('resize',this.fit);
     this.events.once('shutdown',()=>{
-      this.persist(); this.hold=null;
+      if(!this.leaving)this.persist(); this.hold=null;
       window.removeEventListener('blur',this.clearInput); document.removeEventListener('visibilitychange',this.clearInput);
       this.scale.off('resize',this.fit);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
-    this.refreshHUD(); this.persist();
+    this.passenger=this.add.image(-7,0,'serega').setScale(.32).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
+    this.dialogClosed=()=>{this.hold=null;this.touchDirections.clear();this.input.keyboard.resetKeys();this.speed=0;};
+    document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
+    this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
+    this.refreshHUD();this.persist();this.checkLift();
+    if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();});
     this.cameras.main.fadeIn(300,12,26,27);
   }
   makeTextures() {
@@ -431,16 +534,17 @@ class Base extends globalThis.Phaser.Scene {
     border.fillStyle(0x203b3c);border.fillRect(0,0,3200,128);border.fillRect(0,3072,3200,128);border.fillRect(0,0,128,3200);border.fillRect(3072,0,128,3200);
     border.lineStyle(8,0x809187);border.strokeRect(128,128,2944,2944);
     this.terrain=new WorldTerrain(this,this.world);
-    const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
-    // Precomputed alpha bounds keep direct file launch free of canvas pixel reads.
-    if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
-    this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance')
-      .setDisplaySize(530,530*704/1711).setDepth(2);
-    this.add.text(middle(33),middle(21),'ЛИФТ\nПОД ЗАВАЛОМ',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
-    this.add.text(middle(18),middle(32),'ПОРОДНИК\nНЕ ЗАПУЩЕН',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
-    this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10);
-    this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11);
-    this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
+    this.lift=new LiftView(this,this.liftCenter);
+    this.blockGlow=this.add.graphics().setDepth(4);
+    if(!this.floorNumber) {
+      const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
+      if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
+      this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance').setDisplaySize(530,530*704/1711).setDepth(2);
+      this.add.text(middle(18),middle(32),'ПОРОДНИК\nНЕ ЗАПУЩЕН',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
+      this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
+      this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
+      this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
+    }
     this.drillBar=this.add.graphics().setDepth(30);
   }
   makeHUD() {
@@ -448,37 +552,98 @@ class Base extends globalThis.Phaser.Scene {
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База · 50 × 50</span></div><button class="hud-button" id="base-menu">☰ МЕНЮ</button></header>
       <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div></aside>
-      <footer class="base-bottom"><div class="base-tip">WASD / стрелки — движение и бурение<br>E / пробел — спасти человека рядом</div><div id="base-save" role="status"></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
+      <footer class="base-bottom"><div class="base-tip">WASD / стрелки — движение и бурение<br>E / пробел — взаимодействовать</div><div id="base-save" role="status"></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
     ui.append(hud);
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
-    hud.querySelector('#rescue-action').addEventListener('click',()=>this.rescue());
+    hud.querySelector('#rescue-action').addEventListener('click',()=>this.interact());
     for(const button of hud.querySelectorAll('[data-dir]')) {
       button.addEventListener('pointerdown',event=> { event.preventDefault();button.setPointerCapture(event.pointerId);this.touchDirections.delete(event.pointerId);this.touchDirections.set(event.pointerId,button.dataset.dir);this.hold=button.dataset.dir; });
       const stop=event=>{this.touchDirections.delete(event.pointerId);this.hold=[...this.touchDirections.values()].at(-1)||null;};
       button.addEventListener('pointerup',stop);button.addEventListener('pointercancel',stop);button.addEventListener('lostpointercapture',stop);
     }
   }
+  liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.world)===0;}
+  syncAction() {
+    const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
+    const saving=!this.floorNumber&&!this.world.rescued;
+    const label=saving?'СПАСТИ СЕРЁГУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
+    action.hidden=false;action.disabled=this.busy||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+  }
   refreshHUD() {
-    const w=this.world;
-    document.querySelector('#quest-name').textContent=w.rescued?'Голос за завалом — выполнено':'Голос за завалом';
-    document.querySelector('#radio-text').textContent=w.rescued?'Серёга Т: «Живой! Строитель я. С лифта начнём — только сначала передохнём».':w.heard?'Серёга Т: «Эй, в железяке! Я за завалом справа. Разгреби проход и подъедь — помогу с базой».':'Ты очнулся один. Бур завёлся. Двинься с места — рация ещё подаёт признаки жизни.';
-    document.querySelector('#quest-status').textContent=w.rescued?'✓ Строитель спасён · Следующее задание: «Расчистить лифт»':`Расчищено: ${w.cleared.size} · Доберись до отметки справа`;
-    const action=document.querySelector('#rescue-action');action.disabled=!w.canRescue();action.hidden=w.rescued;
-    this.marker.setText(w.rescued?'✓ СЕРЁГА Т':'! СЕРЁГА Т');this.marker.setBackgroundColor(w.rescued?'#86c3a6':'#ffd372');
+    const w=this.world,ready=this.liftReady();
+    document.querySelector('.base-location').innerHTML=this.floorNumber?'ЭТАЖ 1 <span>Шахта · грузовой лифт</span>':'БУНКЕР №72 <span>База · 50 × 50</span>';
+    document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?' РАЦИЯ · ЭТАЖ 1':' РАЦИЯ · БАЗА';
+    document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить лифт — выполнено':'Расчистить лифт';
+    document.querySelector('#radio-text').textContent=this.floorNumber?'Серёга Т: «Вот и первый этаж. Лифт за спиной — вернуться на базу можно в любой момент».':!w.rescued?(w.heard?'Серёга Т: «Я за завалом справа. Пробури проход и подъедь вплотную — заберусь в кабину».':'Ты очнулся один. Бур завёлся. Двинься с места — рация ещё подаёт признаки жизни.'):ready?'Серёга Т: «Лифт живой. Карта первого этажа у тебя. А следующим делом запустим Породник».':'Серёга Т: «Карту первого этажа держи. Теперь разгреби три блока у въезда — они зажали механизм». ';
+    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'✓ Лифт работает · Карта 1-го этажа получена · Заезжай на платформу':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    this.lift.powered(ready);this.syncAction();
+  }
+  snapshotCampaign() {
+    const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
+    const base=this.floorNumber?(this.campaign.base||{}):local;
+    const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[1]=local;
+    const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[])])];
+    return {...base,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
-    const saved=writeSave({...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}});
-    const status=document.querySelector('#base-save');if(status)status.textContent=saved?'Прогресс сохранён':'Сохранение недоступно в этом браузере';
-    this.lastSave=this.time.now;
+    if(this.leaving||!this.rig)return;
+    this.campaign=this.snapshotCampaign();const saved=writeSave(this.campaign);
+    const status=document.querySelector('#base-save');if(status)status.textContent=saved?'Прогресс сохранён':'Сохранение недоступно в этом браузере';this.lastSave=this.time.now;
   }
-  goMenu() { if(document.querySelector('#dialog').open) return; this.persist();this.scene.start('Menu'); }
+  goMenu() {if(this.busy||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
+  interact() {
+    if(this.busy||document.querySelector('#dialog').open)return;
+    if(!this.floorNumber&&!this.world.rescued)this.rescue();
+    else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
+  }
   rescue() {
-    if(!this.world.canRescue() || document.querySelector('#dialog').open)return;
-    this.world.rescued=true;this.world.heard=true;this.refreshHUD();this.persist();
-    const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СЕРЁГА Т СПАСЁН';
-    const p=document.createElement('p');p.textContent='«Спасибо, командир. Серёга Т, строитель. Ещё немного — и стал бы частью фундамента. Давай вернём этой площадке жизнь. Первым делом расчистим лифт».\n\nПервое задание выполнено. Продолжение истории появится в следующем обновлении.';
-    document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
+    if(this.busy||!this.world.canRescue(this.rig.x,this.rig.y)||document.querySelector('#dialog').open)return;
+    this.busy=true;this.speed=0;this.dialogClosed();this.world.rescued=true;this.world.heard=true;
+    this.marker.setVisible(false);this.persist();
+    this.tweens.add({targets:this.person,x:this.rig.x,y:this.rig.y,scale:.4,alpha:0,duration:550,ease:'Sine.InOut',onComplete:()=>{
+      this.person.setVisible(false);this.passenger.setVisible(true);this.busy=false;this.refreshHUD();this.persist();this.checkLift();
+      const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СЕРЁГА Т В КАБИНЕ';
+      const p=document.createElement('p');p.textContent='«Спасибо, командир. Серёга Т, строитель. Карту первого этажа держи. А вот эту кучу у лифта разгреби — иначе поедешь вниз вместе с лифтом. Один раз». Ключ-карта получена. Новое задание: «Расчистить лифт». Три блока у въезда отмечены подсветкой.';
+      document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
+    }});
+  }
+  checkLift() {
+    if(this.floorNumber||!this.liftReady()||this.world.liftAnnounced)return;
+    this.world.liftAnnounced=true;this.refreshHUD();this.persist();this.cameras.main.shake(160,.001);this.lift.motor(.35);
+    const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent='ЛИФТ ЗАРАБОТАЛ — доступен 1-й этаж';document.querySelector('.base-hud').append(toast);
+    this.time.delayedCall(4200,()=>toast.remove());
+  }
+  openLift() {
+    this.dialogClosed();this.persist();
+    const panel=document.createElement('div');panel.className='lift-console';
+    const display=document.createElement('div');display.className='lift-display';display.textContent=this.floorNumber?'ЭТАЖ 1':'БАЗА · №72';panel.append(display);
+    const status=document.createElement('p');status.className='lift-status';panel.append(status);
+    let selected=this.floorNumber;const buttons=[];
+    const travel=document.createElement('button');travel.className='metal-button';travel.textContent='ЕХАТЬ';travel.disabled=true;
+    for(const entry of liftDestinations(this.campaign)) {
+      const button=document.createElement('button');button.className='floor-button';button.dataset.floor=entry.floor;
+      button.textContent=entry.floor===0?'БАЗА · БУНКЕР №72':`ЭТАЖ ${entry.floor}${entry.enabled?'':' · НУЖНА КЛЮЧ-КАРТА'}`;
+      button.disabled=!entry.enabled;button.classList.toggle('selected',entry.floor===selected);
+      button.addEventListener('click',()=>{selected=entry.floor;buttons.forEach(b=>b.classList.toggle('selected',Number(b.dataset.floor)===selected));display.textContent=selected===0?'БАЗА · №72':`ЭТАЖ ${selected}`;travel.disabled=selected===this.floorNumber;status.textContent=selected===this.floorNumber?'Ты уже на этой остановке.':'Платформа готова к отправлению.';});
+      buttons.push(button);panel.append(button);
+    }
+    status.textContent='Выбери остановку. Следующий этаж требует ключ-карту.';
+    travel.addEventListener('click',()=>{document.querySelector('#dialog').close();this.travelTo(selected);});panel.append(travel);
+    document.querySelector('#dialog-title').textContent='ПУЛЬТ ГРУЗОВОГО ЛИФТА';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  }
+  async travelTo(target) {
+    if(this.busy||target===this.floorNumber||![0,1].includes(target)||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
+    this.busy=true;this.speed=0;this.dialogClosed();this.persist();
+    await this.lift.depart(this.rig,this.shadow,target);
+    this.campaign=this.snapshotCampaign();this.campaign.location=target===0?'base':'floor';this.campaign.floor=target;
+    this.campaign.highestFloor=Math.max(this.campaign.highestFloor,target);
+    if(!writeSave(this.campaign)){this.notifySaveFailure();return;}
+    this.leaving=true;this.scene.start(target===0?'Base':'Floor',{save:{version:1,progress:this.campaign},arrival:true});
+  }
+  notifySaveFailure() {
+    this.cameras.main.fadeIn(200);this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.refreshHUD();});
+    const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СОХРАНЕНИЕ НЕДОСТУПНО';const p=document.createElement('p');p.textContent='Браузер не разрешил сохранить поездку. Разреши локальное хранение данных и попробуй ещё раз.';document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
   }
   makeEffects() {
     const g=this.make.graphics({x:0,y:0,add:false});
@@ -516,7 +681,9 @@ class Base extends globalThis.Phaser.Scene {
     return {x:this.rig.x+x*c-y*s,y:this.rig.y+x*s+y*c};
   }
   update(time,delta) {
-    if(!this.keys || document.querySelector('#dialog').open || document.hidden)return;
+    if(!this.keys||document.hidden)return;
+    this.syncAction();this.drawLiftGlow(time);
+    if(this.busy||document.querySelector('#dialog').open)return;
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
@@ -525,7 +692,15 @@ class Base extends globalThis.Phaser.Scene {
     this.advanceVehicle(time,dt,direction);
     this.animateVehicle(time,dt);
   }
-  solidCell(x,y) { return !this.world.inside(x,y)||this.world.blocked(x,y)||(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  drawLiftGlow(time) {
+    this.blockGlow.clear();if(this.floorNumber||!this.world.rescued||this.liftReady())return;
+    const pulse=.35+.15*Math.sin(time*.0035);
+    for(const p of LIFT_BLOCKS)if(this.world.blocked(p.x,p.y)) {
+      this.blockGlow.fillStyle(0xffcc6c,pulse*.22);this.blockGlow.fillRoundedRect(p.x*CELL+3,p.y*CELL+3,58,58,8);
+      this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
+    }
+  }
+  solidCell(x,y) { return liftFrameCell(x,y,this.liftCenter)|| !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   advanceVehicle(time,dt,direction) {
     const solid=(x,y)=>this.solidCell(x,y);
     const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
@@ -543,7 +718,7 @@ class Base extends globalThis.Phaser.Scene {
     const x=this.world.x+dx,y=this.world.y+dy;
     // Cut only the block directly ahead once the chassis has turned toward it.
     if(Math.abs(wrapDegrees(heading[direction]-this.rig.angle))>20||!this.world.inside(x,y))return;
-    if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
+    if(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
       this.cutting=true;
       const key=y*BASE_SIZE+x;
@@ -556,7 +731,7 @@ class Base extends globalThis.Phaser.Scene {
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
         this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
-        this.refreshHUD();this.persist();
+        this.refreshHUD();this.checkLift();this.persist();
       } else if(time-this.lastSave>300)this.persist();
       return;
     }
@@ -629,6 +804,12 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
+class Floor extends Base {
+  constructor(){super('Floor');}
+}
+
+
+
 
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
@@ -678,7 +859,7 @@ function showSettings() {
 }
 function requestGameplay() {
   game.scene.stop('Menu');
-  game.scene.start('Base', { save: readSave() });
+  const save=readSave();game.scene.start(save?.progress?.location==='floor'?'Floor':'Base',{save});
 }
 class ArtworkScene extends Phaser.Scene {
   showArt(key) {
@@ -721,6 +902,7 @@ class Boot extends Phaser.Scene {
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
+    this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
@@ -729,7 +911,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['title','console','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['title','console','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
@@ -748,7 +930,7 @@ class Menu extends ArtworkScene {
     const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
     this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
     this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('КАК ИГРАТЬ',
-      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти человека рядом. На телефоне — кнопки направлений и спасения.'));
+      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти Серёгу вплотную или открыть пульт с платформы лифта. После спасения расчисти три подсвеченных блока у въезда. На телефоне — кнопки направлений и взаимодействия.'));
     this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
       'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
     this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
@@ -763,7 +945,7 @@ else game = new Phaser.Game({
   type: location.protocol === 'file:' ? Phaser.CANVAS : Phaser.AUTO, parent: 'canvas-host', backgroundColor: '#0c1a1b',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   loader: { imageLoadType: 'HTMLImageElement' },
-  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base],
+  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });
 
 })();
