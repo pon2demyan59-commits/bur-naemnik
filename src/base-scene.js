@@ -122,15 +122,15 @@ export class Base extends globalThis.Phaser.Scene {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
     const label=saving?'СПАСТИ СЕРЁГУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
     document.querySelector('.base-location').innerHTML=this.floorNumber?'ЭТАЖ 1 <span>Шахта · грузовой лифт</span>':'БУНКЕР №72 <span>База · 50 × 50</span>';
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?' РАЦИЯ · ЭТАЖ 1':' РАЦИЯ · БАЗА';
-    document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить лифт — выполнено':'Расчистить лифт';
+    document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
-    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'✓ Лифт работает · Карта 1-го этажа получена · Заезжай на платформу':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
     this.lift.powered(ready);this.syncAction();
   }
   snapshotCampaign() {
@@ -147,7 +147,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(!this.floorNumber&&!this.world.rescued)this.rescue();
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
   }
@@ -165,13 +165,15 @@ export class Base extends globalThis.Phaser.Scene {
     this.world.heard=true;this.world.dialogue='radio';this.world.dialoguePage=0;this.refreshHUD();this.startStory('radio');
   }
   startStory(kind) {
-    if(this.storyActive||!STORY_LINES[kind])return;
+    if(this.busy||this.storyActive||!STORY_LINES[kind])return;
     this.storyActive=true;this.speed=0;this.dialogClosed();this.world.dialogue=kind;this.persist();
-    showStoryDialogue(this,{lines:STORY_LINES[kind],page:this.world.dialoguePage,
+    showStoryDialogue(this,{kind,lines:STORY_LINES[kind],page:this.world.dialoguePage,
       onPage:page=>{this.world.dialoguePage=page;this.persist();},
       onFinish:()=>{
-        this.world.dialogue=null;this.world.dialoguePage=0;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        this.world.dialogue=null;this.world.dialoguePage=0;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
         if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
+        this.checkLift();
       }
     });
   }
@@ -179,10 +181,15 @@ export class Base extends globalThis.Phaser.Scene {
     const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent=text;document.querySelector('.base-hud').append(toast);this.time.delayedCall(4200,()=>toast.remove());
   }
   checkLift() {
-    if(this.floorNumber||!this.liftReady()||this.world.liftAnnounced)return;
-    this.world.liftAnnounced=true;this.refreshHUD();this.persist();this.cameras.main.shake(160,.001);this.lift.motor(.35);
-    const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent='ЛИФТ ЗАРАБОТАЛ — доступен 1-й этаж';document.querySelector('.base-hud').append(toast);
-    this.time.delayedCall(4200,()=>toast.remove());
+    if(this.floorNumber||!this.liftReady())return;
+    if(!this.world.liftAnnounced) {
+      this.world.liftAnnounced=true;this.refreshHUD();this.persist();this.cameras.main.shake(160,.001);this.lift.motor(.35);
+      this.notify('ЛИФТ ЗАРАБОТАЛ — доступен 1-й этаж');
+    }
+    if(this.world.porodnikBriefed||this.world.dialogue||this.storyActive)return;
+    // Persist the pending conversation before its short delay, including old saves.
+    this.world.dialogue='porodnik';this.world.dialoguePage=0;this.persist();
+    this.time.delayedCall(1400,()=>{if(this.world.dialogue==='porodnik'&&!this.world.porodnikBriefed&&!this.busy&&!this.storyActive&&!document.querySelector('#dialog').open)this.startStory('porodnik');});
   }
   openLift() {
     this.dialogClosed();this.persist();

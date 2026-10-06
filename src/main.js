@@ -88,6 +88,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    for(const name of ['serega-neutral','serega-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
@@ -101,7 +102,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['title','console','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }

@@ -122,3 +122,8 @@ dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
  .story-next { min-height:50px; font-size:18px; padding:10px 23px; }
 }
 @media(max-height:520px) and (min-aspect-ratio:1/1){.story-speech{left:31%;padding:26px 20px 14px;min-height:170px;bottom:3%;}.story-line{font-size:18px;min-height:70px;margin:6px 0 10px;}.story-nameplate{top:-34px;}.story-nameplate strong{font-size:18px;padding:6px 18px;}.story-nameplate span{font-size:10px;}.story-next{min-height:44px;font-size:17px;padding:8px 20px;}.story-portrait{max-height:90%;width:35%;}}
+
+.story-dialogue.player-turn .story-portrait { visibility:hidden; }
+.story-dialogue.player-turn .story-speech { left:8%; }
+.story-dialogue.player-turn .story-speech::before { display:none; }
+@media(max-width:600px) { .story-dialogue.player-turn .story-speech { left:4%; } }

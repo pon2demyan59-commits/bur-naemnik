@@ -53,8 +53,9 @@ class BaseWorld {
     this.cleared = new Set(Array.isArray(progress.cleared) ? progress.cleared.filter(validCell) : []);
     this.damage = new Map(Array.isArray(progress.damage) ? progress.damage.filter(v => Array.isArray(v) && validCell(v[0]) && Number.isFinite(v[1]) && v[1] > 0 && v[1] < 1) : []);
     this.rescued = progress.rescued === true;
-    this.dialogue=['radio','rescue'].includes(progress.dialogue)?progress.dialogue:null;
-    this.dialoguePage=Number.isInteger(progress.dialoguePage)?Math.max(0,Math.min(3,progress.dialoguePage)):0;
+    this.dialogue=['radio','rescue','porodnik'].includes(progress.dialogue)?progress.dialogue:null;
+    this.dialoguePage=Number.isInteger(progress.dialoguePage)?Math.max(0,Math.min(this.dialogue==='porodnik'?7:3,progress.dialoguePage)):0;
+    this.porodnikBriefed=progress.porodnikBriefed===true;
     this.liftAnnounced = progress.liftAnnounced === true;
     this.heard = progress.heard === true || this.rescued;
     if (this.blocked(this.x, this.y) || (!this.rescued && this.x === RESCUE.x && this.y === RESCUE.y)) { this.x = SPAWN.x; this.y = SPAWN.y; }
@@ -70,7 +71,7 @@ class BaseWorld {
   canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {
     return !this.rescued&&Math.hypot(px-(RESCUE.x+.5)*CELL,py-(RESCUE.y+.5)*CELL)<=58;
   }
-  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
+  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, porodnikBriefed:this.porodnikBriefed, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
 }
 
 function wrapDegrees(angle) { return ((angle + 180) % 360 + 360) % 360 - 180; }
@@ -465,17 +466,34 @@ const STORY_LINES = {
     'Я задержался — хотел забрать инструмент. Тут начался обвал.',
     'Меня заперло, а лифт засыпало землёй.',
     'Спасибо, что вытащил. Теперь надо добраться до лифта — другого пути отсюда нет'
+  ],
+  porodnik:[
+    {speaker:'Серёга Т',text:'Вон «Породник». Автомат приёма породы. Давай починим.'},
+    {speaker:'Герой',text:'Зачем нам он?'},
+    {speaker:'Серёга Т',text:'Сдаёшь землю — получаешь кредиты.'},
+    {speaker:'Герой',text:'А земля ему зачем?'},
+    {speaker:'Серёга Т',text:'На переработку. Бункер из этой породы и строили.'},
+    {speaker:'Герой',text:'Как его запустить?'},
+    {speaker:'Серёга Т',text:'Ты расчисти приёмник, я восстановлю питание.'},
+    {speaker:'Герой',text:'Договорились.'}
   ]
 };
+function storyPresentation(kind,page) {
+  const entry=STORY_LINES[kind][page];
+  const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
+  return {text:typeof entry==='string'?entry:entry.text,speaker,
+    portrait:kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+}
 
-function showStoryDialogue(scene,{lines,page=0,onPage,onFinish}) {
+
+function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   const previousFocus=document.activeElement;
   const dialog=document.createElement('dialog');dialog.className='story-dialogue';dialog.setAttribute('aria-labelledby','story-name');
-  dialog.innerHTML=`<section class="story-layout"><img class="story-portrait" src="./public/assets/ui/serega-portrait.webp" alt="Серёга Т, строитель"><div class="story-speech"><header class="story-nameplate"><strong id="story-name">СЕРЁГА Т</strong><span>СТРОИТЕЛЬ</span></header><p class="story-line" aria-live="polite"></p><footer><span class="story-count"></span><button class="story-next" type="button">ДАЛЕЕ ▶</button></footer></div></section>`;
+  dialog.innerHTML=`<section class="story-layout"><img class="story-portrait" src="./public/assets/ui/serega-neutral.webp" alt="Серёга Т, строитель"><div class="story-speech"><header class="story-nameplate"><strong id="story-name">СЕРЁГА Т</strong><span>СТРОИТЕЛЬ</span></header><p class="story-line" aria-live="polite"></p><footer><span class="story-count"></span><button class="story-next" type="button">ДАЛЕЕ ▶</button></footer></div></section>`;
   document.querySelector('#ui').append(dialog);document.querySelector('#ui').classList.add('story-open');
   const line=dialog.querySelector('.story-line'),next=dialog.querySelector('.story-next'),count=dialog.querySelector('.story-count');
   let index=Math.max(0,Math.min(page,lines.length-1)),closed=false;
-  const render=()=>{line.textContent=lines[index];count.textContent=`${index+1} / ${lines.length}`;};
+  const render=()=>{const presentation=storyPresentation(kind,index);line.textContent=presentation.text;dialog.querySelector('#story-name').textContent=presentation.speaker.toUpperCase();dialog.querySelector('.story-nameplate span').textContent=presentation.speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ';dialog.classList.toggle('player-turn',presentation.speaker==='Герой');dialog.querySelector('.story-portrait').src='./public/assets/ui/'+presentation.portrait;count.textContent=`${index+1} / ${lines.length}`;};
   const cleanup=()=>{document.removeEventListener('keydown',keyboard,true);dialog.removeEventListener('cancel',cancel);dialog.remove();document.querySelector('#ui').classList.remove('story-open');};
   const finish=()=>{if(closed)return;closed=true;cleanup();scene.events.off('shutdown',abort);scene.input.enabled=true;scene.scene.resume();onFinish();if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});};
   const advance=()=>{if(index<lines.length-1){index++;render();onPage(index);}else finish();};
@@ -610,15 +628,15 @@ class Base extends globalThis.Phaser.Scene {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
     const label=saving?'СПАСТИ СЕРЁГУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
     document.querySelector('.base-location').innerHTML=this.floorNumber?'ЭТАЖ 1 <span>Шахта · грузовой лифт</span>':'БУНКЕР №72 <span>База · 50 × 50</span>';
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?' РАЦИЯ · ЭТАЖ 1':' РАЦИЯ · БАЗА';
-    document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить лифт — выполнено':'Расчистить лифт';
+    document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
-    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'✓ Лифт работает · Карта 1-го этажа получена · Заезжай на платформу':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
     this.lift.powered(ready);this.syncAction();
   }
   snapshotCampaign() {
@@ -635,7 +653,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(!this.floorNumber&&!this.world.rescued)this.rescue();
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
   }
@@ -653,13 +671,15 @@ class Base extends globalThis.Phaser.Scene {
     this.world.heard=true;this.world.dialogue='radio';this.world.dialoguePage=0;this.refreshHUD();this.startStory('radio');
   }
   startStory(kind) {
-    if(this.storyActive||!STORY_LINES[kind])return;
+    if(this.busy||this.storyActive||!STORY_LINES[kind])return;
     this.storyActive=true;this.speed=0;this.dialogClosed();this.world.dialogue=kind;this.persist();
-    showStoryDialogue(this,{lines:STORY_LINES[kind],page:this.world.dialoguePage,
+    showStoryDialogue(this,{kind,lines:STORY_LINES[kind],page:this.world.dialoguePage,
       onPage:page=>{this.world.dialoguePage=page;this.persist();},
       onFinish:()=>{
-        this.world.dialogue=null;this.world.dialoguePage=0;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        this.world.dialogue=null;this.world.dialoguePage=0;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
         if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
+        this.checkLift();
       }
     });
   }
@@ -667,10 +687,15 @@ class Base extends globalThis.Phaser.Scene {
     const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent=text;document.querySelector('.base-hud').append(toast);this.time.delayedCall(4200,()=>toast.remove());
   }
   checkLift() {
-    if(this.floorNumber||!this.liftReady()||this.world.liftAnnounced)return;
-    this.world.liftAnnounced=true;this.refreshHUD();this.persist();this.cameras.main.shake(160,.001);this.lift.motor(.35);
-    const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent='ЛИФТ ЗАРАБОТАЛ — доступен 1-й этаж';document.querySelector('.base-hud').append(toast);
-    this.time.delayedCall(4200,()=>toast.remove());
+    if(this.floorNumber||!this.liftReady())return;
+    if(!this.world.liftAnnounced) {
+      this.world.liftAnnounced=true;this.refreshHUD();this.persist();this.cameras.main.shake(160,.001);this.lift.motor(.35);
+      this.notify('ЛИФТ ЗАРАБОТАЛ — доступен 1-й этаж');
+    }
+    if(this.world.porodnikBriefed||this.world.dialogue||this.storyActive)return;
+    // Persist the pending conversation before its short delay, including old saves.
+    this.world.dialogue='porodnik';this.world.dialoguePage=0;this.persist();
+    this.time.delayedCall(1400,()=>{if(this.world.dialogue==='porodnik'&&!this.world.porodnikBriefed&&!this.busy&&!this.storyActive&&!document.querySelector('#dialog').open)this.startStory('porodnik');});
   }
   openLift() {
     this.dialogClosed();this.persist();
@@ -956,6 +981,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    for(const name of ['serega-neutral','serega-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
@@ -969,7 +995,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['title','console','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
