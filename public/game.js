@@ -187,17 +187,6 @@ class Base extends globalThis.Phaser.Scene {
     g.lineStyle(1,0x78918b,.28);g.strokeRoundedRect(3,3,CELL-6,CELL-6,6);
     g.lineStyle(2,0x273f3d,.55);g.lineBetween(8,48,21,48);g.lineBetween(21,48,25,52);
     g.generateTexture('base-floor',CELL,CELL);g.clear();
-    for(let variant=0;variant<4;variant++) {
-      const colors=[0x9c8665,0xa38e6e,0x968167,0xb09772];
-      g.fillStyle(0x0e2826,.4);g.fillEllipse(32,48,60,28);
-      g.fillStyle(0x6f5a45);g.fillRoundedRect(3,12,58,46,11);
-      g.fillStyle(colors[variant]);g.fillRoundedRect(4,6,54,43,12);
-      g.fillStyle(0xc6b28c,.7);g.fillTriangle(7,14,29,7,14,32);
-      g.fillStyle(0x786b56);g.fillTriangle(38,12,57,22,51,45);
-      g.fillStyle(0xbfaa84);g.fillRoundedRect(22,20,25,29,8);
-      g.lineStyle(2,0x62523f);g.lineBetween(29,10,34,22);g.lineBetween(34,22,27,31);
-      g.generateTexture('rubble-'+variant,CELL,CELL);g.clear();
-    }
     g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.clear();
     g.fillStyle(0x081e1d,.5);g.fillEllipse(16,34,25,9);
     g.fillStyle(0x234e55);g.fillRoundedRect(7,16,19,15,5);
@@ -214,7 +203,7 @@ class Base extends globalThis.Phaser.Scene {
     border.lineStyle(8,0x809187);border.strokeRect(128,128,2944,2944);
     this.blocks=new Map();
     for(let y=2;y<48;y++)for(let x=2;x<48;x++) if(this.world.blocked(x,y)) {
-      const block=this.add.image(middle(x),middle(y),'rubble-'+((x+y)%4)).setDepth(3);
+      const block=this.add.image(middle(x),middle(y),'dirt').setDisplaySize(CELL,CELL).setDepth(3);
       this.blocks.set(y*50+x,block);
       if(this.world.damage.has(y*50+x)) block.setTint(0xd2aa6b);
     }
@@ -508,6 +497,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    this.load.image('dirt', './public/assets/game/dirt.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
@@ -515,7 +505,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill')) return;
+    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill') || !this.textures.exists('dirt')) return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
