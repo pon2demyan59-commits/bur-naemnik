@@ -1,16 +1,21 @@
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { writeSave } from './storage.js';
-import { wrapDegrees, smoothHeading, damp, updateHeat } from './drill-motion.js';
+import { driveStep, driveFits } from './drive-controller.js';
+import { wrapDegrees, updateHeat } from './drill-motion.js';
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor() { super('Base'); }
-  init({save} = {}) { this.world = new BaseWorld(save?.progress); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; this.trackDustTime=0; this.sparkTime=0; this.speed=0; this.heat=0; this.trackPhase=0; this.cutting=false; this.moveTarget=null; }
+  init({save} = {}) { this.world = new BaseWorld(save?.progress); this.parked=save?.progress?.drive; this.touchDirections=new Map(); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; this.trackDustTime=0; this.sparkTime=0; this.speed=0; this.heat=0; this.beltPhases=[0,0];this.turnVelocity=0; this.cutting=false; }
   create() {
     this.makeTextures();
     this.makeMap();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
+    const parked=this.parked;
+    if(parked&&[parked.x,parked.y,parked.angle].every(Number.isFinite)&&Math.floor(parked.x/CELL)===this.world.x&&Math.floor(parked.y/CELL)===this.world.y&&driveFits(parked.x,parked.y,(x,y)=>this.solidCell(x,y))) {
+      this.rig.setPosition(parked.x,parked.y).setAngle(wrapDegrees(parked.angle));
+    }
     // Rotate around the chassis, not the center of a square image with a long nose.
     this.drillSprite = this.add.image(0,0,'drill').setOrigin(.39,.5).setDisplaySize(96,96);
     this.headHeat = this.add.graphics();
@@ -26,7 +31,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.input.keyboard.on('keydown-ESC',this.goMenu,this);
     this.input.keyboard.on('keydown-E',this.rescue,this);
     this.input.keyboard.on('keydown-SPACE',this.rescue,this);
-    this.clearInput = () => { this.hold=null; this.input.keyboard.resetKeys(); this.persist(); };
+    this.clearInput = () => { this.hold=null; this.touchDirections.clear(); this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
     this.fit = size => { this.cameras.main.setSize(size.width,size.height); this.cameras.main.setZoom(size.width < 600 ? .82 : 1.12); };
@@ -106,8 +111,8 @@ export class Base extends globalThis.Phaser.Scene {
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
     hud.querySelector('#rescue-action').addEventListener('click',()=>this.rescue());
     for(const button of hud.querySelectorAll('[data-dir]')) {
-      button.addEventListener('pointerdown',event=> { event.preventDefault();button.setPointerCapture(event.pointerId);this.hold=button.dataset.dir; });
-      const stop=()=>{this.hold=null;};
+      button.addEventListener('pointerdown',event=> { event.preventDefault();button.setPointerCapture(event.pointerId);this.touchDirections.delete(event.pointerId);this.touchDirections.set(event.pointerId,button.dataset.dir);this.hold=button.dataset.dir; });
+      const stop=event=>{this.touchDirections.delete(event.pointerId);this.hold=[...this.touchDirections.values()].at(-1)||null;};
       button.addEventListener('pointerup',stop);button.addEventListener('pointercancel',stop);button.addEventListener('lostpointercapture',stop);
     }
   }
@@ -120,13 +125,13 @@ export class Base extends globalThis.Phaser.Scene {
     this.marker.setText(w.rescued?'✓ СЕРЁГА Т':'! СЕРЁГА Т');this.marker.setBackgroundColor(w.rescued?'#86c3a6':'#ffd372');
   }
   persist() {
-    const saved=writeSave(this.world.snapshot());
+    const saved=writeSave({...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}});
     const status=document.querySelector('#base-save');if(status)status.textContent=saved?'Прогресс сохранён':'Сохранение недоступно в этом браузере';
     this.lastSave=this.time.now;
   }
   goMenu() { if(document.querySelector('#dialog').open) return; this.persist();this.scene.start('Menu'); }
   rescue() {
-    if(this.moving || !this.world.canRescue() || document.querySelector('#dialog').open)return;
+    if(!this.world.canRescue() || document.querySelector('#dialog').open)return;
     this.world.rescued=true;this.world.heard=true;this.refreshHUD();this.persist();
     const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СЕРЁГА Т СПАСЁН';
     const p=document.createElement('p');p.textContent='«Спасибо, командир. Серёга Т, строитель. Ещё немного — и стал бы частью фундамента. Давай вернём этой площадке жизнь. Первым делом расчистим лифт».\n\nПервое задание выполнено. Продолжение истории появится в следующем обновлении.';
@@ -170,38 +175,34 @@ export class Base extends globalThis.Phaser.Scene {
   update(time,delta) {
     if(!this.keys || document.querySelector('#dialog').open || document.hidden)return;
     const dt=Math.min(delta,50)/1000,k=this.keys;
-    const direction=this.hold || (k.LEFT.isDown||k.A.isDown?'left':k.RIGHT.isDown||k.D.isDown?'right':k.UP.isDown||k.W.isDown?'up':k.DOWN.isDown||k.S.isDown?'down':null);
+    // The last pressed direction wins, even when the previous key is still held.
+    const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
+    const direction=this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);
     this.animateVehicle(time,dt);
   }
+  solidCell(x,y) { return !this.world.inside(x,y)||this.world.blocked(x,y)||(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   advanceVehicle(time,dt,direction) {
-    if(this.moving) {
-      const target=this.moveTarget;
-      this.rig.angle=smoothHeading(this.rig.angle,heading[target.direction],dt);
-      const distance=Math.hypot(target.px-this.rig.x,target.py-this.rig.y);
-      // Keep speed across consecutive cells; gently finish the current cell on release.
-      const desired=direction===target.direction?280:Math.max(65,Math.min(280,distance*8));
-      this.speed=damp(this.speed,desired,10,dt);
-      const step=Math.min(distance,this.speed*dt);
-      this.rig.x+=target.dx*step;this.rig.y+=target.dy*step;
-      if(step>=distance-.01) {
-        this.rig.setPosition(target.px,target.py);
-        this.world.x=target.x;this.world.y=target.y;this.moving=false;this.moveTarget=null;
-        this.refreshHUD();this.persist();
-      }
-      return;
+    const solid=(x,y)=>this.solidCell(x,y);
+    const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
+    this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
+    this.rig.setPosition(next.x,next.y).setAngle(next.angle);
+    this.speed=next.speed;this.moving=next.moving;
+    const cx=Math.floor(next.x/CELL),cy=Math.floor(next.y/CELL);
+    if(cx!==this.world.x||cy!==this.world.y) {
+      this.world.x=cx;this.world.y=cy;this.refreshHUD();this.persist();
     }
-    if(!direction) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
+    this.drillBar.clear();
+    if(!direction)return;
     if(!this.world.heard){this.world.heard=true;this.refreshHUD();this.persist();}
-    const [dx,dy,angle]={left:[-1,0,180],right:[1,0,0],up:[0,-1,-90],down:[0,1,90]}[direction];
-    this.rig.angle=smoothHeading(this.rig.angle,angle,dt);
-    if(Math.abs(wrapDegrees(angle-this.rig.angle))>.5) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
+    const [dx,dy]={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[direction];
     const x=this.world.x+dx,y=this.world.y+dy;
-    if(!this.world.inside(x,y)){this.speed=damp(this.speed,0,12,dt);return;}
-    if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.speed=damp(this.speed,0,12,dt);this.refreshHUD();return;}
+    // Cut only the block directly ahead once the chassis has turned toward it.
+    if(Math.abs(wrapDegrees(heading[direction]-this.rig.angle))>20||!this.world.inside(x,y))return;
+    if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
-      this.cutting=true;this.speed=damp(this.speed,0,12,dt);
+      this.cutting=true;
       const key=y*BASE_SIZE+x;
       const broken=this.world.drill(x,y,dt);
       const block=this.blocks.get(key);if(block)block.setTint(0xdcc28a);
@@ -216,9 +217,7 @@ export class Base extends globalThis.Phaser.Scene {
       } else if(time-this.lastSave>300)this.persist();
       return;
     }
-    this.drillBar.clear();this.moving=true;
-    this.moveTarget={x,y,px:middle(x),py:middle(y),dx,dy,direction};
-    this.speed=Math.max(60,this.speed);
+
   }
   animateVehicle(time,dt) {
     this.heat=updateHeat(this.heat,this.cutting,dt);
@@ -230,12 +229,13 @@ export class Base extends globalThis.Phaser.Scene {
     this.shadow.setPosition(this.rig.x,this.rig.y+7).setAngle(this.rig.angle);
     // Broad plates move slowly enough to read on a small screen rather than flicker.
     const beltSpeed = this.cutting ? 34 : moving ? this.speed*.14 : 0;
-    this.trackPhase=(this.trackPhase+beltSpeed*dt)%7;
     this.trackMotion.clear();
-    for(const y of [-24,24]) {
+    for(const [side,y] of [[0,-24],[1,24]]) {
+      const speed=beltSpeed+this.turnVelocity*.055*(side===0?1:-1);
+      this.beltPhases[side]=((this.beltPhases[side]+speed*dt)%7+7)%7;
       this.trackMotion.fillStyle(0x17282c,1);
       this.trackMotion.fillRoundedRect(-32,y-4.5,65,9,2);
-      for(let x=-39-this.trackPhase;x<33;x+=7) {
+      for(let x=-39-this.beltPhases[side];x<33;x+=7) {
         const left=Math.max(-31,x),right=Math.min(32,x+5.5);
         if(right<=left)continue;
         this.trackMotion.fillStyle(0x697780,1);
