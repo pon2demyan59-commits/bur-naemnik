@@ -25,6 +25,11 @@ function writeSave(progress) {
   catch { return false; }
 }
 
+function resetSave() {
+  try { localStorage.removeItem(SAVE_KEY); return localStorage.getItem(SAVE_KEY) === null; }
+  catch { return false; }
+}
+
 const BASE_SIZE = 50;
 const CELL = 64;
 const RESCUE = { x: 27, y: 26 };
@@ -933,6 +938,10 @@ class Menu extends ArtworkScene {
       'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти Серёгу вплотную или открыть пульт с платформы лифта. После спасения расчисти три подсвеченных блока у въезда. На телефоне — кнопки направлений и взаимодействия.'));
     this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
       'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
+    this.button(stage, 'СБРОСИТЬ ПРОГРЕСС', 'reset-button', () => {
+      if(resetSave()){primary.textContent='НАЧАТЬ ИГРУ';}
+      else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');
+    });
     this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
     const refresh = () => { primary.textContent = readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ'; };
     window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);

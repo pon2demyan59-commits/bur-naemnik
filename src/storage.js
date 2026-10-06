@@ -21,3 +21,8 @@ export function writeSave(progress) {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ version:1, progress })); return true; }
   catch { return false; }
 }
+
+export function resetSave() {
+  try { localStorage.removeItem(SAVE_KEY); return localStorage.getItem(SAVE_KEY) === null; }
+  catch { return false; }
+}
