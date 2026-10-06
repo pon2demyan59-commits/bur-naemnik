@@ -12,5 +12,15 @@
 <div id="loading" role="status">Запускаем системы бункера №72…</div>
 </main>
 <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-shell"><h2 id="dialog-title"></h2><div id="dialog-body"></div><button class="metal-button close-dialog" type="button">НАЗАД</button></div></dialog>
-<script src="./vendor/phaser.min.js"></script><script type="module" src="./src/main.js"></script>
+<script>
+window.addEventListener('error', function (event) {
+  var loading = document.getElementById('loading');
+  var missingFile = event.target && event.target.tagName === 'SCRIPT';
+  if (missingFile || event.error) {
+    loading.hidden = false;
+    loading.textContent = 'Не удалось запустить игру. Проверьте, что папка public находится рядом с index.html, и обновите страницу.';
+  }
+}, true);
+</script>
+<script src="./public/vendor/phaser.min.js"></script><script src="./public/game.js"></script>
 </body></html>
