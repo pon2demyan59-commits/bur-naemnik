@@ -497,7 +497,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    this.load.image('dirt', './public/assets/game/dirt.webp');
+    this.load.image('dirt', './public/assets/game/dirt-square.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
