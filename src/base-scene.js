@@ -1,17 +1,23 @@
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { writeSave } from './storage.js';
+import { wrapDegrees, smoothHeading, damp, updateHeat } from './drill-motion.js';
 const middle = n => n * CELL + CELL / 2;
 export class Base extends globalThis.Phaser.Scene {
   constructor() { super('Base'); }
-  init({save} = {}) { this.world = new BaseWorld(save?.progress); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; }
+  init({save} = {}) { this.world = new BaseWorld(save?.progress); this.moving=false; this.hold=null; this.lastSave=0; this.dustTime=0; this.trackDustTime=0; this.sparkTime=0; this.speed=0; this.heat=0; this.trackPhase=0; this.cutting=false; this.moveTarget=null; }
   create() {
     this.makeTextures();
     this.makeMap();
     this.makeHUD();
-    this.drillSprite = this.add.image(middle(this.world.x),middle(this.world.y),'drill').setDisplaySize(96,96).setDepth(20);
-    this.drillSprite.setAngle(0);
-    this.shadow = this.add.ellipse(this.drillSprite.x,this.drillSprite.y+22,78,38,0x071919,.45).setDepth(19);
-    this.cameras.main.setBounds(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL).startFollow(this.drillSprite,true,.12,.12);
+    this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
+    // Rotate around the chassis, not the center of a square image with a long nose.
+    this.drillSprite = this.add.image(0,0,'drill').setOrigin(.39,.5).setDisplaySize(96,96);
+    this.headHeat = this.add.graphics();
+    this.trackMotion = this.add.graphics();
+    this.rig.add([this.drillSprite,this.trackMotion,this.headHeat]);
+    this.shadow = this.add.ellipse(this.rig.x,this.rig.y+7,84,52,0x071919,.35).setDepth(19);
+    this.makeEffects();
+    this.cameras.main.setBounds(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL).startFollow(this.rig,true,.10,.10);
     this.cameras.main.setZoom(this.scale.width < 600 ? .82 : 1.12);
     this.keys=this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ESC');
     this.input.keyboard.addCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
@@ -124,41 +130,142 @@ export class Base extends globalThis.Phaser.Scene {
     const p=document.createElement('p');p.textContent='«Спасибо, командир. Серёга Т, строитель. Ещё немного — и стал бы частью фундамента. Давай вернём этой площадке жизнь. Первым делом расчистим лифт».\n\nПервое задание выполнено. Продолжение истории появится в следующем обновлении.';
     document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
   }
+  makeEffects() {
+    const g=this.make.graphics({x:0,y:0,add:false});
+    // Native graphics render the same in Canvas (direct file launch) and WebGL.
+    if(!this.textures.exists('fx-dust')) {
+      for(let r=15;r>=3;r-=3) {g.fillStyle(r>9?0xae9878:0xd5bd93,.12);g.fillCircle(16,16,r);}
+      g.generateTexture('fx-dust',32,32);g.clear();
+      g.fillStyle(0xeaac4d,.22);g.fillRoundedRect(0,1,18,6,3);
+      g.fillStyle(0xffc34f,.95);g.fillRoundedRect(2,2,14,4,2);
+      g.fillStyle(0xfff8ce);g.fillRoundedRect(5,3,9,2,1);
+      g.generateTexture('fx-spark',18,8);g.clear();
+      g.fillStyle(0xcea679);g.fillTriangle(0,0,7,1,4,7);
+      g.generateTexture('fx-chip',8,8);
+    }
+    g.destroy();
+    this.dustEmitter=this.add.particles(0,0,'fx-dust',{
+      emitting:false, lifespan:{min:550,max:1000}, speed:{min:18,max:65},
+      scale:{start:.4,end:1.5}, alpha:{start:.65,end:0}, rotate:{min:0,max:360},
+      maxParticles:120,maxAliveParticles:96
+    }).setDepth(21);
+    this.sparkEmitter=this.add.particles(0,0,'fx-spark',{
+      emitting:false, lifespan:{min:120,max:320}, speed:{min:130,max:300},
+      scale:{start:.65,end:.1}, alpha:{start:1,end:0}, rotate:{min:0,max:360},
+      maxParticles:100,maxAliveParticles:80, blendMode:'ADD'
+    }).setDepth(24);
+    this.chipEmitter=this.add.particles(0,0,'fx-chip',{
+      emitting:false,lifespan:{min:250,max:550},speed:{min:45,max:115},
+      scale:{start:1,end:.3},alpha:{start:.9,end:0},rotate:{min:0,max:360},
+      maxParticles:60,maxAliveParticles:48
+    }).setDepth(22);
+  }
+  localPoint(x,y=0) {
+    const a=this.rig.rotation,c=Math.cos(a),s=Math.sin(a);
+    return {x:this.rig.x+x*c-y*s,y:this.rig.y+x*s+y*c};
+  }
   update(time,delta) {
-    if(!this.keys || document.querySelector('#dialog').open || document.hidden) return;
-    const dt=Math.min(delta,50);
-    this.shadow.setPosition(this.drillSprite.x,this.drillSprite.y+22);
-    if(this.moving)return;
-    const k=this.keys;
+    if(!this.keys || document.querySelector('#dialog').open || document.hidden)return;
+    const dt=Math.min(delta,50)/1000,k=this.keys;
     const direction=this.hold || (k.LEFT.isDown||k.A.isDown?'left':k.RIGHT.isDown||k.D.isDown?'right':k.UP.isDown||k.W.isDown?'up':k.DOWN.isDown||k.S.isDown?'down':null);
-    if(!direction) { this.drillBar.clear();this.drillSprite.setPosition(middle(this.world.x),middle(this.world.y));return; }
+    this.cutting=false;
+    this.advanceVehicle(time,dt,direction);
+    this.animateVehicle(time,dt);
+  }
+  advanceVehicle(time,dt,direction) {
+    if(this.moving) {
+      const target=this.moveTarget;
+      const distance=Math.hypot(target.px-this.rig.x,target.py-this.rig.y);
+      // Keep speed across consecutive cells; gently finish the current cell on release.
+      const desired=direction===target.direction?280:Math.max(65,Math.min(280,distance*8));
+      this.speed=damp(this.speed,desired,10,dt);
+      const step=Math.min(distance,this.speed*dt);
+      this.rig.x+=target.dx*step;this.rig.y+=target.dy*step;
+      if(step>=distance-.01) {
+        this.rig.setPosition(target.px,target.py);
+        this.world.x=target.x;this.world.y=target.y;this.moving=false;this.moveTarget=null;
+        this.refreshHUD();this.persist();
+      }
+      return;
+    }
+    if(!direction) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
     if(!this.world.heard){this.world.heard=true;this.refreshHUD();this.persist();}
     const [dx,dy,angle]={left:[-1,0,180],right:[1,0,0],up:[0,-1,-90],down:[0,1,90]}[direction];
-    this.drillSprite.setAngle(angle);
+    this.rig.angle=smoothHeading(this.rig.angle,angle,dt);
+    if(Math.abs(wrapDegrees(angle-this.rig.angle))>5) {this.speed=damp(this.speed,0,12,dt);this.drillBar.clear();return;}
     const x=this.world.x+dx,y=this.world.y+dy;
-    if(!this.world.inside(x,y))return;
-    if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
+    if(!this.world.inside(x,y)){this.speed=damp(this.speed,0,12,dt);return;}
+    if(x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.speed=damp(this.speed,0,12,dt);this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
+      this.cutting=true;this.speed=damp(this.speed,0,12,dt);
       const key=y*BASE_SIZE+x;
-      this.drillSprite.setPosition(middle(this.world.x)+Math.sin(time*.08)*1.5,middle(this.world.y));
-      const broken=this.world.drill(x,y,dt/1000);
+      const broken=this.world.drill(x,y,dt);
       const block=this.blocks.get(key);if(block)block.setTint(0xdcc28a);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
-      if(time-this.dustTime>90){this.dustTime=time;this.spawnDust(middle(x),middle(y));}
-      if(broken){block?.destroy();this.blocks.delete(key);this.drillBar.clear();this.refreshHUD();this.persist();}
-      else if(time-this.lastSave>300)this.persist();
+      if(broken) {
+        block?.destroy();this.blocks.delete(key);this.drillBar.clear();
+        this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
+        this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
+        this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
+        this.refreshHUD();this.persist();
+      } else if(time-this.lastSave>300)this.persist();
       return;
     }
     this.drillBar.clear();this.moving=true;
-    this.tweens.add({targets:this.drillSprite,x:middle(x),y:middle(y),duration:230,onComplete:()=>{
-      this.world.x=x;this.world.y=y;this.moving=false;this.refreshHUD();this.persist();
-    }});
+    this.moveTarget={x,y,px:middle(x),py:middle(y),dx,dy,direction};
+    this.speed=Math.max(60,this.speed);
   }
-  spawnDust(x,y) {
-    for(let i=0;i<3;i++) {
-      const p=this.add.image(x,y,'dust').setDepth(25).setScale(.5+Math.random()*.4).setAlpha(.6);
-      this.tweens.add({targets:p,x:x+(Math.random()-.5)*40,y:y-15-Math.random()*20,alpha:0,scale:1.3,duration:450,onComplete:()=>p.destroy()});
+  animateVehicle(time,dt) {
+    this.heat=updateHeat(this.heat,this.cutting,dt);
+    const moving=this.moving && this.speed>20;
+    const vibration=this.cutting?1.1:moving?.45:0;
+    this.drillSprite.setPosition(Math.sin(time*.11)*vibration*.4,Math.sin(time*.065)*vibration);
+    this.headHeat.setPosition(this.drillSprite.x,this.drillSprite.y);
+    this.trackMotion.setPosition(this.drillSprite.x,this.drillSprite.y);
+    this.shadow.setPosition(this.rig.x,this.rig.y+7).setAngle(this.rig.angle);
+    this.trackPhase=(this.trackPhase+(this.cutting?110:this.speed)*dt)%9;
+    this.trackMotion.clear();
+    if(moving||this.cutting) {
+      this.trackMotion.lineStyle(1.5,0xefddb8,.38);
+      for(let x=-28;x<28;x+=9) for(const y of [-24,24])
+        this.trackMotion.lineBetween(x-this.trackPhase,y-3,x-this.trackPhase,y+3);
+    }
+    this.headHeat.clear();
+    if(this.heat>.01) {
+      const color=(255<<16)|(Math.round(125*(1-this.heat)+18)<<8)|8;
+      // Color only the cone. Preserve its original metal detail beneath the glow.
+      this.headHeat.fillStyle(color,this.heat*.55);
+      this.headHeat.fillTriangle(31,-13,57,0,31,13);
+      this.headHeat.fillStyle(0xff6a15,this.heat*.12);
+      this.headHeat.fillEllipse(39,0,35,28);
+      this.headHeat.lineStyle(1.3,0xffaa3c,this.heat*.65);
+      for(let x=34;x<53;x+=5) {
+        const h=12*(57-x)/26;
+        const wave=this.cutting?Math.sin(time*.06+(x-34))*.7:0;
+        this.headHeat.lineBetween(x,-h+wave,x+3,h+wave);
+      }
+    }
+    if(moving&&time-this.trackDustTime>65) {
+      this.trackDustTime=time;
+      this.dustEmitter.setEmitterAngle({min:this.rig.angle+130,max:this.rig.angle+230});
+      for(const y of [-24,24]) {const p=this.localPoint(-31,y);this.dustEmitter.emitParticleAt(p.x,p.y,2);}
+    }
+    if(this.cutting) {
+      const p=this.localPoint(55);
+      if(time-this.dustTime>65) {
+        this.dustTime=time;
+        this.dustEmitter.setEmitterAngle({min:this.rig.angle+70,max:this.rig.angle+290});
+        this.dustEmitter.emitParticleAt(p.x,p.y,3);
+        this.chipEmitter.emitParticleAt(p.x,p.y,2);
+      }
+      if(time-this.sparkTime>40) {
+        this.sparkTime=time;
+        this.sparkEmitter.setEmitterAngle({min:this.rig.angle+65,max:this.rig.angle+295});
+        this.sparkEmitter.emitParticleAt(p.x,p.y,5);
+      }
+      this.headHeat.fillStyle(0xffe6a1,.45+Math.sin(time*.12)*.15);
+      this.headHeat.fillCircle(55,0,2.2);
     }
   }
 }
