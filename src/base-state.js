@@ -21,6 +21,8 @@ export class BaseWorld {
     this.cleared = new Set(Array.isArray(progress.cleared) ? progress.cleared.filter(validCell) : []);
     this.damage = new Map(Array.isArray(progress.damage) ? progress.damage.filter(v => Array.isArray(v) && validCell(v[0]) && Number.isFinite(v[1]) && v[1] > 0 && v[1] < 1) : []);
     this.rescued = progress.rescued === true;
+    this.dialogue=['radio','rescue'].includes(progress.dialogue)?progress.dialogue:null;
+    this.dialoguePage=Number.isInteger(progress.dialoguePage)?Math.max(0,Math.min(3,progress.dialoguePage)):0;
     this.liftAnnounced = progress.liftAnnounced === true;
     this.heard = progress.heard === true || this.rescued;
     if (this.blocked(this.x, this.y) || (!this.rescued && this.x === RESCUE.x && this.y === RESCUE.y)) { this.x = SPAWN.x; this.y = SPAWN.y; }
@@ -36,5 +38,5 @@ export class BaseWorld {
   canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {
     return !this.rescued&&Math.hypot(px-(RESCUE.x+.5)*CELL,py-(RESCUE.y+.5)*CELL)<=58;
   }
-  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced }; }
+  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
 }

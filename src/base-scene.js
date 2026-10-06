@@ -1,5 +1,7 @@
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
+import { STORY_LINES } from './story-content.js';
+import { showStoryDialogue } from './story-dialogue.js';
 import { LiftView } from './lift-view.js';
 import { LIFT, LIFT_BLOCKS, FLOOR_LIFT, liftBlockCount, liftFrameCell, liftDestinations, FloorWorld } from './lift-state.js';
 import { writeSave } from './storage.js';
@@ -14,7 +16,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.floorNumber=this.sys.settings.key==='Floor'?1:0;
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
-    this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.leaving=false;
+    this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchDirections=new Map();this.moving=false;this.hold=null;this.lastSave=0;
@@ -62,6 +64,10 @@ export class Base extends globalThis.Phaser.Scene {
     this.refreshHUD();this.persist();this.checkLift();
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();});
     this.cameras.main.fadeIn(300,12,26,27);
+    if(!this.floorNumber&&!this.arrival)this.time.delayedCall(350,()=>{
+      if(this.world.dialogue)this.startStory(this.world.dialogue);
+      else if(!this.world.heard)this.playRadio();
+    });
   }
   makeTextures() {
     if(this.textures.exists('serega')) return;
@@ -116,14 +122,14 @@ export class Base extends globalThis.Phaser.Scene {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
     const label=saving?'СПАСТИ СЕРЁГУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=false;action.disabled=this.busy||this.storyActive||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
     document.querySelector('.base-location').innerHTML=this.floorNumber?'ЭТАЖ 1 <span>Шахта · грузовой лифт</span>':'БУНКЕР №72 <span>База · 50 × 50</span>';
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?' РАЦИЯ · ЭТАЖ 1':' РАЦИЯ · БАЗА';
     document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить лифт — выполнено':'Расчистить лифт';
-    document.querySelector('#radio-text').textContent=this.floorNumber?'Серёга Т: «Вот и первый этаж. Лифт за спиной — вернуться на базу можно в любой момент».':!w.rescued?(w.heard?'Серёга Т: «Я за завалом справа. Пробури проход и подъедь вплотную — заберусь в кабину».':'Ты очнулся один. Бур завёлся. Двинься с места — рация ещё подаёт признаки жизни.'):ready?'Серёга Т: «Лифт живой. Карта первого этажа у тебя. А следующим делом запустим Породник».':'Серёга Т: «Карту первого этажа держи. Теперь разгреби три блока у въезда — они зажали механизм». ';
+    document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
     document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'✓ Лифт работает · Карта 1-го этажа получена · Заезжай на платформу':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
     this.lift.powered(ready);this.syncAction();
   }
@@ -139,22 +145,38 @@ export class Base extends globalThis.Phaser.Scene {
     this.campaign=this.snapshotCampaign();const saved=writeSave(this.campaign);
     const status=document.querySelector('#base-save');if(status)status.textContent=saved?'Прогресс сохранён':'Сохранение недоступно в этом браузере';this.lastSave=this.time.now;
   }
-  goMenu() {if(this.busy||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
+  goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.busy||document.querySelector('#dialog').open)return;
+    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(!this.floorNumber&&!this.world.rescued)this.rescue();
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
   }
   rescue() {
-    if(this.busy||!this.world.canRescue(this.rig.x,this.rig.y)||document.querySelector('#dialog').open)return;
-    this.busy=true;this.speed=0;this.dialogClosed();this.world.rescued=true;this.world.heard=true;
+    if(this.busy||this.storyActive||!this.world.canRescue(this.rig.x,this.rig.y)||document.querySelector('#dialog').open)return;
+    this.busy=true;this.speed=0;this.dialogClosed();this.world.rescued=true;this.world.heard=true;this.world.dialogue='rescue';this.world.dialoguePage=0;
     this.marker.setVisible(false);this.persist();
     this.tweens.add({targets:this.person,x:this.rig.x,y:this.rig.y,scale:.4,alpha:0,duration:550,ease:'Sine.InOut',onComplete:()=>{
       this.person.setVisible(false);this.passenger.setVisible(true);this.busy=false;this.refreshHUD();this.persist();this.checkLift();
-      const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СЕРЁГА Т В КАБИНЕ';
-      const p=document.createElement('p');p.textContent='«Спасибо, командир. Серёга Т, строитель. Карту первого этажа держи. А вот эту кучу у лифта разгреби — иначе поедешь вниз вместе с лифтом. Один раз». Ключ-карта получена. Новое задание: «Расчистить лифт». Три блока у въезда отмечены подсветкой.';
-      document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
+      this.startStory('rescue');
     }});
+  }
+  playRadio() {
+    if(this.floorNumber||this.world.heard||this.storyActive||this.busy)return;
+    this.world.heard=true;this.world.dialogue='radio';this.world.dialoguePage=0;this.refreshHUD();this.startStory('radio');
+  }
+  startStory(kind) {
+    if(this.storyActive||!STORY_LINES[kind])return;
+    this.storyActive=true;this.speed=0;this.dialogClosed();this.world.dialogue=kind;this.persist();
+    showStoryDialogue(this,{lines:STORY_LINES[kind],page:this.world.dialoguePage,
+      onPage:page=>{this.world.dialoguePage=page;this.persist();},
+      onFinish:()=>{
+        this.world.dialogue=null;this.world.dialoguePage=0;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
+      }
+    });
+  }
+  notify(text) {
+    const toast=document.createElement('div');toast.className='quest-toast';toast.setAttribute('role','status');toast.textContent=text;document.querySelector('.base-hud').append(toast);this.time.delayedCall(4200,()=>toast.remove());
   }
   checkLift() {
     if(this.floorNumber||!this.liftReady()||this.world.liftAnnounced)return;
@@ -181,7 +203,7 @@ export class Base extends globalThis.Phaser.Scene {
     document.querySelector('#dialog-title').textContent='ПУЛЬТ ГРУЗОВОГО ЛИФТА';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
   }
   async travelTo(target) {
-    if(this.busy||target===this.floorNumber||![0,1].includes(target)||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
+    if(this.busy||this.storyActive||target===this.floorNumber||![0,1].includes(target)||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
     this.busy=true;this.speed=0;this.dialogClosed();this.persist();
     await this.lift.depart(this.rig,this.shadow,target);
     this.campaign=this.snapshotCampaign();this.campaign.location=target===0?'base':'floor';this.campaign.floor=target;
@@ -231,7 +253,7 @@ export class Base extends globalThis.Phaser.Scene {
   update(time,delta) {
     if(!this.keys||document.hidden)return;
     this.syncAction();this.drawLiftGlow(time);
-    if(this.busy||document.querySelector('#dialog').open)return;
+    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
@@ -261,7 +283,7 @@ export class Base extends globalThis.Phaser.Scene {
     }
     this.drillBar.clear();
     if(!direction)return;
-    if(!this.world.heard){this.world.heard=true;this.refreshHUD();this.persist();}
+    if(!this.world.heard&&!this.floorNumber){this.playRadio();return;}
     const [dx,dy]={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[direction];
     const x=this.world.x+dx,y=this.world.y+dy;
     // Cut only the block directly ahead once the chassis has turned toward it.
