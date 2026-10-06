@@ -65,15 +65,11 @@ export class Base extends globalThis.Phaser.Scene {
     border.fillStyle(0x203b3c);border.fillRect(0,0,3200,128);border.fillRect(0,3072,3200,128);border.fillRect(0,0,128,3200);border.fillRect(3072,0,128,3200);
     border.lineStyle(8,0x809187);border.strokeRect(128,128,2944,2944);
     this.terrain=new WorldTerrain(this,this.world);
-    const bx=middle(25),by=middle(8),vault=this.add.graphics().setDepth(2);
-    vault.fillStyle(0x162f30,.6);vault.fillRoundedRect(bx-265,by-110,530,230,24);
-    vault.fillStyle(0x396b69);vault.fillRoundedRect(bx-245,by-115,490,200,24);
-    vault.lineStyle(12,0xc79049);vault.strokeCircle(bx,by-15,84);
-    vault.fillStyle(0x254e50);vault.fillCircle(bx,by-15,74);
-    vault.lineStyle(4,0x8ba399);vault.strokeCircle(bx,by-15,63);
-    this.add.text(bx,by-15,'72',{fontFamily:'Arial',fontSize:'56px',fontStyle:'bold',color:'#edc777'}).setOrigin(.5).setDepth(3);
-    this.add.text(bx,by-145,'БУНКЕР №72',{fontFamily:'Arial',fontSize:'24px',fontStyle:'bold',color:'#e2d0a2'}).setOrigin(.5).setDepth(3);
-    for(const x of [bx-202,bx+202]) { this.add.circle(x,by-35,15,0xf5b759).setDepth(4);this.add.circle(x,by-35,32,0xffd37c,.12).setDepth(4); }
+    const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
+    // Precomputed alpha bounds keep direct file launch free of canvas pixel reads.
+    if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
+    this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance')
+      .setDisplaySize(530,530*704/1711).setDepth(2);
     this.add.text(middle(33),middle(21),'ЛИФТ\nПОД ЗАВАЛОМ',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
     this.add.text(middle(18),middle(32),'ПОРОДНИК\nНЕ ЗАПУЩЕН',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
     this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10);
