@@ -1,4 +1,4 @@
-import { WorldTerrain } from './terrain.js';
+import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { writeSave } from './storage.js';
 import { driveStep, driveFits } from './drive-controller.js';
@@ -59,8 +59,8 @@ export class Base extends globalThis.Phaser.Scene {
     g.generateTexture('serega',32,40);g.destroy();
   }
   makeMap() {
-    const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,'bunker-floor').setOrigin(0).setDepth(0);
-    const source=this.textures.get('bunker-floor').getSourceImage();floor.setTileScale(256/source.width,256/source.height);
+    const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,bunkerFloorTexture(this)).setOrigin(0).setDepth(0);
+
     const border=this.add.graphics().setDepth(1);
     border.fillStyle(0x203b3c);border.fillRect(0,0,3200,128);border.fillRect(0,3072,3200,128);border.fillRect(0,0,128,3200);border.fillRect(3072,0,128,3200);
     border.lineStyle(8,0x809187);border.strokeRect(128,128,2944,2944);

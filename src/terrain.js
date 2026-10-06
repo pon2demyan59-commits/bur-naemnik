@@ -1,4 +1,4 @@
-import { BASE_SIZE, CELL } from './base-state.js';
+import { BASE_SIZE, CELL, initialRubble } from './base-state.js';
 export function terrainTileIndex(world,x,y) {
   const soil=(cx,cy)=>world.inside(cx,cy)&&world.blocked(cx,cy);
   const filled=soil(x,y);
@@ -6,29 +6,42 @@ export function terrainTileIndex(world,x,y) {
   const mask=neighbors.reduce((bits,value,i)=>bits|((filled?!value:value)?1<<i:0),0);
   return filled?((y%4)*4+x%4)*16+mask:256+mask;
 }
-function cutEdge(ctx,side,variant,face) {
+export function soilCornerBounds(mask) {
+  return {left:mask&8?11:0,right:mask&2?48:64,top:mask&1?8:0,bottom:mask&4?37:64};
+}
+export function soilFacePolygon(mask,side) {
+  if(!(mask&(1<<side)))return [];
+  const {left,right,top,bottom}=soilCornerBounds(mask);
+  const inner=[[[left,top],[right,top]],[[right,top],[right,bottom]],[[right,bottom],[left,bottom]],[[left,bottom],[left,top]]][side];
+  const outer=[[[0,0],[64,0]],[[64,0],[64,64]],[[64,64],[0,64]],[[0,64],[0,0]]][side];
+  return [inner[0],inner[1],outer[1],outer[0]];
+}
+function cutEdge(ctx,side,variant,face,mask) {
+  const polygon=soilFacePolygon(mask,side);
+  const inner=polygon.slice(0,2),outer=[polygon[3],polygon[2]];
+  const [start,end]=inner,points=[start];
+  for(let i=1;i<8;i++) {
+    const t=i/8,jitter=(((i+variant*5)%4)-1.5)*.8;
+    points.push([start[0]+(end[0]-start[0])*t+(side%2?jitter:0),start[1]+(end[1]-start[1])*t+(side%2?0:jitter)]);
+  }
+  points.push(end);
+  ctx.save();ctx.beginPath();ctx.moveTo(...points[0]);for(const point of points.slice(1))ctx.lineTo(...point);
+  ctx.lineTo(...outer[1]);ctx.lineTo(...outer[0]);ctx.closePath();ctx.clip();
   ctx.save();
-  if(side===0) {ctx.translate(64,64);ctx.rotate(Math.PI);}
-  if(side===1) {ctx.translate(0,64);ctx.rotate(-Math.PI/2);}
-  if(side===3) {ctx.translate(64,0);ctx.rotate(Math.PI/2);}
-  const depth=side===2?27:side===1?16:side===3?11:8;
-  const rim=64-depth,points=[];
-  for(let x=0;x<=64;x+=8)points.push([x,rim+(x===0||x===64?0:(((x/8+variant*5)%4)-1.5)*1.2)]);
-  ctx.beginPath();ctx.moveTo(...points[0]);for(const point of points.slice(1))ctx.lineTo(...point);
-  ctx.lineTo(64,64);ctx.lineTo(0,64);ctx.closePath();
-  ctx.save();ctx.clip();
-  // Painted soil clods replace the shallow, evenly striped procedural rim.
+  if(side===0){ctx.translate(64,64);ctx.rotate(Math.PI);}
+  if(side===1){ctx.translate(0,64);ctx.rotate(-Math.PI/2);}
+  if(side===3){ctx.translate(64,0);ctx.rotate(Math.PI/2);}
+  const depth=side===2?27:side===1?16:side===3?11:8,rim=64-depth;
   const panel=side===1||side===3?Math.floor(variant/4):variant%4;
   ctx.drawImage(face,panel*face.width/4,0,face.width/4,face.height,0,rim-3,64,depth+3);
   const shade=ctx.createLinearGradient(0,rim,0,64);
   shade.addColorStop(0,'rgba(39,23,13,.05)');shade.addColorStop(.55,'rgba(39,23,13,.12)');shade.addColorStop(1,'rgba(25,19,14,.48)');
   ctx.fillStyle=shade;ctx.fillRect(0,rim-3,64,depth+3);
   if(side===1){ctx.fillStyle='rgba(32,23,16,.16)';ctx.fillRect(0,rim-3,64,depth+3);}
-  ctx.restore();
+  ctx.restore();ctx.restore();
   ctx.beginPath();ctx.moveTo(...points[0]);for(const point of points.slice(1))ctx.lineTo(...point);
-  ctx.strokeStyle=side===0||side===3?'rgba(255,211,123,.85)':'rgba(248,186,94,.85)';ctx.lineWidth=3;ctx.stroke();
-  ctx.strokeStyle='rgba(31,23,17,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,63);ctx.lineTo(64,63);ctx.stroke();
-  ctx.restore();
+  ctx.strokeStyle=side===0||side===3?'rgba(255,211,123,.85)':'rgba(248,186,94,.85)';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.strokeStyle='rgba(31,23,17,.7)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(...outer[0]);ctx.lineTo(...outer[1]);ctx.stroke();
 }
 function floorShadow(ctx,mask) {
   for(let side=0;side<4;side++) if(mask&(1<<side)) {
@@ -46,13 +59,13 @@ function floorShadow(ctx,mask) {
 export function floorFixtureIndex(world,x,y) {
   const clear=(cx,cy)=>world.inside(cx,cy)&&!world.blocked(cx,cy);
   if(!clear(x,y))return -1;
-  const pipe=(cx,cy)=>clear(cx,cy)&&world.blocked(cx,cy-1)&&((cx+cy*3)%12)<4;
+  const pipe=(cx,cy)=>world.inside(cx,cy)&&initialRubble(cx,cy-1)&&((cx+cy*3)%12)<4;
   if(pipe(x,y))return 272+(pipe(x-1,y)?1:0)+(pipe(x+1,y)?2:0);
   const seed=(x*197+y*83+x*y*17)%997;
   if(seed%61===0)return 276;
   if(seed%73===0)return 277;
-  if(seed%11===0&&world.blocked(x-1,y))return 278;
-  if(seed%11===0&&world.blocked(x+1,y))return 279;
+  if(seed%11===0&&initialRubble(x-1,y))return 278;
+  if(seed%11===0&&initialRubble(x+1,y))return 279;
   return -1;
 }
 function floorFixture(ctx,type) {
@@ -63,6 +76,8 @@ function floorFixture(ctx,type) {
     ctx.strokeStyle='#27393c';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(left,14);ctx.lineTo(right,14);ctx.stroke();
     ctx.strokeStyle='#708187';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#b2b4a0';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,12);ctx.lineTo(right,12);ctx.stroke();
     for(const x of [left+6,right-6]){ctx.fillStyle='#8d6f4d';ctx.fillRect(x,9,3,10);ctx.fillStyle='#bcab81';ctx.fillRect(x,9,3,2);}
+    ctx.fillStyle='#a79875';
+    if(!(type&1))ctx.fillRect(left-1,10,2,8);if(!(type&2))ctx.fillRect(right-1,10,2,8);
     if(type===0){ctx.fillStyle='#73644d';ctx.fillRect(29,9,6,10);ctx.strokeStyle='#b79c64';ctx.lineWidth=2;ctx.beginPath();ctx.arc(32,11,5,0,Math.PI*2);ctx.stroke();}
   } else if(type===4) {
     ctx.fillStyle='rgba(24,26,22,.4)';ctx.beginPath();ctx.ellipse(33,35,14,12,0,0,Math.PI*2);ctx.fill();
@@ -90,7 +105,7 @@ function makeTerrainAtlas(scene) {
     const index=variant*16+mask,ox=index%16*68+2,oy=Math.floor(index/16)*68+2;
     ctx.save();ctx.translate(ox,oy);ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();
     ctx.drawImage(source,(variant%4)*source.width/4,Math.floor(variant/4)*source.height/4,source.width/4,source.height/4,0,0,64,64);
-    for(let side=0;side<4;side++)if(mask&(1<<side))cutEdge(ctx,side,variant,face);
+    for(let side=0;side<4;side++)if(mask&(1<<side))cutEdge(ctx,side,variant,face,mask);
     ctx.restore();
     // Extruded texels prevent neighbouring atlas variants bleeding into cell seams.
     const canvas=texture.getSourceImage();
@@ -123,4 +138,17 @@ export class WorldTerrain {
   refreshAround(x,y) {
     for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(Math.abs(dx)+Math.abs(dy)<=2)this.paintCell(x+dx,y+dy);
   }
+}
+
+export function bunkerFloorTexture(scene) {
+  const key='bunker-floor-joined';
+  if(scene.textures.exists(key))return key;
+  const source=scene.textures.get('bunker-floor').getSourceImage();
+  const texture=scene.textures.createCanvas(key,512,512),ctx=texture.getContext();
+  // Mirrored neighbors share the same boundary pixels, including the slab joints.
+  for(let y=0;y<2;y++)for(let x=0;x<2;x++) {
+    ctx.save();ctx.translate(x?512:0,y?512:0);ctx.scale(x?-1:1,y?-1:1);
+    ctx.drawImage(source,0,0,256,256);ctx.restore();
+  }
+  texture.refresh();return key;
 }
