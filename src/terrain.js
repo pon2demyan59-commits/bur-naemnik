@@ -1,3 +1,4 @@
+import { FLOOR_PROP_FRAMES } from './floor-prop-frames.js';
 import { BASE_SIZE, CELL, initialRubble } from './base-state.js';
 export function terrainTileIndex(world,x,y) {
   const soil=(cx,cy)=>world.inside(cx,cy)&&world.blocked(cx,cy);
@@ -52,7 +53,6 @@ function floorShadow(ctx,mask) {
     const depth=side===0?24:side===3?15:10;
     const grad=ctx.createLinearGradient(0,0,0,depth);grad.addColorStop(0,'rgba(23,20,16,.82)');grad.addColorStop(.22,'rgba(23,20,16,.45)');grad.addColorStop(1,'rgba(23,20,16,0)');
     ctx.fillStyle=grad;ctx.fillRect(0,0,64,depth);
-    for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#89714e':'#b59b74';ctx.beginPath();ctx.ellipse(5+i*10,2+(i%3),1.2+(i%2),.9,0,0,Math.PI*2);ctx.fill();}
     ctx.restore();
   }
 }
@@ -68,38 +68,34 @@ export function floorFixtureIndex(world,x,y) {
   if(seed%11===0&&initialRubble(x+1,y))return 279;
   return -1;
 }
-function floorFixture(ctx,type) {
-  ctx.save();
+function spriteSource(scene,key) {
+  const texture=scene.textures.get(key),bounds=FLOOR_PROP_FRAMES[key];
+  if(!texture.has('trimmed'))texture.add('trimmed',0,bounds.x,bounds.y,bounds.w,bounds.h);
+  const frame=texture.get('trimmed');
+  return {image:texture.getSourceImage(),x:frame.cutX,y:frame.cutY,w:frame.cutWidth,h:frame.cutHeight};
+}
+function drawSprite(ctx,sprite,x,y,w,h,flip=false) {
+  ctx.save();if(flip){ctx.translate(x+w,y);ctx.scale(-1,1);x=0;y=0;}
+  ctx.drawImage(sprite.image,sprite.x,sprite.y,sprite.w,sprite.h,x,y,w,h);ctx.restore();
+}
+function floorFixture(ctx,type,sprites) {
   if(type<4) {
-    const left=type&1?0:8,right=type&2?64:56;
-    ctx.strokeStyle='rgba(20,22,20,.4)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(left,19);ctx.lineTo(right,19);ctx.stroke();
-    ctx.strokeStyle='#27393c';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(left,14);ctx.lineTo(right,14);ctx.stroke();
-    ctx.strokeStyle='#708187';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#b2b4a0';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,12);ctx.lineTo(right,12);ctx.stroke();
-    for(const x of [left+6,right-6]){ctx.fillStyle='#8d6f4d';ctx.fillRect(x,9,3,10);ctx.fillStyle='#bcab81';ctx.fillRect(x,9,3,2);}
-    ctx.fillStyle='#a79875';
-    if(!(type&1))ctx.fillRect(left-1,10,2,8);if(!(type&2))ctx.fillRect(right-1,10,2,8);
-    if(type===0){ctx.fillStyle='#73644d';ctx.fillRect(29,9,6,10);ctx.strokeStyle='#b79c64';ctx.lineWidth=2;ctx.beginPath();ctx.arc(32,11,5,0,Math.PI*2);ctx.stroke();}
+    const left=type&1?0:9,right=type&2?64:55;
+    drawSprite(ctx,sprites.pipe,left,7,right-left,15);
+    if(!(type&1))drawSprite(ctx,sprites.cap,left-5,6,10,17,true);
+    if(!(type&2))drawSprite(ctx,sprites.cap,right-5,6,10,17);
   } else if(type===4) {
-    ctx.fillStyle='rgba(24,26,22,.4)';ctx.beginPath();ctx.ellipse(33,35,14,12,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#3a4340';ctx.beginPath();ctx.arc(32,32,12,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#afa488';ctx.lineWidth=2;ctx.stroke();
-    ctx.save();ctx.beginPath();ctx.arc(32,32,9,0,Math.PI*2);ctx.clip();ctx.strokeStyle='#171f1d';ctx.lineWidth=3;
-    for(let x=18;x<48;x+=5){ctx.beginPath();ctx.moveTo(x,20);ctx.lineTo(x-7,44);ctx.stroke();}ctx.restore();
-    for(const [x,y] of [[32,21],[21,32],[43,32],[32,43]]){ctx.fillStyle='#c7bba0';ctx.fillRect(x-1,y-1,2,2);}
+    drawSprite(ctx,sprites.drain,17,17,30,30);
   } else if(type===5) {
-    ctx.fillStyle='rgba(20,23,22,.35)';ctx.fillRect(17,25,32,18);ctx.fillStyle='#353f3e';ctx.fillRect(16,22,32,18);ctx.strokeStyle='#9e9b86';ctx.lineWidth=2;ctx.strokeRect(16,22,32,18);
-    for(let y=26;y<38;y+=4){ctx.fillStyle='#141f1d';ctx.fillRect(20,y,24,2);ctx.fillStyle='#6a7976';ctx.fillRect(20,y-1,24,1);}
-    for(const [x,y] of [[18,24],[46,24],[18,38],[46,38]]){ctx.fillStyle='#b6a889';ctx.fillRect(x,y,1.5,1.5);}
+    drawSprite(ctx,sprites.vent,12,18,40,28);
   } else {
-    const x=type===6?10:54;
-    ctx.strokeStyle='rgba(20,21,19,.35)';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x+2,3);ctx.bezierCurveTo(x+6,20,x-5,42,x+2,61);ctx.stroke();
-    ctx.strokeStyle='#322e21';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,2);ctx.bezierCurveTo(x+4,20,x-7,42,x,61);ctx.stroke();ctx.strokeStyle='#a18b5a';ctx.lineWidth=1;ctx.stroke();
-    for(const y of [17,46]){ctx.fillStyle='#586463';ctx.fillRect(x-4,y,7,3);ctx.fillStyle='#a0a38f';ctx.fillRect(x-4,y,7,1);}
+    drawSprite(ctx,sprites.cable,type===6?4:46,3,14,58);
   }
-  ctx.restore();
 }
 function makeTerrainAtlas(scene) {
   if(scene.textures.exists('terrain-atlas'))return;
   const texture=scene.textures.createCanvas('terrain-atlas',1088,1224);
+  const sprites=Object.fromEntries(['pipe','cap','vent','drain','cable'].map(name=>[name,spriteSource(scene,'prop-'+name)]));
   const ctx=texture.getContext(),source=scene.textures.get('soil-surface').getSourceImage(),face=scene.textures.get('soil-cut').getSourceImage();
   for(let variant=0;variant<16;variant++)for(let mask=0;mask<16;mask++) {
     const index=variant*16+mask,ox=index%16*68+2,oy=Math.floor(index/16)*68+2;
@@ -115,7 +111,7 @@ function makeTerrainAtlas(scene) {
     ctx.drawImage(canvas,ox+63,oy-2,1,68,ox+64,oy-2,2,68);
   }
   for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
-  for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type);ctx.restore();}
+  for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
   texture.refresh();
 }
 export class WorldTerrain {

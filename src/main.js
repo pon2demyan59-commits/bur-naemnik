@@ -87,9 +87,10 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
-    this.load.image('bunker-floor', './public/assets/game/bunker-floor.webp');
+    this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
@@ -97,7 +98,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if (!this.textures.exists('title') || !this.textures.exists('console') || !this.textures.exists('drill') || !this.textures.exists('soil-cut') || !this.textures.exists('soil-surface') || !this.textures.exists('bunker-floor')) return;
+    if(!['title','console','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
