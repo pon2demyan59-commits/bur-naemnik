@@ -157,3 +157,34 @@ dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
 .keycard-caption{font-size:10px;letter-spacing:.07em;color:#acc8ad;}
 .keycard-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #d6ba6c;border-radius:5px;background:#283f31;color:#ffe5a2;font-size:11px;font-weight:800;}
 .keycard-chip::before{content:'';width:13px;height:9px;border:1px solid #d6ba6c;border-radius:2px;background:linear-gradient(#e4c678 0 35%,#405e4d 35% 60%,#e4c678 60%);}
+
+/* Bunker terminal: shared metal enclosure and green information screens. */
+.menu.stage{display:grid;place-items:center;}
+.bunker-terminal{pointer-events:auto;width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;padding:26px;border:5px solid #526b61;border-radius:18px;background:linear-gradient(145deg,#32483fed,#172c28fa);box-shadow:inset 0 1px #afbaa0,inset 0 0 0 2px #152724,0 12px 0 #0b1b19,0 24px 80px #000a;position:relative;}
+.bunker-terminal::before,.bunker-terminal::after{content:'';position:absolute;top:10px;width:7px;height:7px;border-radius:50%;background:#a6ab88;box-shadow:inset 0 -2px #3a5046;}.bunker-terminal::before{left:10px;}.bunker-terminal::after{right:10px;}
+.terminal-badge{font-size:10px;color:#abc4ae;letter-spacing:.17em;}
+.terminal-title{color:#f0cf83;font-size:46px;margin:14px 0 20px;line-height:1;font-weight:900;letter-spacing:.05em;}.terminal-title span{display:block;margin-top:9px;font-size:18px;color:#d4dcc0;letter-spacing:.02em;}
+.campaign-summary{padding:15px 16px;margin-bottom:18px;border:2px solid #526957;border-radius:6px;background:repeating-linear-gradient(0deg,#102c22 0 2px,#123025 2px 4px);color:#b9e3b1;box-shadow:inset 0 3px 14px #0006;min-height:70px;font-size:14px;}
+.campaign-summary strong,.campaign-summary span{display:block;}.campaign-summary span{margin-top:7px;color:#93b49a;font-size:12px;}
+.terminal-primary,.terminal-button{position:static;width:100%;min-height:52px;padding:12px;border:2px solid #8b9475;border-radius:8px;font-weight:900;background:linear-gradient(#bfcab2,#839787);color:#18332b;box-shadow:inset 0 2px #dce3c1,0 3px #0e231d;}
+.terminal-primary{background:linear-gradient(#f0d488,#c69845);border-color:#b7a575;color:#352b12;font-size:18px;margin-bottom:16px;}
+.terminal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}.terminal-button{font-size:12px;letter-spacing:.025em;}
+.terminal-button:hover,.terminal-primary:hover{filter:brightness(1.12);}.terminal-button:active,.terminal-primary:active{transform:translateY(2px);box-shadow:inset 0 2px #193329;}.terminal-button:disabled{opacity:.45;cursor:default;filter:none;}
+.terminal-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;margin-top:22px;padding-top:15px;border-top:1px solid #71877766;}
+.terminal-reset,.terminal-back{font-size:10px;min-height:36px;padding:8px;background:#183028;border:1px solid #566c58;border-radius:5px;color:#b9c6aa;}.terminal-reset{color:#daac88;border-color:#805d4c;}
+dialog:not(.story-dialogue){max-height:calc(100dvh - 28px);width:min(620px,calc(100vw - 28px));border:4px solid #61776a;border-radius:14px;background:linear-gradient(145deg,#293f37,#132e25);box-shadow:inset 0 0 0 2px #0c201c,0 22px 70px #000b;}
+dialog:not(.story-dialogue) .dialog-shell{padding:24px;}
+dialog:not(.story-dialogue) h2{font-size:22px;letter-spacing:.035em;color:#dfc788;padding-bottom:15px;border-bottom:1px solid #72836a66;margin-bottom:18px;}
+dialog:not(.story-dialogue) #dialog-body{max-height:calc(100dvh - 210px);overflow-y:auto;overscroll-behavior:contain;padding-right:5px;}
+dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-gradient(#a9b69b,#738974);color:#152f26;border-color:#667c66;box-shadow:inset 0 2px #d0d6b5;}
+.terminal-section{margin-bottom:16px;border:1px solid #466b51;border-radius:7px;background:#102b22;padding:14px;}.terminal-section h3{margin:0 0 10px;color:#d4c084;font-size:13px;letter-spacing:.03em;}
+.terminal-row{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:8px 0;border-top:1px solid #64806433;font-size:13px;color:#a8c3a7;}.terminal-row strong{color:#d0e5bd;text-align:right;}
+.terminal-note{font-size:12px;line-height:1.55;color:#a0b899;}.help-panel .terminal-row{display:block;}.help-panel .terminal-row span{display:block;font-weight:bold;color:#dbc58c;}.help-panel .terminal-row strong{display:block;margin-top:5px;font-weight:normal;text-align:left;line-height:1.5;}
+.lift-console{border-width:2px;border-color:#637760;background:linear-gradient(145deg,#263f34,#142d25);box-shadow:inset 0 1px #7a887266;}.lift-console>p{font-size:14px;margin:0;color:#c5d1b2;}.lift-console .metal-button,.cargo-console .metal-button{border-width:2px;font-size:13px;padding:12px;}
+.hud-actions{display:flex;gap:8px;}.base-location{font-size:14px;border-radius:8px;border-width:1px;background:#19372ded;}.base-location span{margin-top:3px;font-size:11px;}
+.radio-card{width:290px;padding:15px;border-width:2px;border-radius:10px;background:linear-gradient(135deg,#254239f2,#102e25f5);}.radio-card strong{font-size:18px;}.radio-title{margin-bottom:9px;}.quest-track{line-height:1.5;}
+.combat-hud{flex-direction:row;flex-wrap:wrap;gap:8px 16px;border-radius:8px;padding:12px 15px;max-width:470px;}.combat-hud>span{white-space:nowrap;}.combat-hud #combat-tip{width:100%;white-space:normal;}#hud-cargo.full-hold{color:#ffca73;}#hud-credits{color:#edd08a;}
+#base-save[hidden]{display:none;}#base-save{color:#ffbd8a;border:1px solid #b27a48;}
+@media(max-width:700px){.base-top{gap:6px;}.hud-actions{gap:5px;}.hud-actions .hud-button{font-size:10px;padding:8px;min-height:40px;}.base-location{padding:7px 9px;}.base-bottom{max-width:calc(100% - 185px);}.combat-hud{flex-direction:column;gap:4px;padding:8px 10px;}.radio-card{width:min(260px,calc(100% - 20px));}.bunker-terminal{padding:21px;}.terminal-title{font-size:40px;}}
+@media(max-height:580px){.bunker-terminal{padding:16px 22px;}.terminal-title{font-size:28px;margin:9px 0 12px;}.terminal-title span{font-size:14px;margin-top:5px;}.campaign-summary{min-height:52px;padding:10px;margin-bottom:12px;}.terminal-primary{min-height:44px;margin-bottom:10px;}.terminal-button{min-height:42px;}.terminal-footer{margin-top:14px;padding-top:9px;}.radio-card{top:73px;padding:10px;max-height:calc(100dvh - 160px);overflow-y:auto;}.radio-card p{margin:7px 0;}.base-bottom{bottom:10px;}}
+@media(max-width:380px){.hud-actions .hud-button{font-size:9px;padding:6px;}.base-location{font-size:11px;}.terminal-actions{gap:7px;}.terminal-button{font-size:10px;}.dialog-shell .terminal-row{font-size:12px;}}

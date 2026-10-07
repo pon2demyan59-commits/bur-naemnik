@@ -1514,12 +1514,13 @@ const combatMethods={
   const text='Прочность '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;
   if(node.textContent!==text)node.textContent=text;
   node.classList.toggle('low-hull',this.hull<=5);
+  const cargo=document.querySelector('#hud-cargo');if(cargo){cargo.textContent='Груз '+this.cargo+'/200';cargo.classList.toggle('full-hold',this.cargo>=200);}
+  const credits=document.querySelector('#hud-credits');if(credits)credits.textContent='Кредиты '+this.credits;
   const tip=document.querySelector('#combat-tip');
-  tip.hidden=!this.armoryQuest.installed;
+  tip.hidden=this.repairQuest.wave!=='active';
   tip.textContent=this.repairQuest.wave==='active'?'Учебная оборона · союзники прикрывают':'Пушка: автоогонь · 2 клетки';
   const loot=document.querySelector('#combat-loot');
-  const fiber=(this.inventory.fiber||0)+(this.carriedLoot.fiber||0),heads=(this.inventory.heads||0)+(this.carriedLoot.heads||0);
-  if(loot){loot.hidden=!fiber&&!heads;loot.textContent='Паучье волокно: '+fiber+(heads?' · Трофеи: '+heads:'');}
+  if(loot){loot.hidden=true;loot.textContent='';}
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.refreshRepairHUD();
  },
  emergencyReturn(){
@@ -1609,6 +1610,7 @@ const armoryMethods={
   else{name.textContent='За оборванной связью';radio.textContent='Спустись на второй этаж. Найди товарища Константина и чертёж первой пушки.';status.textContent='Получена ключ-карта второго этажа';}
  }
 };
+
 
 
 
@@ -1802,12 +1804,13 @@ class Base extends globalThis.Phaser.Scene {
   makeHUD() {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
-      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База · 50 × 50</span></div><button class="hud-button" id="base-menu">☰ МЕНЮ</button></header>
+      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">☰ МЕНЮ</button></div></header>
       <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
-      <footer class="base-bottom"><div class="base-tip">WASD / стрелки — движение и бурение<br>E / пробел — взаимодействовать · пушка стреляет автоматически</div><div class="combat-hud"><span id="combat-hull"></span><span id="combat-tip"></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status"></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
+      <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
     ui.append(hud);
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
+    hud.querySelector('#base-inventory').addEventListener('click',()=>this.openInventory());
     hud.querySelector('#rescue-action').addEventListener('click',()=>this.interact());
     for(const button of hud.querySelectorAll('[data-dir]')) {
       button.addEventListener('pointerdown',event=> { event.preventDefault();button.setPointerCapture(event.pointerId);this.touchDirections.delete(event.pointerId);this.touchDirections.set(event.pointerId,button.dataset.dir);this.hold=button.dataset.dir; });
@@ -1824,11 +1827,11 @@ class Base extends globalThis.Phaser.Scene {
     const armoryItem=this.armoryFloorAction(),atArmory=!this.floorNumber&&this.armoryQuest.ready&&onArmoryDeck(this.rig);
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig);
     const label=repairItem==='repairman'?'СПАСТИ ИЛЬЮ':repairItem==='repairKit'?'ЗАБРАТЬ РЕМКОМПЛЕКТ':atRepair?'РЕМОНТНЫЙ ЦЕХ':armoryItem==='armorer'?'СПАСТИ ОРУЖЕЙНИКА':armoryItem==='blueprint'?'ЗАБРАТЬ ЧЕРТЁЖ':atArmory?'ОРУЖЕЙНАЯ':questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ПРОДАТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.repairQuest.serviceRemaining!=null||!!this.repairQuest.dialogue||(atRepair&&this.repairQuest.wave==='active')||(!repairItem&&!atRepair&&!armoryItem&&!atArmory&&!questItem&&!atWorkshop&&!unloading&&this.repairQuest.wave==='active')||this.armoryQuest.serviceRemaining!=null||!!this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(repairItem||atRepair||armoryItem||atArmory||questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=!(repairItem||atRepair||armoryItem||atArmory||questItem||atWorkshop||unloading||(saving&&this.world.canRescue(this.rig.x,this.rig.y))||(this.liftReady()&&this.lift.contains(this.rig)));action.disabled=this.repairQuest.serviceRemaining!=null||!!this.repairQuest.dialogue||(atRepair&&this.repairQuest.wave==='active')||(!repairItem&&!atRepair&&!armoryItem&&!atArmory&&!questItem&&!atWorkshop&&!unloading&&this.repairQuest.wave==='active')||this.armoryQuest.serviceRemaining!=null||!!this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(repairItem||atRepair||armoryItem||atArmory||questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
-    document.querySelector('.base-location').innerHTML=this.floorNumber?`ЭТАЖ ${this.floorNumber} <span>Шахта · грузовой лифт</span>`:'БУНКЕР №72 <span>База · 50 × 50</span>';
+    document.querySelector('.base-location').innerHTML=this.floorNumber?`ЭТАЖ ${this.floorNumber} <span>Шахта</span>`:'БУНКЕР №72 <span>База</span>';
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?` РАЦИЯ · ЭТАЖ ${this.floorNumber}`:' РАЦИЯ · БАЗА';
     document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
@@ -1836,8 +1839,8 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber&&w.porodnikPowered){
       document.querySelector('#quest-name').textContent='«Породник» работает';
       document.querySelector('#radio-text').textContent='Заезжай на площадку и выгружай породу. Лифт готов к спуску.';
-      document.querySelector('#quest-status').textContent=`Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
-    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5 · Груз: ${this.cargo}/200`;}
+      document.querySelector('#quest-status').textContent='Приёмник готов к работе';
+    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5`;}
     if(this.porodnikLed)this.porodnikLed.setFillStyle(w.porodnikPowered?0x74ee87:0xffac46);
     const q=this.workshopQuest;
     if(q?.briefed) {
@@ -1870,7 +1873,12 @@ class Base extends globalThis.Phaser.Scene {
   persist() {
     if(this.leaving||!this.rig)return;
     this.campaign=this.snapshotCampaign();const saved=writeSave(this.campaign);
-    const status=document.querySelector('#base-save');if(status)status.textContent=saved?'Прогресс сохранён':'Сохранение недоступно в этом браузере';this.lastSave=this.time.now;
+    const status=document.querySelector('#base-save');if(status){status.hidden=saved;status.textContent=saved?'':'Не удалось сохранить прогресс';}this.lastSave=this.time.now;
+  }
+  openInventory(){
+    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    this.dialogClosed();this.persist();document.querySelector('#dialog-title').textContent='ИНВЕНТАРЬ';
+    document.querySelector('#dialog-body').replaceChildren(createInventoryPanel(this.snapshotCampaign()));document.querySelector('#dialog').showModal();
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
@@ -2273,6 +2281,7 @@ class Floor extends Base {
 
 
 
+
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
@@ -2303,7 +2312,7 @@ function openDialog(title, content) {
 document.querySelector('.close-dialog').addEventListener('click', () => { clickSound(); dialog.close(); });
 function showSettings() {
   const panel = document.createElement('div'); panel.className = 'settings';
-  for (const [key, label] of [['sound', 'Звуки'], ['music', 'Музыка']]) {
+  for (const [key, label] of [['sound', 'Звуки интерфейса']]) {
     const row = document.createElement('label'); row.className = 'setting-row';
     const caption = document.createElement('span'); caption.textContent = label;
     const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = settings[key];
@@ -2315,7 +2324,6 @@ function showSettings() {
     });
     row.append(caption, toggle); panel.append(row);
   }
-  const note = document.createElement('p'); note.textContent = 'Музыкальное сопровождение появится вместе с игровыми сценами.'; panel.append(note);
   const status = document.createElement('p'); status.className = 'storage-note'; status.setAttribute('role','status'); panel.append(status);
   openDialog('НАСТРОЙКИ', panel);
 }
@@ -2396,18 +2404,29 @@ class Menu extends ArtworkScene {
   constructor() { super('Menu'); }
   create() {
     const stage = this.createUI('menu');
-    const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
-    this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
-    this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('КАК ИГРАТЬ',
-      'В игре предстоит управлять буром, расчищать породу, спасать людей и восстанавливать базу бункера №72. WASD или стрелки — движение. Удерживай направление к завалу, чтобы бурить. E или пробел — спасти Серёгу вплотную или открыть пульт с платформы лифта. После спасения расчисти три подсвеченных блока у въезда. На телефоне — кнопки направлений и взаимодействия.'));
-    this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
-      'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
-    this.button(stage, 'СБРОСИТЬ ПРОГРЕСС', 'reset-button', () => {
+    const terminal=document.createElement('div');terminal.className='bunker-terminal';stage.append(terminal);
+    const badge=document.createElement('div');badge.className='terminal-badge';badge.textContent='БУНКЕР №72 · ТЕРМИНАЛ';terminal.append(badge);
+    const title=document.createElement('h2');title.className='terminal-title';title.innerHTML='БУР<span>Забытые внизу</span>';terminal.append(title);
+    const summary=document.createElement('div');summary.className='campaign-summary';terminal.append(summary);
+    const primary = this.button(terminal, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'terminal-primary', requestGameplay);
+    const actions=document.createElement('div');actions.className='terminal-actions';terminal.append(actions);
+    const inventory=this.button(actions,'ИНВЕНТАРЬ','terminal-button',()=>openDialog('ИНВЕНТАРЬ',createInventoryPanel(readSave()?.progress||{})));
+    this.button(actions, 'КАК ИГРАТЬ', 'terminal-button', () => openDialog('СПРАВОЧНИК БУРА',createHelpPanel()));
+    this.button(actions, 'НАСТРОЙКИ', 'terminal-button', showSettings);
+    this.button(actions, 'ОБ ИГРЕ', 'terminal-button', () => openDialog('БУР: ЗАБЫТЫЕ ВНИЗУ',
+      'После войны люди ушли под землю. В бункере №72 остались завалы, старые машины и те, кто не успел выбраться. Спасай людей, восстанавливай базу и исследуй глубины. Создано «Бинарным импульсом».'));
+    const footer=document.createElement('div');footer.className='terminal-footer';terminal.append(footer);
+    this.button(footer, 'СБРОСИТЬ ПРОГРЕСС', 'terminal-reset', () => {
       if(resetSave()){primary.textContent='НАЧАТЬ ИГРУ';}
       else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');
+      refresh();
     });
-    this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
-    const refresh = () => { primary.textContent = readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ'; };
+    this.button(footer, '← НА ГЛАВНУЮ', 'terminal-back', () => this.scene.start('Title'));
+    const refresh = () => {const save=readSave();primary.textContent=save?'ПРОДОЛЖИТЬ':'НАЧАТЬ ИГРУ';inventory.disabled=!save;
+      summary.replaceChildren();
+      if(save){const p=campaignSummary(save.progress);const location=document.createElement('strong'),quest=document.createElement('span');location.textContent=p.location;quest.textContent=p.objective;summary.append(location,quest);}
+      else{summary.textContent='Связь восстановлена. Бункер ждёт.';}
+    };refresh();
     window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
     this.events.once('shutdown', () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); });
     this.showArt('console');
@@ -2422,5 +2441,62 @@ else game = new Phaser.Game({
 });
 
 
+
+
+
+
+function campaignObjective(p={}){
+ const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{};
+ if(r.wave==='done')return 'Первая атака отбита';
+ if(r.wave==='active')return 'Защитить бункер';
+ if(r.ready)return 'Ремонтный цех работает';
+ if(r.briefed)return r.kit&&r.rescued?'Восстановить ремонтный цех':'Найти комплект и спасти Илью';
+ if(a.ready)return a.installed?'Бур вооружён':'Установить первую пушку';
+ if(a.briefed)return a.rescued&&a.blueprint?'Восстановить оружейную':'Спасти оружейника';
+ if(w.ready)return w.upgrades?'Бур улучшен':'Улучшить бур';
+ if(w.briefed)return w.tools&&w.mechanic?'Восстановить мастерскую':'Найти инструменты и механика';
+ if(b.porodnikPowered)return 'Породник работает';
+ if(b.liftAnnounced)return 'Запустить Породник';
+ if(b.rescued)return 'Расчистить лифт';
+ return 'Голос за завалом';
+}
+function campaignSummary(p={}){
+ const cargo=restoreCargo(p.cargoHold,p.cargo);
+ return {location:p.location==='floor'?'Этаж '+(p.floor||1):'Бункер №72 · база',objective:campaignObjective(p),
+  credits:p.credits||0,cargo:cargoCount(cargo),hull:Number.isFinite(p.hull)?Math.ceil(p.hull):DRILL_MAX_HP,
+  power:100+(p.workshopQuest?.upgrades||0)*2};
+}
+function panelSection(panel,title){const section=document.createElement('section');section.className='terminal-section';const h=document.createElement('h3');h.textContent=title;section.append(h);panel.append(section);return section;}
+function infoRow(section,label,value){const row=document.createElement('div');row.className='terminal-row';const name=document.createElement('span'),amount=document.createElement('strong');name.textContent=label;amount.textContent=value;row.append(name,amount);section.append(row);}
+function createInventoryPanel(p={}){
+ const panel=document.createElement('div');panel.className='inventory-panel';
+ const summary=campaignSummary(p),cargo=restoreCargo(p.cargoHold,p.cargo);
+ const rig=panelSection(panel,'Бур');
+ infoRow(rig,'Прочность',summary.hull+'/'+DRILL_MAX_HP);infoRow(rig,'Мощность',summary.power+'%');
+ infoRow(rig,'Кредиты',summary.credits);infoRow(rig,'Оружие',p.armoryQuest?.installed?'Пушка · '+(100+(p.armoryQuest.weaponLevel||0)*2)+'%':'Не установлено');
+ const hold=panelSection(panel,'Грузовой отсек · '+summary.cargo+'/200');
+ for(const m of MATERIALS)if(cargo[m.id])infoRow(hold,m.name,cargo[m.id]);
+ if(!summary.cargo)infoRow(hold,'Отсек пуст','—');
+ const loot=panelSection(panel,'Добыча монстров');
+ const fiber=(p.inventory?.fiber||0)+(p.carriedLoot?.fiber||0),heads=(p.inventory?.heads||0)+(p.carriedLoot?.heads||0);
+ infoRow(loot,'Паучье волокно',fiber);if(heads)infoRow(loot,'Головы Шуршунов',heads);
+ if(p.carriedLoot?.fiber||p.carriedLoot?.heads){const note=document.createElement('p');note.className='terminal-note';note.textContent='Добыча в буре будет доставлена в запас при возвращении на базу.';loot.append(note);}
+ const items=panelSection(panel,'Сюжетные предметы');let count=0;
+ for(const [has,label] of [[p.workshopQuest?.tools&&!p.workshopQuest?.ready,'Инструменты'],[p.armoryQuest?.blueprint,'Чертёж первой пушки'],[p.repairQuest?.kit&&!p.repairQuest?.ready,'Ремонтный комплект']])if(has){infoRow(items,label,'Получено');count++;}
+ if(!count)infoRow(items,'Предметов пока нет','—');
+ const access=panelSection(panel,'Карты доступа');const cards=ownedKeycards(p);
+ for(const floor of cards)infoRow(access,'Карта этажа '+floor,floor<=(p.highestFloor||0)?'Этаж открыт':'Готова к использованию');
+ if(!cards.length)infoRow(access,'Карты пока не найдены','—');
+ const note=document.createElement('p');note.className='terminal-note';note.textContent='Открытые этажи доступны навсегда. При гибели груз бура теряется; кредиты, полученные карты и сюжетные предметы сохраняются.';panel.append(note);
+ return panel;
+}
+function createHelpPanel(){
+ const panel=document.createElement('div');panel.className='help-panel';
+ const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Вернуться в меню. Прогресс сохраняется.'],['На телефоне','Кнопки направлений и кнопка действия на экране.']]],
+ ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, улучшай её и восстанавливай прочность в ремонтном цехе.']]],
+ ['Бои и лифт',[['Пушка','Стреляет автоматически: дальность две клетки. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
+ for(const [title,rows] of sections){const section=panelSection(panel,title);for(const [label,value] of rows)infoRow(section,label,value);}
+ return panel;
+}
 
 })();

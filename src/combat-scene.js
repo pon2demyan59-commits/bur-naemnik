@@ -142,12 +142,13 @@ export const combatMethods={
   const text='Прочность '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;
   if(node.textContent!==text)node.textContent=text;
   node.classList.toggle('low-hull',this.hull<=5);
+  const cargo=document.querySelector('#hud-cargo');if(cargo){cargo.textContent='Груз '+this.cargo+'/200';cargo.classList.toggle('full-hold',this.cargo>=200);}
+  const credits=document.querySelector('#hud-credits');if(credits)credits.textContent='Кредиты '+this.credits;
   const tip=document.querySelector('#combat-tip');
-  tip.hidden=!this.armoryQuest.installed;
+  tip.hidden=this.repairQuest.wave!=='active';
   tip.textContent=this.repairQuest.wave==='active'?'Учебная оборона · союзники прикрывают':'Пушка: автоогонь · 2 клетки';
   const loot=document.querySelector('#combat-loot');
-  const fiber=(this.inventory.fiber||0)+(this.carriedLoot.fiber||0),heads=(this.inventory.heads||0)+(this.carriedLoot.heads||0);
-  if(loot){loot.hidden=!fiber&&!heads;loot.textContent='Паучье волокно: '+fiber+(heads?' · Трофеи: '+heads:'');}
+  if(loot){loot.hidden=true;loot.textContent='';}
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.refreshRepairHUD();
  },
  emergencyReturn(){
