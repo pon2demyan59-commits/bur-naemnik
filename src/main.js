@@ -1,3 +1,4 @@
+import { startViewportSync } from './viewport-sync.js';
 import { showGamePanel, createSettingsPanel } from './game-menus.js';
 import { readSave, readSettings, resetSave } from './storage.js';
 import { Base } from './base-scene.js';
@@ -139,3 +140,5 @@ else game = new Phaser.Game({
   render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });
 
+
+if(game?.scale&&game?.events)startViewportSync(game,document.querySelector('#canvas-host'));

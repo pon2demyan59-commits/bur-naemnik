@@ -5,6 +5,7 @@ const storage = (await readFile('src/storage.js', 'utf8')).replace(/^export /gm,
 const parts = await Promise.all(['src/base-state.js','src/drill-motion.js','src/drive-controller.js','src/floor-prop-frames.js','src/materials.js','src/deposits.js','src/cargo-state.js','src/cargo-scene.js','src/terrain.js','src/lift-state.js','src/lift-view.js','src/story-content.js','src/story-dialogue.js','src/porodnik-state.js','src/workshop-state.js','src/workshop-view.js','src/armory-state.js','src/repair-state.js','src/tunnel-path.js','src/combat-state.js','src/people-view.js','src/repair-scene.js','src/combat-scene.js','src/armory-scene.js','src/base-scene.js','src/floor-scene.js','src/main.js'].map(path => readFile(path,'utf8')));
 parts.unshift(await readFile('src/mounted-weapon.js','utf8'));
 parts.unshift(await readFile('src/touch-joystick.js','utf8'));
+parts.unshift(await readFile('src/viewport-sync.js','utf8'));
 parts.push(await readFile('src/interface-panels.js','utf8'));
 parts.splice(parts.length-2,0,await readFile('src/game-menus.js','utf8'));
 const main = parts.map(source => source.replace(/^import .*;\s*$/gm, '').replace(/^export /gm,'')).join('\n');

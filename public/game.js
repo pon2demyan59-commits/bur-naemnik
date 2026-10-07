@@ -31,6 +31,56 @@ function resetSave() {
 }
 
 
+function gameplayZoom(width, height) {
+  return width < 600 || height < 520 ? Math.max(.55, Math.min(.82, height / 384)) : 1.12;
+}
+// Mobile browsers can finish changing the host size after their orientation event.
+// Observe the actual container instead of relying only on window.resize.
+function startViewportSync(game, host) {
+  let frame = null, destroyed = false;
+  const sync = () => {
+    frame = null;
+    if (destroyed || !game.scale.canvas) return;
+    const rect = host.getBoundingClientRect();
+    const width = Math.round(rect.width), height = Math.round(rect.height);
+    if (width < 1 || height < 1) return;
+    const size = game.scale.gameSize;
+    if (size.width !== width || size.height !== height || game.canvas.width !== width || game.canvas.height !== height) {
+      game.scale.setParentSize(width, height);
+      for (const scene of game.scene.getScenes(true)) scene.joystick?.reset();
+    }
+    // Repair a stale camera as well, even if the canvas has already resized.
+    for (const scene of game.scene.getScenes(true)) {
+      const camera = scene.cameras?.main;
+      if (camera && (camera.width !== width || camera.height !== height)) {
+        camera.setViewport(0, 0, width, height);
+        scene.fit?.({width, height});
+      }
+    }
+  };
+  const schedule = () => { if (!destroyed && frame == null) frame = window.requestAnimationFrame(sync); };
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;
+  observer?.observe(host);
+  window.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
+  window.visualViewport?.addEventListener('resize', schedule);
+  document.addEventListener('visibilitychange', schedule);
+  game.events.once('ready', schedule);
+  const destroy = () => {
+    destroyed = true;
+    if (frame != null) window.cancelAnimationFrame(frame);
+    observer?.disconnect();
+    window.removeEventListener('resize', schedule);
+    window.removeEventListener('orientationchange', schedule);
+    window.visualViewport?.removeEventListener('resize', schedule);
+    document.removeEventListener('visibilitychange', schedule);
+    game.events.off('ready', schedule);
+  };
+  game.events.once('destroy', destroy);
+  schedule();
+  return destroy;
+}
+
 // One captured finger can steer continuously while another uses an action button.
 function createTouchJoystick(element, onInput, canStart = () => true) {
   let pointerId = null;
@@ -1692,6 +1742,7 @@ const armoryMethods={
 
 
 
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
@@ -1736,7 +1787,7 @@ class Base extends globalThis.Phaser.Scene {
     this.shadow = this.add.ellipse(this.rig.x,this.rig.y+7,68,52,0x071919,.35).setDepth(19);
     this.makeEffects();
     this.cameras.main.setBounds(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL).startFollow(this.rig,true,.10,.10);
-    this.cameras.main.setZoom(this.scale.width < 600 ? .82 : 1.12);
+    this.cameras.main.setZoom(gameplayZoom(this.scale.width,this.scale.height));
     this.keys=this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ESC');
     this.input.keyboard.addCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     this.input.keyboard.on('keydown-ESC',this.goMenu,this);
@@ -1745,7 +1796,7 @@ class Base extends globalThis.Phaser.Scene {
     this.clearInput = () => { this.joystick?.reset(); this.hold=null; this.touchStick=null; this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
-    this.fit = size => { this.cameras.main.setSize(size.width,size.height); this.cameras.main.setZoom(size.width < 600 ? .82 : 1.12); };
+    this.fit = size => { this.cameras.main.setViewport(0,0,size.width,size.height); this.cameras.main.setZoom(gameplayZoom(size.width,size.height)); };
     this.scale.on('resize',this.fit);
     this.events.once('shutdown',()=>{
       if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
@@ -1864,10 +1915,14 @@ class Base extends globalThis.Phaser.Scene {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
-      <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
+      <aside class="radio-card"><button class="quest-toggle" type="button" aria-controls="quest-details" aria-expanded="true"></button><div id="quest-details"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></div></aside>
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
+    const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');
+    this.questCollapsed ??= !!window.matchMedia?.('(max-height:420px) and (min-aspect-ratio:1/1)')?.matches;
+    const renderQuest=()=>{radio.classList.toggle('quest-collapsed',this.questCollapsed);toggle.setAttribute('aria-expanded',String(!this.questCollapsed));toggle.textContent=this.questCollapsed?'ЗАДАНИЕ · РАЗВЕРНУТЬ ▼':'СВЕРНУТЬ ЗАДАНИЕ ▲';};
+    toggle.addEventListener('click',()=>{this.questCollapsed=!this.questCollapsed;this.joystick?.reset();renderQuest();});renderQuest();
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
     hud.querySelector('#base-inventory').addEventListener('click',()=>this.openInventory());
     hud.querySelector('#rescue-action').addEventListener('click',()=>this.interact());
@@ -2408,6 +2463,7 @@ function openPauseMenu(scene){
 
 
 
+
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
@@ -2544,6 +2600,8 @@ else game = new Phaser.Game({
   render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });
 
+
+if(game?.scale&&game?.events)startViewportSync(game,document.querySelector('#canvas-host'));
 
 
 
