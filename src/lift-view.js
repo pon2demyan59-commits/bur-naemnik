@@ -15,6 +15,7 @@ export class LiftView {
     this.platform=image('deck',2.2);
     // The entry ramp is driveable floor; only the housing covers the drill.
     this.ramp=image('ramp',2.2);this.parts=['top','bottomLeft','bottomRight','left','right'].map(key=>image(key,25));
+    if(!texture.has('gate'))texture.add('gate',0,...pieces.gate);
     this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
     const gateClip=scene.make.graphics({x:0,y:0,add:false});gateClip.fillRect(this.deckX,this.deckY+this.deckH-15,this.deckW,24);this.gateMask=gateClip.createGeometryMask();this.gates.forEach(g=>g.setMask(this.gateMask));
     const shaftClip=scene.make.graphics({x:0,y:0,add:false});shaftClip.fillRect(this.deckX,this.deckY,this.deckW,this.deckH+2);this.mask=shaftClip.createGeometryMask();
@@ -70,3 +71,4 @@ export class LiftView {
     rig.clearMask();this.platform.clearMask();shadow.setVisible(true);this.powered(true);this.scene.cameras.main.startFollow(rig,true,.10,.10);
   }
 }
+

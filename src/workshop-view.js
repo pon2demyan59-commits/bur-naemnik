@@ -5,8 +5,9 @@ export class WorkshopView {
   const b=body,d=deck,texture=scene.textures.get(key);
   // Frames follow the roof and narrower attached bay in the painted sprite.
   if(!texture.has('roof')) {
-   texture.add('roof',0,0,0,640,292);
-   texture.add('bay',0,90,292,460,640-292);
+   const source=texture.getSourceImage(),w=source.width,h=source.height,seam=Math.round(h*292/640);
+   texture.add('roof',0,0,0,w,seam);
+   texture.add('bay',0,Math.round(w*90/640),seam,Math.round(w*460/640),h-seam);
   }
   this.roof=scene.add.image(b.x,b.y,key,'roof').setOrigin(0).setDisplaySize(b.width,b.height).setDepth(2.4);
   this.bay=scene.add.image(d.x,d.y,key,'bay').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.3);

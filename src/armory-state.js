@@ -15,8 +15,9 @@ export function restoreArmory(v={}) {
  dialogue:ARMORY_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,Math.min(4,v.dialoguePage)):0};
 }
 export function armoryBlockCount(world){return ARMORY_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
-export function onArmoryDeck(rig){const d=ARMORY_DECK;return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
+export function onArmoryDeck(rig,d=ARMORY_DECK){return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
 export function canRestoreArmory(q,world){return q.rescued&&q.blueprint&&q.returnBriefed&&armoryBlockCount(world)===0;}
 export function weaponUpgradePrice(q){return Math.ceil(100*Math.pow(1.25,q.weaponLevel));}
 export function installWeapon(q){if(!q.ready||!q.gifted||q.installed||q.serviceRemaining!=null)return false;q.installed=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
-export function buyWeaponUpgrade(q,credits){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||q.serviceRemaining!=null||q.weaponLevel>=100||credits<price)return {bought:false,credits};q.weaponLevel++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
+export function buyWeaponUpgrade(q,credits,allowDuringService=false){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||(!allowDuringService&&q.serviceRemaining!=null)||q.weaponLevel>=100||credits<price)return {bought:false,credits};q.weaponLevel++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
+

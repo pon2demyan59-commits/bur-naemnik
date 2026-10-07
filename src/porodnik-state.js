@@ -9,8 +9,7 @@ export function porodnikBlockCount(world) { return PORODNIK_BLOCKS.filter(p=>wor
 export const PORODNIK_MACHINE={x:16*CELL,y:29*CELL,width:320,height:217.5};
 export const PORODNIK_DECK={x:18.5*CELL-40,y:29*CELL+217.5,width:80,height:96};
 export const PORODNIK_COLLIDER={x:PORODNIK_MACHINE.x+4,y:PORODNIK_MACHINE.y+4,width:312,height:PORODNIK_MACHINE.height-4};
-export function onPorodnikDeck(rig) {
-  const d=PORODNIK_DECK;
+export function onPorodnikDeck(rig,d=PORODNIK_DECK) {
   return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 }
 
@@ -30,3 +29,4 @@ export function stepPorodnikJob(job,delta) {
   job.remaining=Math.max(0,job.remaining-Math.max(0,delta));
   return job.remaining===0?(job.payout??job.amount):0;
 }
+

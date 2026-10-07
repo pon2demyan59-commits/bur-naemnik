@@ -26,13 +26,13 @@ test('power waits for Serёga briefing and clearing; unloading runs once inside 
   scene.checkPorodnik();assert.equal(scene.world.porodnikPowered,false);
   scene.world.porodnikBriefed=true;scene.checkPorodnik();assert.equal(scene.world.porodnikPowered,true);
   scene.rig={x:18.5*CELL,y:36.5*CELL,angle:-90};scene.unloadPorodnik();assert.equal(scene.cargo,15);
-  scene.rig.y=PORODNIK_DECK.y+PORODNIK_DECK.height/2;scene.unloadPorodnik();assert.equal(scene.cargo,0);assert.equal(scene.credits,7);
+  scene.rig.y=PORODNIK_DECK.y+PORODNIK_DECK.height/2;scene.unloadPorodnik();assert.equal(scene.cargo,0);assert.equal(scene.credits,67);
   assert.equal(scene.porodnikJob.amount,15);
   scene.cargo=4;scene.unloadPorodnik();assert.equal(scene.cargo,4);
-  scene.updatePorodnikCycle(9999);assert.equal(scene.credits,7);
-  scene.updatePorodnikCycle(1);assert.equal(scene.credits,37);assert.equal(scene.porodnikJob,null);
-  scene.updatePorodnikCycle(10000);assert.equal(scene.credits,37);scene.cargo=0;
-  scene.campaign={};const save=scene.snapshotCampaign();assert.equal(save.cargo,0);assert.equal(save.credits,37);
+  scene.updatePorodnikCycle(9999);assert.equal(scene.credits,67);
+  scene.updatePorodnikCycle(1);assert.equal(scene.credits,97);assert.equal(scene.porodnikJob,null);
+  scene.updatePorodnikCycle(10000);assert.equal(scene.credits,97);scene.cargo=0;
+  scene.campaign={};const save=scene.snapshotCampaign();assert.equal(save.cargo,0);assert.equal(save.credits,97);
   assert.equal(save.base.porodnikPowered,true);
   scene.floorNumber=1;scene.world=new BaseWorld();scene.campaign=save;scene.cargo=12;
   const floorSave=scene.snapshotCampaign();assert.equal(floorSave.cargo,12);assert.equal(floorSave.base.porodnikPowered,true);
@@ -61,3 +61,4 @@ test('unfinished ten-second cycle survives reload and floor travel without losin
  assert.equal(restored.snapshotCampaign().porodnikJob,null);
  for(const bad of [{amount:-1,remaining:10000},{amount:1,remaining:Infinity},{amount:201,remaining:5},{amount:1,remaining:-1}])assert.equal(restorePorodnikJob(bad),null);
 });
+

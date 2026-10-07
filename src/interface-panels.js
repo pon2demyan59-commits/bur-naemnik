@@ -25,7 +25,7 @@ export function campaignSummary(p={}){
   power:100+(p.workshopQuest?.upgrades||0)*2};
 }
 function panelSection(panel,title){const section=document.createElement('section');section.className='terminal-section';const h=document.createElement('h3');h.textContent=title;section.append(h);panel.append(section);return section;}
-function infoRow(section,label,value){const row=document.createElement('div');row.className='terminal-row';const name=document.createElement('span'),amount=document.createElement('strong');name.textContent=label;amount.textContent=value;row.append(name,amount);section.append(row);}
+function infoRow(section,label,value){const row=document.createElement('div');row.className='terminal-row';const name=document.createElement('span'),amount=document.createElement('strong');name.textContent=label;amount.textContent=value;row.append(name,amount);section.append(row);return row;}
 export function createInventoryPanel(p={}){
  const panel=document.createElement('div');panel.className='inventory-panel';
  const summary=campaignSummary(p),cargo=restoreCargo(p.cargoHold,p.cargo);
@@ -41,7 +41,7 @@ export function createInventoryPanel(p={}){
  infoRow(loot,'Паучье волокно',fiber);if(heads)infoRow(loot,'Головы Шуршунов',heads);
  if(p.carriedLoot?.fiber||p.carriedLoot?.heads){const note=document.createElement('p');note.className='terminal-note';note.textContent='Добыча в буре будет доставлена в запас при возвращении на базу.';loot.append(note);}
  const items=panelSection(panel,'Сюжетные предметы');let count=0;
- for(const [has,label] of [[p.workshopQuest?.tools&&!p.workshopQuest?.ready,'Инструменты'],[p.armoryQuest?.blueprint,'Чертёж первой пушки'],[p.constructionQuest?.unlocked,'Чертёж склада'],[p.repairQuest?.kit&&!p.repairQuest?.ready,'Ремонтный комплект']])if(has){infoRow(items,label,'Получено');count++;}
+ for(const [has,label,asset] of [[p.workshopQuest?.tools&&!p.workshopQuest?.ready,'Инструменты','tools'],[p.armoryQuest?.blueprint,'Чертёж первой пушки','blueprint'],[p.constructionQuest?.unlocked,'Чертёж склада','blueprint'],[p.repairQuest?.kit&&!p.repairQuest?.ready,'Ремонтный комплект','repair-kit']])if(has){const row=infoRow(items,label,'Получено');row.className+=' quest-item-row';const img=document.createElement('img');img.src='./public/assets/quests/'+asset+'.svg';img.alt='';row.append(img);count++;}
  if(!count)infoRow(items,'Предметов пока нет','—');
  const access=panelSection(panel,'Карты доступа');const cards=ownedKeycards(p);
  for(const floor of cards)infoRow(access,'Карта этажа '+floor,floor<=(p.highestFloor||0)?'Этаж открыт':'Готова к использованию');
@@ -52,7 +52,7 @@ export function createInventoryPanel(p={}){
 export function createHelpPanel(){
  const panel=document.createElement('div');panel.className='help-panel';
  const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Открыть паузу. Прогресс сохраняется.'],['На телефоне','Круглый джойстик слева: потяни для движения и бурения, отпусти для остановки. Чем дальше тянешь, тем быстрее едешь. Кнопка действия справа.']]],
- ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подойди к столу с чертежами на базе. Выбери площадку, расчисти 3×3 клетки и собери 80 земли и 20 камня. Склад хранит до 1000 единиц; запас не теряется при гибели.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, улучшай её и восстанавливай прочность в ремонтном цехе.']]],
+ ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подойди к столу с чертежами на базе. Выбери площадку, расчисти 3×3 клетки и собери 80 земли и 20 камня. Склад хранит до 1000 единиц; запас не теряется при гибели.'],['Перенос зданий','На базе открой «Инвентарь → Постройки», потяни восстановленное здание на расчищенное место и подтверди. Потяни пустое место, чтобы переместить камеру.'],['Награды','Завершённые задания дают кредиты один раз. Повторная загрузка не выдаёт их заново.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, покупай несколько улучшений подряд и восстанавливай прочность в ремонтном цехе.']]],
  ['Бои и лифт',[['Пушка','Стреляет автоматически: дальность две клетки. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
  for(const [title,rows] of sections){const section=panelSection(panel,title);for(const [label,value] of rows)infoRow(section,label,value);}
  return panel;

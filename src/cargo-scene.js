@@ -4,7 +4,7 @@ import { MATERIAL_PRICES, cargoCount, quoteCargo, takeCargoSale } from './cargo-
 import { onPorodnikDeck } from './porodnik-state.js';
 export const cargoMethods={
  openPorodnik(){
-  if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
+  if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig,this.buildingDeck('porodnik'))||!this.cargo)return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='cargo-console';
   const intro=document.createElement('p');intro.textContent='Выбери породу и количество для продажи. Остальное останется в буре.';
@@ -34,7 +34,7 @@ export const cargoMethods={
   showBuildingMenu('porodnik',panel);
  },
  sellCargo(selection){
-  if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig))return false;
+  if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig,this.buildingDeck('porodnik')))return false;
   const job=takeCargoSale(this.cargoHold,selection);if(!job)return false;
   this.porodnikJob=job;this.cargo=cargoCount(this.cargoHold);this.speed=0;this.refreshHUD();this.persist();return true;
  }

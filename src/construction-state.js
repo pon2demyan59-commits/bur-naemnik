@@ -17,11 +17,12 @@ export function restoreConstruction(v={}){
  for(const m of MATERIALS){const n=Math.min(left,natural(v.stock?.[m.id]));if(n){stock[m.id]=n;left-=n;}}
  const rescued=v.rescued===true,unlocked=rescued&&v.unlocked===true;
  return {briefed:v.briefed===true,signalHeard:v.signalHeard===true,rescued,unlocked,
+ offset:{dx:Number.isInteger(v.offset?.dx)&&Math.abs(v.offset.dx)<=45?v.offset.dx:0,dy:Number.isInteger(v.offset?.dy)&&Math.abs(v.offset.dy)<=45?v.offset.dy:0},
  plot:Number.isInteger(v.plot)&&v.plot>=0&&v.plot<WAREHOUSE_PLOTS.length?v.plot:0,
  warehouse:unlocked&&v.warehouse===true,remaining:unlocked&&!v.warehouse&&Number.isFinite(v.remaining)?Math.max(0,Math.min(WAREHOUSE_MS,v.remaining)):null,stock,
  dialogue:BUILDER_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,Math.min(3,v.dialoguePage)):0};
 }
-export function warehouseBody(q){const p=WAREHOUSE_PLOTS[q.plot];return {x:p.x*CELL,y:p.y*CELL,width:3*CELL,height:2*CELL};}
+export function warehouseBody(q){const p=WAREHOUSE_PLOTS[q.plot];return {x:(p.x+(q.offset?.dx||0))*CELL,y:(p.y+(q.offset?.dy||0))*CELL,width:3*CELL,height:2*CELL};}
 export function warehouseDeck(q){const b=warehouseBody(q);return {x:b.x,y:b.y+b.height,width:b.width,height:CELL};}
 export function plotBlocked(q,world){const p=WAREHOUSE_PLOTS[q.plot];let n=0;for(let y=p.y;y<p.y+3;y++)for(let x=p.x;x<p.x+3;x++)if(world.blocked(x,y))n++;return n;}
 export function builderEntranceLeft(world){return BUILDER_ENTRANCE.filter(p=>world.blocked(p.x,p.y)).length;}

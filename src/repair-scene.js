@@ -1,3 +1,4 @@
+import { makeQuestItem } from './quest-item-view.js';
 import { showBuildingMenu } from './game-menus.js';
 import { REPAIR_BODY, REPAIR_DECK, REPAIR_KIT_SITE, REPAIRMAN_SITE, repairBlockCount, canRestoreRepair, onRepairDeck, buyRepair, repairPrice, DRILL_MAX_HP } from './repair-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
@@ -8,14 +9,11 @@ import { FLOOR_LIFT } from './lift-state.js';
 export const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
-  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);
+  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:this.buildingGeom('repair').body,deck:this.buildingDeck('repair'),key:'repair-shop',sign:'РЕМОНТНЫЙ ЦЕХ'});this.repairShop.powered(q.ready);
   }
   if(this.floorNumber!==3)return;
   this.repairman=makePerson(this,(REPAIRMAN_SITE.x+.5)*CELL,(REPAIRMAN_SITE.y+.5)*CELL,'ilya').setVisible(!q.rescued);
-  this.repairKitArt=this.add.container((REPAIR_KIT_SITE.x+.5)*CELL,(REPAIR_KIT_SITE.y+.5)*CELL).setDepth(10).setVisible(!q.kit);
-  const g=this.add.graphics();g.fillStyle(0x234645);g.fillRoundedRect(-22,-15,44,32,4);g.lineStyle(3,0xf4c77b);g.strokeRoundedRect(-22,-15,44,32,4);
-  g.lineStyle(4,0xd9bd83);g.lineBetween(-8,-15,-8,-22);g.lineBetween(-8,-22,8,-22);g.lineBetween(8,-22,8,-15);
-  g.fillStyle(0xb9eee1);g.fillRect(-3,-8,6,20);g.fillRect(-10,-1,20,6);this.repairKitArt.add(g);
+  this.repairKitArt=makeQuestItem(this,(REPAIR_KIT_SITE.x+.5)*CELL,(REPAIR_KIT_SITE.y+.5)*CELL,'repair-kit').setVisible(!q.kit);
  },
  repairFloorAction(){
   if(this.floorNumber!==3||!this.repairQuest.briefed)return null;
@@ -31,7 +29,7 @@ export const repairMethods={
  },
  checkRepair(){
   const q=this.repairQuest;
-  if(this.busy||this.storyActive||document.querySelector('#dialog').open||this.world.dialogue||this.workshopQuest.dialogue||this.armoryQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||q.serviceRemaining!=null)return;
+  if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open||this.world.dialogue||this.workshopQuest.dialogue||this.armoryQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||q.serviceRemaining!=null)return;
   if(q.dialogue){if(q.dialogue==='repairBrief'&&this.floorNumber)return;this.startStory(q.dialogue);return;}
   if(this.floorNumber)return;
   if(!q.briefed&&this.armoryQuest.installed){this.startStory('repairBrief');return;}
@@ -43,7 +41,7 @@ export const repairMethods={
  },
  openRepair(){
   const q=this.repairQuest;
-  if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig)||q.wave==='active')return;
+  if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig,this.buildingDeck('repair'))||q.wave==='active')return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='lift-console';
   const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+'\nКредиты: '+this.credits;
@@ -67,8 +65,8 @@ export const repairMethods={
    status.textContent=q.kit&&q.rescued?'Лифт: '+objectiveBearing(this.rig,FLOOR_LIFT):'Комплект: '+(q.kit?'✓':objectiveBearing(this.rig,REPAIR_KIT_SITE))+' · Илья: '+(q.rescued?'✓':objectiveBearing(this.rig,REPAIRMAN_SITE));return;
   }
   if(this.floorNumber)return;
-  if(q.ready){name.textContent=q.wave==='done'?'База выстояла':'Ремонтный цех работает';radio.textContent=q.wave==='done'?'Первая атака отбита. Дальше нужно укреплять периметр и строить оборону. Илья чинит бур в ремонтном цехе.':'Илья запустил оборудование. Заезжай в цех, чтобы восстановить прочность.';status.textContent='Цех: '+objectiveBearing(this.rig,{x:8,y:34})+' · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;}
-  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота цеха слева от «Породника».';status.textContent='Ворота: '+(3-repairBlockCount(this.world))+'/3 · Цех: '+objectiveBearing(this.rig,{x:8,y:34});}
+  if(q.ready){name.textContent=q.wave==='done'?'База выстояла':'Ремонтный цех работает';radio.textContent=q.wave==='done'?'Первая атака отбита. Дальше нужно укреплять периметр и строить оборону. Илья чинит бур в ремонтном цехе.':'Илья запустил оборудование. Заезжай в цех, чтобы восстановить прочность.';status.textContent='Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'))+' · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;}
+  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота цеха слева от «Породника».';status.textContent='Ворота: '+(3-repairBlockCount(this.world))+'/3 · Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'));}
   else{name.textContent='Третий этаж: первый бой';radio.textContent='Константину нужен ремонтный комплект. На третьем этаже остался ремонтник Илья К. Пушка установлена — можно спускаться.';status.textContent='Получена ключ-карта третьего этажа';}
  }
 };

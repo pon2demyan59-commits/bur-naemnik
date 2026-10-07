@@ -16,7 +16,7 @@ export function restoreRepair(v={}) {
 }
 export function repairBlockCount(world){return REPAIR_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 export function canRestoreRepair(q,world){return q.kit&&q.rescued&&q.returnBriefed&&repairBlockCount(world)===0;}
-export function onRepairDeck(rig){const d=REPAIR_DECK;return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
+export function onRepairDeck(rig,d=REPAIR_DECK){return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
 export function restoreHull(value){return Number.isFinite(value)?Math.max(0,Math.min(DRILL_MAX_HP,value)):DRILL_MAX_HP;}
 export function repairPrice(hp){return Math.ceil((DRILL_MAX_HP-restoreHull(hp))*2);}
 export function buyRepair(q,hp,credits){
@@ -31,3 +31,4 @@ export function queueRepairBrief(q,armory){
  if(q.briefed||q.dialogue||!armory.installed)return false;
  q.dialogue='repairBrief';q.dialoguePage=0;return true;
 }
+
