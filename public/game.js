@@ -946,7 +946,7 @@ function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK,stay=false) {
 
 
 class WorkshopView {
- constructor(scene,{body=WORKSHOP_BODY,deck=WORKSHOP_DECK,key='workshop'}={}) {
+ constructor(scene,{body=WORKSHOP_BODY,deck=WORKSHOP_DECK,key='workshop',sign=null}={}) {
   this.scene=scene;this.elapsed=0;this.body=body;this.deck=deck;
   const b=body,d=deck,texture=scene.textures.get(key);
   // Frames follow the roof and narrower attached bay in the painted sprite.
@@ -957,10 +957,34 @@ class WorkshopView {
   this.roof=scene.add.image(b.x,b.y,key,'roof').setOrigin(0).setDisplaySize(b.width,b.height).setDepth(2.4);
   this.bay=scene.add.image(d.x,d.y,key,'bay').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.3);
   this.effects=scene.add.graphics().setDepth(5);
+  if(sign)this.makeFacadeSign(sign);
   this.powered(false);
+ }
+ makeFacadeSign(label){
+  const scene=this.scene,b=this.body;
+  // Mounted on the front lintel, above its recessed entrance light.
+  this.sign=scene.add.container(b.x+b.width*.50,b.y+b.height*.795).setDepth(2.5);
+  const plate=scene.add.graphics();
+  plate.fillStyle(0x101b1a,.65);plate.fillRoundedRect(-55,-8,112,22,2);
+  plate.fillStyle(0x253e3b);plate.fillRoundedRect(-56,-11,112,22,2);
+  plate.lineStyle(1.5,0x65786b);plate.strokeRoundedRect(-55,-10,110,20,2);
+  plate.lineStyle(1,0x8c9980,.7);plate.lineBetween(-53,-9,53,-9);
+  plate.lineStyle(1,0x101f20,.9);plate.lineBetween(-53,9,53,9);
+  const letters=scene.add.text(0,-.5,label,{fontFamily:'Arial',fontSize:'10px',fontStyle:'bold',color:'#c9c6a2',stroke:'#182c2a',strokeThickness:.5}).setOrigin(.5);
+  if(letters.width>94)letters.setScale(94/letters.width,1);
+  const wear=scene.add.graphics();
+  for(const x of [-51,51])for(const y of [-6,6]){
+   wear.fillStyle(0x142827);wear.fillCircle(x,y,1.9);
+   wear.fillStyle(0x9b9d7d);wear.fillCircle(x-.3,y-.4,1.1);
+   wear.lineStyle(.6,0x3c4d45);wear.lineBetween(x-.6,y-.6,x+.5,y+.4);
+  }
+  wear.lineStyle(.7,0x9f8b61,.65);wear.lineBetween(-47,8,-39,8);wear.lineBetween(32,-8,40,-8);
+  wear.lineStyle(.7,0x233c36,.6);wear.lineBetween(-27,-2,-22,-3);wear.lineBetween(13,3,18,2);
+  this.sign.add([plate,letters,wear]);
  }
  powered(ready) {
   this.ready=ready;this.roof.setTint(ready?0xffffff:0x788589);this.bay.setTint(ready?0xffffff:0x788589);
+  this.sign?.setAlpha(ready?1:.65);
   this.effects.clear();this.roof.setPosition(this.body.x,this.body.y);
  }
  update(delta,intensive=false) {
@@ -1000,7 +1024,6 @@ class WorkshopView {
   }
  }
 }
-
 
 
 
@@ -1276,11 +1299,7 @@ function updatePerson(person,delta,rig) {
 const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
-  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);
-   this.repairSign=this.add.text(REPAIR_BODY.x+REPAIR_BODY.width*.60,REPAIR_BODY.y+REPAIR_BODY.height*.36,'РЕМОНТНЫЙ\nЦЕХ',{
-    fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',align:'center',color:'#efda9e',
-    backgroundColor:'#243834ed',stroke:'#182d29',strokeThickness:1,padding:{x:8,y:4}
-   }).setOrigin(.5).setDepth(5);
+  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop',sign:'РЕМОНТНЫЙ ЦЕХ'});this.repairShop.powered(q.ready);
   }
   if(this.floorNumber!==3)return;
   this.repairman=makePerson(this,(REPAIRMAN_SITE.x+.5)*CELL,(REPAIRMAN_SITE.y+.5)*CELL,'ilya').setVisible(!q.rescued);
@@ -1344,7 +1363,6 @@ const repairMethods={
   else{name.textContent='Третий этаж: первый бой';radio.textContent='Константину нужен ремонтный комплект. На третьем этаже остался ремонтник Илья К. Пушка установлена — можно спускаться.';status.textContent='Получена ключ-карта третьего этажа';}
  }
 };
-
 
 
 

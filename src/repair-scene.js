@@ -7,11 +7,7 @@ import { FLOOR_LIFT } from './lift-state.js';
 export const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
-  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);
-   this.repairSign=this.add.text(REPAIR_BODY.x+REPAIR_BODY.width*.60,REPAIR_BODY.y+REPAIR_BODY.height*.36,'РЕМОНТНЫЙ\nЦЕХ',{
-    fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',align:'center',color:'#efda9e',
-    backgroundColor:'#243834ed',stroke:'#182d29',strokeThickness:1,padding:{x:8,y:4}
-   }).setOrigin(.5).setDepth(5);
+  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop',sign:'РЕМОНТНЫЙ ЦЕХ'});this.repairShop.powered(q.ready);
   }
   if(this.floorNumber!==3)return;
   this.repairman=makePerson(this,(REPAIRMAN_SITE.x+.5)*CELL,(REPAIRMAN_SITE.y+.5)*CELL,'ilya').setVisible(!q.rescued);
