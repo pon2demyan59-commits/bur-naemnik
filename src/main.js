@@ -37,16 +37,14 @@ class ArtworkScene extends Phaser.Scene {
   showArt(key) {
     this.art = this.add.image(0, 0, key).setOrigin(.5);
     const fit = ({ width, height }) => {
-      const portrait = width / height < 1;
       const texture = this.textures.get(key).getSourceImage();
-      const isConsole = key === 'console', isBackdrop=key==='menu-backdrop';
-      const scale = isBackdrop ? Math.max(width / texture.width, height / texture.height) : portrait ? (isConsole ? width / (texture.width * .66) : Math.max(width / texture.width, height / texture.height)) : Math.min(width / texture.width, height / texture.height);
-      const y = isBackdrop ? height / 2 : portrait ? (isConsole ? texture.height * scale / 2 : height * .20) : height / 2;
-      this.art.setPosition(width / 2, y).setScale(scale).setAlpha(isBackdrop ? .48 : portrait && !isConsole ? .65 : 1);
+      // Art and HTML hit areas share one proportional rectangle at every size.
+      const scale = Math.min(width / texture.width, height / texture.height);
+      this.art.setPosition(width / 2, height / 2).setScale(scale).setAlpha(1);
       const stage = ui.querySelector('.stage');
       if (stage) {
-        stage.style.width = isBackdrop || portrait ? '100%' : `${texture.width * scale}px`;
-        stage.style.height = isBackdrop || portrait ? '100%' : `${texture.height * scale}px`;
+        stage.style.width = `${texture.width * scale}px`;
+        stage.style.height = `${texture.height * scale}px`;
       }
     };
     this.scale.on('resize', fit);
