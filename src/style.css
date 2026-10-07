@@ -440,3 +440,6 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
 .collection-buff-toggle {min-height:36px;min-width:90px;padding:7px 10px;border:1px solid #759281;border-radius:4px;background:#21473b;color:#ffe4a1;font-weight:bold;cursor:pointer;}
 .collection-summary.buffs-collapsed>span {display:none;}
 @media(max-height:420px){.collection-summary {padding:4px 0;}.collection-summary>strong {font-size:16px;}}
+
+#dialog[data-menu=drill]{width:min(850px,calc(100vw - 24px));}.drill-page{display:grid;gap:12px;}.drill-hero{display:flex;align-items:center;gap:18px;padding:15px;background:#173d33;border:1px solid #789180;border-radius:8px;}.drill-hero img{width:130px;height:130px;object-fit:contain;}.drill-hero h3{color:#ffe2a0;font-size:20px;}.drill-page .terminal-row{gap:14px;}.drill-page .terminal-row strong{text-align:right;}.warehouse-controls .warehouse-row{background:#173e34;border:1px solid #57776a;border-radius:7px;padding:12px;margin:8px 0;}@media(max-width:500px){.drill-hero img{width:85px;height:85px;}.drill-hero h3{font-size:16px;}.drill-page .terminal-row{flex-wrap:wrap;}.drill-page .terminal-row strong{overflow-wrap:anywhere;}}
+#dialog[data-menu=drill] #dialog-title{white-space:normal;overflow-wrap:anywhere;font-size:clamp(16px,4.5vw,26px);}
