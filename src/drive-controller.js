@@ -33,7 +33,7 @@ function passageGuide(state,direction,solid) {
   const correction=clamp(Math.atan2(cross*9,Math.max(140,state.speed))*180/Math.PI,18);
   return {horizontal,center,dx,dy,target:angles[direction]+correction};
 }
-export function driveStep(state,direction,dt,solid) {
+export function driveStep(state,direction,dt,solid,maxSpeed=280) {
   dt=Math.min(.05,Math.max(0,dt));
   const analog=direction&&typeof direction==='object';
   const length=analog?Math.hypot(direction.x,direction.y):0;
@@ -49,7 +49,7 @@ export function driveStep(state,direction,dt,solid) {
   const error=direction?Math.abs(wrapDegrees(inputAngle-angle)):0;
   const strength=direction?(analog?Math.min(1,direction.strength):1):0;
   // A short deflection creeps; a full deflection drives at normal speed.
-  const desired=280*strength*(1-.55*Math.min(1,error/90));
+  const desired=maxSpeed*strength*(1-.55*Math.min(1,error/90));
   let speed=damp(state.speed,desired,direction?12:16,dt);
   if(!direction&&speed<3)speed=0;
   let x=state.x,y=state.y,blocked=false;

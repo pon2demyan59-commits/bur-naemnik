@@ -35,10 +35,10 @@ export function beginWarehouse(q,world,cargo,rig){
  q.remaining=WAREHOUSE_MS;return true;
 }
 export function stepConstruction(q,delta){if(q.remaining==null)return false;q.remaining=Math.max(0,q.remaining-Math.max(0,Math.min(delta,50)));if(q.remaining>0)return false;q.remaining=null;q.warehouse=true;return true;}
-export function transferWarehouse(q,cargo,id,count,deposit){
+export function transferWarehouse(q,cargo,id,count,deposit,cargoCapacity=200){
  if(!q.warehouse||!MATERIALS.some(m=>m.id===id)||!Number.isSafeInteger(count)||count<=0)return 0;
  const source=deposit?cargo:q.stock,target=deposit?q.stock:cargo;
- const capacity=deposit?WAREHOUSE_CAPACITY:200;
+ const capacity=deposit?WAREHOUSE_CAPACITY:cargoCapacity;
  const n=Math.min(count,natural(source[id]),Math.max(0,capacity-stockCount(target)));
  if(!n)return 0;source[id]-=n;if(!source[id])delete source[id];target[id]=natural(target[id])+n;return n;
 }

@@ -12,7 +12,7 @@ export const cargoMethods={
   const rows=[],selection=()=>Object.fromEntries(rows.filter(r=>r.check.checked).map(r=>[r.id,Math.max(0,Math.min(r.count,Math.floor(Number(r.input.value))))]));
   const total=document.createElement('p');total.className='cargo-total';
   const sell=document.createElement('button');sell.className='metal-button';sell.textContent='ПРОДАТЬ ВЫБРАННОЕ · ПЕРЕРАБОТКА 10 С';
-  const render=()=>{const quote=quoteCargo(this.cargoHold,selection());total.textContent='Продать: '+quote.amount+' · Выручка: '+quote.payout+' кредитов · Оставить: '+(this.cargo-quote.amount);sell.disabled=!quote.amount;};
+  const render=()=>{const quote=quoteCargo(this.cargoHold,selection(),this.collectionBuffs?.sale||0);total.textContent='Продать: '+quote.amount+' · Выручка: '+quote.payout+' кредитов · Оставить: '+(this.cargo-quote.amount);sell.disabled=!quote.amount;};
   for(const m of MATERIALS){
    const count=this.cargoHold[m.id]||0;if(!count)continue;
    const row=document.createElement('div');row.className='cargo-row';
@@ -35,7 +35,7 @@ export const cargoMethods={
  },
  sellCargo(selection){
   if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig,this.buildingDeck('porodnik')))return false;
-  const job=takeCargoSale(this.cargoHold,selection);if(!job)return false;
+  const job=takeCargoSale(this.cargoHold,selection,this.collectionBuffs?.sale||0);if(!job)return false;
   this.porodnikJob=job;this.cargo=cargoCount(this.cargoHold);this.speed=0;this.refreshHUD();this.persist();return true;
  }
 };

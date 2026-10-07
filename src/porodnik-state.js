@@ -14,12 +14,12 @@ export function onPorodnikDeck(rig,d=PORODNIK_DECK) {
 }
 
 export const PORODNIK_CYCLE_MS=10000;
-export function restorePorodnikJob(value) {
-  if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>200||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
+export function restorePorodnikJob(value,capacity=200,saleBonus=0) {
+  if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>capacity||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
   if(value.sale){
-    const sale=restoreCargo(value.sale),amount=cargoCount(sale);
+    const sale=restoreCargo(value.sale,0,capacity),amount=cargoCount(sale);
     if(amount!==value.amount)return null;
-    return {...quoteCargo(sale,sale),remaining:value.remaining};
+    const bonus=Number.isFinite(value.saleBonus)&&value.saleBonus>=0&&value.saleBonus<=saleBonus?value.saleBonus:0;return {...quoteCargo(sale,sale,bonus),...(bonus?{saleBonus:bonus}:{}),remaining:value.remaining};
   }
   // A cycle started before typed cargo keeps its already-promised old payout.
   return {amount:value.amount,remaining:value.remaining};

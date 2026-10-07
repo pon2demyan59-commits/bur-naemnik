@@ -62,6 +62,7 @@ export function openPauseMenu(scene){
   for(const [label,action,primary] of [
    ['ПРОДОЛЖИТЬ',()=>dialog.close(),true],
    ['ИНВЕНТАРЬ',()=>showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(scene.snapshotCampaign()),'inventory',render)],
+   ['КОЛЛЕКЦИИ',()=>scene.openCollections(render)],
    ['НАСТРОЙКИ',()=>showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings',render)],
    ['КАК ИГРАТЬ',()=>showGamePanel('СПРАВОЧНИК БУРА',createHelpPanel(),'help',render)],
    ['ГЛАВНОЕ МЕНЮ',()=>{dialog.close();scene.persist();scene.scene.start('Menu');}]

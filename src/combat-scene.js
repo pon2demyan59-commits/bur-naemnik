@@ -69,7 +69,7 @@ export const combatMethods={
    if(!this.floorNumber&&!tutorial)continue;
    const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
-    this.hull=Math.max(tutorial?1:0,this.hull-damage);
+    this.hull=Math.max(tutorial?1:0,this.hull-damage*(1-(this.collectionBuffs?.defense||0)));
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));
     if(this.hull<=0){this.emergencyReturn();return;}
    }
@@ -84,7 +84,7 @@ export const combatMethods={
      mount.rotation=Math.atan2(target.y-y,target.x-x)-this.rig.rotation;
     }
     if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=WEAPON_RANGE&&clearShot(this.rig,target,solid)){
-     this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);this.animateWeaponShot?.();
+     this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02+(this.collectionBuffs?.weapon||0));this.animateWeaponShot?.();
     }
    }
   }
@@ -154,7 +154,7 @@ export const combatMethods={
   const text='Прочность '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;
   if(node.textContent!==text)node.textContent=text;
   node.classList.toggle('low-hull',this.hull<=5);
-  const cargo=document.querySelector('#hud-cargo');if(cargo){cargo.textContent='Груз '+this.cargo+'/200';cargo.classList.toggle('full-hold',this.cargo>=200);}
+  const cargo=document.querySelector('#hud-cargo');if(cargo){const capacity=this.cargoCapacity();cargo.textContent='Груз '+this.cargo+'/'+capacity;cargo.classList.toggle('full-hold',this.cargo>=capacity);}
   const credits=document.querySelector('#hud-credits');if(credits)credits.textContent='Кредиты '+this.credits;
   const tip=document.querySelector('#combat-tip');
   tip.hidden=this.repairQuest.wave!=='active';

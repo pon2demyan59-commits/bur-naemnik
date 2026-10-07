@@ -1,3 +1,5 @@
+import { collectionMethods } from './collection-page.js';
+import { restoreClosedCollections, collectionBuffTotals } from './collection-state.js';
 import { artifactSceneMethods } from './artifact-scene.js';
 import { restoreArtifacts, collectArtifact } from './artifact-state.js';
 import { restoreBuildingLayout } from './building-layout-state.js';
@@ -36,8 +38,8 @@ const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
-    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo);this.cargo=cargoCount(this.cargoHold);
+    const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
@@ -195,7 +197,7 @@ export class Base extends globalThis.Phaser.Scene {
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
     exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
-    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${100+q.upgrades*2}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
     this.workshopPanelRender=render;
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;if(q.upgrades===1)this.rewardQuest('firstUpgrade');render();this.refreshHUD();this.persist();});
@@ -255,7 +257,7 @@ export class Base extends globalThis.Phaser.Scene {
       if(this.floorNumber){
         name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
         status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
-      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${100+q.upgrades*2}% · Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
+      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
       }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,this.buildingGeom('lift').center)}`;}
     }
@@ -275,7 +277,7 @@ export class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest});
-    return {...base,artifacts:{...this.artifacts},buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -284,7 +286,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
+    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
   }
   goMenu() {if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
@@ -380,7 +382,7 @@ export class Base extends globalThis.Phaser.Scene {
     g.fillStyle(0x132525,.9);g.fillRoundedRect(m.x+116,m.y+209,88,5,2);
     g.fillStyle(0xffcb65);g.fillRoundedRect(m.x+116,m.y+209,88*elapsed/PORODNIK_CYCLE_MS,5,2);
     const status=document.querySelector('#quest-status');
-    const text=`Переработка: ${(job.remaining/1000).toFixed(1)} с · Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
+    const text=`Переработка: ${(job.remaining/1000).toFixed(1)} с · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
     if(status&&status.textContent!==text)status.textContent=text;
   }
   checkPorodnik() {
@@ -568,7 +570,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   advanceVehicle(time,dt,direction) {
     const solid=this.driveSolids();
-    const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
+    const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid,280*(1+(this.collectionBuffs?.speed||0)));
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);
     this.speed=next.speed;this.moving=next.moving;
@@ -589,13 +591,13 @@ export class Base extends globalThis.Phaser.Scene {
       this.cutting=true;
       const key=y*BASE_SIZE+x;
       const material=this.world.material?.(x,y)||'earth';
-      const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02));
+      const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02+(this.collectionBuffs?.drill||0)));
       this.terrain.paintCell(x,y);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
         const artifact=collectArtifact(this.world.hiddenArtifacts,this.artifacts,key);if(artifact)this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name);
-        const collected=addCargo(this.cargoHold,material);this.cargo=cargoCount(this.cargoHold);
+        const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
@@ -689,4 +691,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods);
+Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
