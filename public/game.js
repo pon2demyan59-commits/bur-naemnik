@@ -197,6 +197,27 @@ const FLOOR_PROP_FRAMES = {
 };
 
 
+// Sprite-sheet slots match docs/canon-miro.txt. Asteryon is not a mined block.
+const MATERIALS=[
+ {id:'earth',name:'Земля',frames:[0,13],firstFloor:0},
+ {id:'stone',name:'Камень',frames:[1,14],firstFloor:2},
+ {id:'iron',name:'Железная руда',frames:[2,15],firstFloor:3},
+ {id:'copper',name:'Медная руда',frames:[3],firstFloor:4},
+ {id:'bauxite',name:'Алюминиевая руда (боксит)',frames:[4],firstFloor:5},
+ {id:'tin',name:'Оловянная руда',frames:[5],firstFloor:6},
+ {id:'zinc',name:'Цинковая руда',frames:[6],firstFloor:8},
+ {id:'nickel',name:'Никелевая руда',frames:[7],firstFloor:12},
+ {id:'chromium',name:'Хромовая руда',frames:[8],firstFloor:16},
+ {id:'titanium',name:'Титановая руда',frames:[9],firstFloor:24},
+ {id:'tungsten',name:'Вольфрамовая руда',frames:[10],firstFloor:40},
+ {id:'gold',name:'Золотосодержащая руда',frames:[11],firstFloor:30},
+ {id:'xenorite',name:'Ксенорит',frames:[12],firstFloor:100}
+];
+function materialDefinition(id){return MATERIALS.find(material=>material.id===id)||MATERIALS[0];}
+function materialFrameRect(id,variant,width,height=width){const m=materialDefinition(id),slot=m.frames[Math.floor(variant/4)%m.frames.length];return {x:(slot%4)*width/4,y:Math.floor(slot/4)*height/4,w:width/4,h:height/4};}
+function terrainMaterial(world,x,y){return world.blocked(x,y)?materialDefinition(world.material?.(x,y)||'earth').id:'earth';}
+
+
 
 
 function terrainTileIndex(world,x,y) {
@@ -327,15 +348,26 @@ function floorFixture(ctx,type,sprites) {
     drawSprite(ctx,sprites.cable,type===6?4:46,3,14,58);
   }
 }
-function makeTerrainAtlas(scene) {
-  if(scene.textures.exists('terrain-atlas'))return;
-  const texture=scene.textures.createCanvas('terrain-atlas',1088,1768);
+function drawMaterialSurface(ctx,source,material,variant) {
+  const r=materialFrameRect(material,variant,source.width,source.height);
+  // Rotate and mirror painted variants without changing the frame's scale or coverage.
+  ctx.save();ctx.translate(32,32);ctx.rotate((variant%4)*Math.PI/2);
+  ctx.scale(variant&4?-1:1,variant&8?-1:1);
+  ctx.drawImage(source,r.x,r.y,r.w,r.h,-32,-32,64,64);ctx.restore();
+}
+function makeTerrainAtlas(scene,material='earth') {
+  const key=material==='earth'?'terrain-atlas':'terrain-'+material;
+  if(scene.textures.exists(key))return key;
+  const texture=scene.textures.createCanvas(key,1088,1768);
   const sprites=Object.fromEntries(['pipe','cap','vent','drain','cable'].map(name=>[name,spriteSource(scene,'prop-'+name)]));
-  const ctx=texture.getContext(),source=scene.textures.get('soil-surface').getSourceImage(),face=scene.textures.get('soil-cut').getSourceImage();
+  const ctx=texture.getContext(),source=scene.textures.get('material-surfaces').getSourceImage();
+  const faceTexture=scene.textures.createCanvas('material-face-'+material,256,64),faceCtx=faceTexture.getContext();
+  for(let i=0;i<4;i++){faceCtx.save();faceCtx.translate(i*64,0);drawMaterialSurface(faceCtx,source,material,i);faceCtx.fillStyle='rgba(13,18,20,.25)';faceCtx.fillRect(0,0,64,64);faceCtx.restore();}
+  faceTexture.refresh();const face=faceTexture.getSourceImage();
   for(let variant=0;variant<16;variant++)for(let mask=0;mask<16;mask++) {
     const index=variant*16+mask,ox=index%16*68+2,oy=Math.floor(index/16)*68+2;
     ctx.save();ctx.translate(ox,oy);ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();
-    ctx.drawImage(source,(variant%4)*source.width/4,Math.floor(variant/4)*source.height/4,source.width/4,source.height/4,0,0,64,64);
+    drawMaterialSurface(ctx,source,material,variant);
     for(let side=0;side<4;side++)if(mask&(1<<side))cutEdge(ctx,side,variant,face,mask);
     ctx.restore();
     // Extruded texels prevent neighbouring atlas variants bleeding into cell seams.
@@ -352,30 +384,39 @@ function makeTerrainAtlas(scene) {
     ctx.save();ctx.translate(index%16*68+2,Math.floor(index/16)*68+2);
     ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();cornerPatch(ctx,type,variant,face);ctx.restore();
   }
-  texture.refresh();
+  texture.refresh();return key;
 }
 class WorldTerrain {
   constructor(scene,world) {
-    this.world=world;makeTerrainAtlas(scene);
+    this.world=world;this.scene=scene;
     this.map=scene.make.tilemap({tileWidth:CELL,tileHeight:CELL,width:BASE_SIZE,height:BASE_SIZE});
-    const tiles=this.map.addTilesetImage('terrain-atlas','terrain-atlas',CELL,CELL,2,4);
-    this.fixtures=this.map.createBlankLayer('bunker-fixtures',tiles).setDepth(2);
-    this.layer=this.map.createBlankLayer('soil',tiles).setDepth(3);
-    this.corners=Array.from({length:4},(_,i)=>this.map.createBlankLayer('soil-corner-'+i,tiles).setDepth(3.1));
+    this.materialLayers=new Map();const earth=this.layersFor('earth');this.layer=earth.layer;this.corners=earth.corners;
+    this.fixtures=this.map.createBlankLayer('bunker-fixtures',earth.tiles).setDepth(2);
     for(let y=0;y<BASE_SIZE;y++)for(let x=0;x<BASE_SIZE;x++)this.paintCell(x,y);
     scene.events.once('shutdown',()=>this.map.destroy());
   }
+  layersFor(id) {
+    const material=materialDefinition(id).id;if(this.materialLayers.has(material))return this.materialLayers.get(material);
+    // Only materials present on this floor allocate a GPU atlas and tile layers.
+    const key=makeTerrainAtlas(this.scene,material),tiles=this.map.addTilesetImage(key,key,CELL,CELL,2,4);
+    const layer=this.map.createBlankLayer('surface-'+material,tiles).setDepth(3);
+    const corners=Array.from({length:4},(_,i)=>this.map.createBlankLayer('corner-'+material+'-'+i,tiles).setDepth(3.1));
+    const group={tiles,layer,corners};this.materialLayers.set(material,group);return group;
+  }
   paintCell(x,y) {
     if(x<0||y<0||x>=BASE_SIZE||y>=BASE_SIZE)return;
-    const tile=this.layer.putTileAt(terrainTileIndex(this.world,x,y),x,y);
+    const group=this.layersFor(terrainMaterial(this.world,x,y));
+    for(const other of this.materialLayers.values())if(other!==group){other.layer.removeTileAt(x,y);for(const corner of other.corners)corner.removeTileAt(x,y);}
+    const tile=group.layer.putTileAt(terrainTileIndex(this.world,x,y),x,y);
     terrainCornerTypes(this.world,x,y).forEach((type,i)=>{
-      if(type<0)this.corners[i].removeTileAt(x,y);
-      else this.corners[i].putTileAt(288+((y%4)*4+x%4)*8+type,x,y);
+      if(type<0)group.corners[i].removeTileAt(x,y);
+      else group.corners[i].putTileAt(288+((y%4)*4+x%4)*8+type,x,y);
     });
     const fixture=floorFixtureIndex(this.world,x,y);
     if(fixture<0)this.fixtures.removeTileAt(x,y);else this.fixtures.putTileAt(fixture,x,y);
-    tile.tint=this.world.blocked(x,y)&&this.world.material?.(x,y)==='stone'?(this.world.damage.has(y*BASE_SIZE+x)?0xc0d0d9:0x849ba9):this.world.damage.has(y*BASE_SIZE+x)?0xf4d6aa:0xffffff;
-    for(const layer of this.corners){const corner=layer.getTileAt(x,y);if(corner)corner.tint=tile.tint;}
+    // Distinct material artwork stays intact while existing drill damage remains visible.
+    tile.tint=this.world.damage.has(y*BASE_SIZE+x)?0xf4d6aa:0xffffff;
+    for(const layer of group.corners){const corner=layer.getTileAt(x,y);if(corner)corner.tint=tile.tint;}
   }
   refreshAround(x,y) {
     for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(Math.abs(dx)+Math.abs(dy)<=2)this.paintCell(x+dx,y+dy);
@@ -1520,8 +1561,7 @@ class Boot extends Phaser.Scene {
     this.load.image('console', './public/assets/ui/console.webp');
     for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
-    this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
-    this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
+    this.load.image('material-surfaces', './public/assets/game/material-surfaces.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
@@ -1535,7 +1575,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','material-surfaces','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
