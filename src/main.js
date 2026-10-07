@@ -1,7 +1,7 @@
 import { readSave, readSettings, writeSettings, resetSave } from './storage.js';
 import { Base } from './base-scene.js';
 import { Floor } from './floor-scene.js';
-import { campaignSummary, createInventoryPanel, createHelpPanel } from './interface-panels.js';
+import { createHelpPanel } from './interface-panels.js';
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
@@ -124,29 +124,17 @@ class Menu extends ArtworkScene {
   constructor() { super('Menu'); }
   create() {
     const stage = this.createUI('menu');
-    const terminal=document.createElement('div');terminal.className='bunker-terminal';stage.append(terminal);
-    const badge=document.createElement('div');badge.className='terminal-badge';badge.textContent='БУНКЕР №72 · ТЕРМИНАЛ';terminal.append(badge);
-    const title=document.createElement('h2');title.className='terminal-title';title.innerHTML='БУР<span>Забытые внизу</span>';terminal.append(title);
-    const summary=document.createElement('div');summary.className='campaign-summary';terminal.append(summary);
-    const primary = this.button(terminal, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'terminal-primary', requestGameplay);
-    const actions=document.createElement('div');actions.className='terminal-actions';terminal.append(actions);
-    const inventory=this.button(actions,'ИНВЕНТАРЬ','terminal-button',()=>openDialog('ИНВЕНТАРЬ',createInventoryPanel(readSave()?.progress||{})));
-    this.button(actions, 'КАК ИГРАТЬ', 'terminal-button', () => openDialog('СПРАВОЧНИК БУРА',createHelpPanel()));
-    this.button(actions, 'НАСТРОЙКИ', 'terminal-button', showSettings);
-    this.button(actions, 'ОБ ИГРЕ', 'terminal-button', () => openDialog('БУР: ЗАБЫТЫЕ ВНИЗУ',
-      'После войны люди ушли под землю. В бункере №72 остались завалы, старые машины и те, кто не успел выбраться. Спасай людей, восстанавливай базу и исследуй глубины. Создано «Бинарным импульсом».'));
-    const footer=document.createElement('div');footer.className='terminal-footer';terminal.append(footer);
-    this.button(footer, 'СБРОСИТЬ ПРОГРЕСС', 'terminal-reset', () => {
+    const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
+    this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
+    this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('СПРАВОЧНИК БУРА', createHelpPanel()));
+    this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
+      'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
+    this.button(stage, 'СБРОСИТЬ ПРОГРЕСС', 'reset-button', () => {
       if(resetSave()){primary.textContent='НАЧАТЬ ИГРУ';}
       else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');
-      refresh();
     });
-    this.button(footer, '← НА ГЛАВНУЮ', 'terminal-back', () => this.scene.start('Title'));
-    const refresh = () => {const save=readSave();primary.textContent=save?'ПРОДОЛЖИТЬ':'НАЧАТЬ ИГРУ';inventory.disabled=!save;
-      summary.replaceChildren();
-      if(save){const p=campaignSummary(save.progress);const location=document.createElement('strong'),quest=document.createElement('span');location.textContent=p.location;quest.textContent=p.objective;summary.append(location,quest);}
-      else{summary.textContent='Связь восстановлена. Бункер ждёт.';}
-    };refresh();
+    this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
+    const refresh = () => { primary.textContent = readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ'; };
     window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
     this.events.once('shutdown', () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); });
     this.showArt('console');
