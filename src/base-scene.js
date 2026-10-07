@@ -1,3 +1,4 @@
+import { materialDefinition } from './materials.js';
 import { cargoMethods } from './cargo-scene.js';
 import { restoreCargo, cargoCount, addCargo } from './cargo-state.js';
 import { repairMethods } from './repair-scene.js';
@@ -526,12 +527,14 @@ export class Base extends globalThis.Phaser.Scene {
     if(this.world.blocked(x,y)) {
       this.cutting=true;
       const key=y*BASE_SIZE+x;
+      const material=this.world.material?.(x,y)||'earth';
       const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02));
       this.terrain.paintCell(x,y);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        addCargo(this.cargoHold,this.world.material?.(x,y)||'earth');this.cargo=cargoCount(this.cargoHold);
+        const collected=addCargo(this.cargoHold,material);this.cargo=cargoCount(this.cargoHold);
+        this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
@@ -541,6 +544,21 @@ export class Base extends globalThis.Phaser.Scene {
       return;
     }
 
+  }
+  showCargoPickup(material,x,y,collected) {
+    this.pickupLabels ||= [];
+    // Limit transient labels when several blocks break in quick succession.
+    if(this.pickupLabels.length>=6){
+      const old=this.pickupLabels.shift();this.tweens.killTweensOf(old);old.destroy();
+    }
+    const label=this.add.text(x,y-20,collected?'+1 '+materialDefinition(material).name:'Отсек заполнен',{
+      fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:collected?'#d6f5aa':'#ffcf85',
+      stroke:'#102e2b',strokeThickness:4,padding:{x:4,y:2}
+    }).setOrigin(.5).setDepth(35);
+    this.pickupLabels.push(label);
+    this.tweens.add({targets:label,y:y-62,alpha:0,delay:150,duration:1050,ease:'Sine.Out',
+      onComplete:()=>{this.pickupLabels=this.pickupLabels.filter(item=>item!==label);label.destroy();}
+    });
   }
   animateVehicle(time,dt) {
     this.heat=updateHeat(this.heat,this.cutting,dt);
