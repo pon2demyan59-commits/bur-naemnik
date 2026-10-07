@@ -2,6 +2,8 @@ import { readSettings, writeSettings } from './storage.js';
 import { createInventoryPanel, createHelpPanel } from './interface-panels.js';
 
 const BUILDING_MENUS={
+ construction:{title:'СТРОИТЕЛЬСТВО',portrait:'builder-portrait',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад',svg:true},
+ warehouse:{title:'СКЛАД',portrait:'builder-portrait',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками',svg:true},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
@@ -22,9 +24,9 @@ export function showGamePanel(title,content,kind='terminal',back=null){
 export function showBuildingMenu(kind,controls){
  const spec=BUILDING_MENUS[kind],layout=document.createElement('section');layout.className='service-layout service-'+kind;
  const staff=document.createElement('aside');staff.className='service-staff';
- const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'?'game/':'ui/')+spec.art+'.webp';art.alt='';
+ const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'?'game/':'ui/')+spec.art+(spec.artSvg?'.svg':'.webp');art.alt='';
  if(spec.portrait){
-  const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+'.webp';portrait.alt=spec.name;
+  const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+(spec.svg?'.svg':'.webp');portrait.alt=spec.name;
   const name=document.createElement('strong'),role=document.createElement('span');name.textContent=spec.name;role.textContent=spec.role;
   staff.append(portrait,name,role);
   if(controls.children?.[0])staff.append(controls.children[0]);

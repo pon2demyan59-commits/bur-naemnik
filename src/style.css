@@ -334,3 +334,28 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
  .radio-card.quest-collapsed .quest-toggle { position:relative; display:block; width:100%; height:26px; min-height:0; padding:3px 9px; border:1px solid #8eaa78; border-radius:5px; background:#12382fe8; color:#ffe791; font-size:11px; line-height:18px; text-align:center; }
  .radio-card.quest-collapsed .quest-toggle::after { content:''; position:absolute; inset:-9px 0; }
 }
+
+.construction-plot-buttons {display:flex;gap:8px;}
+.construction-plot-buttons button {flex:1;}
+.warehouse-row {display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:8px;padding:12px 0;border-bottom:1px solid #749078;}
+.warehouse-row strong {color:#f3d291;}
+.warehouse-row input {width:100%;min-height:44px;color:#ffe3aa;background:#163d33;border:1px solid #9cae8d;border-radius:5px;font-size:17px;padding:5px;}
+.warehouse-row button {min-height:44px;}
+.construction-controls p,.warehouse-controls p {white-space:pre-line;}
+
+.service-layout.service-construction .service-controls,
+.service-layout.service-warehouse .service-controls {display:flex;flex-direction:column;align-items:stretch;gap:10px;}
+.service-layout.service-construction .service-controls>p,
+.service-layout.service-warehouse .service-controls>p {font-size:14px;line-height:1.5;text-align:left;margin:0;}
+.service-construction .service-machine,.service-warehouse .service-machine {min-height:200px;}
+.service-construction .service-machine .service-art,.service-warehouse .service-machine .service-art {min-height:200px;max-height:280px;object-fit:contain;}
+.service-construction .service-portrait,.service-warehouse .service-portrait {height:150px;}
+.service-construction .service-staff>.service-readout,.service-warehouse .service-staff>.service-readout {font-size:13px;line-height:1.5;}
+@media(max-width:700px),(max-height:420px) {
+ .service-construction .service-machine,.service-warehouse .service-machine,
+ .service-construction .service-machine .service-art,.service-warehouse .service-machine .service-art {min-height:140px;max-height:200px;}
+ .service-construction .service-portrait,.service-warehouse .service-portrait {height:110px;}
+ .service-layout.service-construction .service-controls>p,.service-layout.service-warehouse .service-controls>p {font-size:12px;}
+}
+.warehouse-row {grid-template-columns:repeat(2,minmax(0,1fr));}
+.warehouse-row input {width:76px;justify-self:end;}

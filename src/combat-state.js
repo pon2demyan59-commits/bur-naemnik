@@ -58,10 +58,10 @@ export function moveEnemy(spider,target,dt,solid,speed=75) {
  }
  spider.angle=Math.atan2(dy,dx)*180/Math.PI+90;
 }
-export function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false,world=null,onDig=null}={}) {
+export function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=false,world=null,onDig=null}={}) {
  const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;spider.digging=false;
  if(spider.hp<=0){
-  if(tutorial)return 0;
+  if(tutorial||finite)return 0;
   spider.respawn=Math.max(0,spider.respawn-ms);
   if(spider.respawn===0&&Math.hypot(rig.x-spider.homeX,rig.y-spider.homeY)>96&&driveFits(spider.homeX,spider.homeY,solid,12)){
    spider.hp=SPIDER_HP;spider.x=spider.homeX;spider.y=spider.homeY;spider.bite=1000;spider.path=[];
@@ -101,3 +101,4 @@ export function hitSpider(spider,damage){
  return false;
 }
 export function spiderSnapshot(spiders){return spiders.map(({id,x,y,hp,respawn,bite,angle})=>({id,x,y,hp,respawn,bite,angle}));}
+

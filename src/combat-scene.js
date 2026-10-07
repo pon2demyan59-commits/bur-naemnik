@@ -1,3 +1,4 @@
+import { BUILDER_GUARDS } from './construction-state.js';
 import { CELL } from './base-state.js';
 import { driveFits } from './drive-controller.js';
 import { createFloorSpiders, restoreSpider, spiderSnapshot, nearestTarget, clearShot, clearWalk, findPath, moveEnemy, stepSpider, hitSpider, WEAPON_RANGE } from './combat-state.js';
@@ -7,10 +8,10 @@ export const combatMethods={
  makeCombat(){
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
-  this.spiders=this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
+  this.spiders=this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
   this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(1000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
-  if(this.floorNumber===3)this.createSpiderViews();
+  if(this.floorNumber===3||this.floorNumber===4)this.createSpiderViews();
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.beginDefense(this.campaign.combat?.wave);
  },
  createSpiderViews(){
@@ -25,6 +26,7 @@ export const combatMethods={
   if(!this.combatReady)return {...(this.campaign.combat||{})};
   const combat={...(this.campaign.combat||{}),cooldown:this.weaponCooldown};
   if(this.floorNumber===3)combat.floor3=spiderSnapshot(this.spiders);
+  if(this.floorNumber===4)combat.floor4=spiderSnapshot(this.spiders);
   if(!this.floorNumber&&this.repairQuest.wave==='active')combat.wave=spiderSnapshot(this.spiders);
   if(this.repairQuest.wave==='done')delete combat.wave;
   return combat;
@@ -65,7 +67,7 @@ export const combatMethods={
   for(const s of this.spiders){
    // Base enemies belong only to the finite tutorial wave, never to floor respawns.
    if(!this.floorNumber&&!tutorial)continue;
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage);
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));

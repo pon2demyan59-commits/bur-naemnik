@@ -1,5 +1,24 @@
 // Approved original dialogue and later scenes based on docs/canon-miro.txt. Rewards stay in UI.
 export const STORY_LINES = {
+  // New construction chapter approved 2026-10-07; original canon above is preserved.
+  builderBrief:[
+    {speaker:'Серёга Т',text:'Слышь, на четвёртом наш строительный мастер остался. После обвала от него ни слуху.'},
+    {speaker:'Герой',text:'Найду. Как к нему попасть?'},
+    {speaker:'Серёга Т',text:'Держи карту четвёртого этажа. Лови сигнал и слушай трубы. Я руками могу, а он знает, что и куда ставить.'}
+  ],
+  builderSignal:[{speaker:'Строительный мастер',text:'Эй! Если это бур — глуши музыку и копай сюда! Только аккуратно, тут потолок на честном слове!'}],
+  builderRescue:[
+    {speaker:'Строительный мастер',text:'Снаружи тихо? Хорошо. Я уже думал, эти восьминогие раньше тебя докопаются.'},
+    {speaker:'Герой',text:'Проход чист. На базе нужны постройки. Поедешь с нами?'},
+    {speaker:'Строительный мастер',text:'Ещё спрашиваешь. Чертежи при мне. Подвези до лифта — дальше разберёмся.'}
+  ],
+  builderReturn:[
+    {speaker:'Серёга Т',text:'Вот теперь можно строить. Стол подготовил, инструмент тоже.'},
+    {speaker:'Строительный мастер',text:'Бур у тебя вместо карманов, что ли? Начнём со склада. Держи первый чертёж.'},
+    {speaker:'Строительный мастер',text:'Выбирай площадку у нашего стола, расчисти её и привези землю с камнем. Соберём склад вместе с Серёгой.'},
+    {speaker:'Герой',text:'А потом займёмся защитой базы.'}
+  ],
+  warehouseReady:[{speaker:'Строительный мастер',text:'Склад готов. Складывай сюда материалы и забирай перед вылазкой. Теперь есть где держать запас для будущих построек.'}],
   radio:['Кто-нибудь… слышит? Я за завалом. Воздуха почти не осталось…'],
   rescue:[
     'Живой… Я уж думал, никто не остался. Все ушли искать другие бункеры.',
@@ -99,6 +118,7 @@ export function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
-    role:speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
-    portrait:speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    role:speaker==='Строительный мастер'?'СТРОИТЕЛЬНЫЙ МАСТЕР':speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
+    portrait:speaker==='Строительный мастер'?'builder-portrait.svg':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
+
