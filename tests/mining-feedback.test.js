@@ -21,14 +21,15 @@ test('driveable lift ramp stays below the drill while powered housing stays abov
  assert.equal(frames.get('ramp')[1]+frames.get('ramp')[3],915);
  lift.powered(false);assert.ok(lift.ramp.depth<20);
 });
-test('broken block reports its original material only when it fits in cargo; repeated drilling cannot duplicate it',()=>{
+test('broken block reports material and rolls artifacts once even with full cargo',()=>{
+ const originalRandom=Math.random;Math.random=()=>0;try{
  const s=new Base(),blocks=new Set([24,25]),popups=[];
  s.world={x:23,y:26,heard:true,damage:new Map(),inside:()=>true,
   blocked:x=>blocks.has(x),material:x=>blocks.has(x)?x===24?'gold':'iron':'earth',
   drill(x){blocks.delete(x);return true;}
  };
  s.rig={x:23.5*64,y:26.5*64,angle:0,setPosition(x,y){this.x=x;this.y=y;return this;},setAngle(a){this.angle=a;return this;}};
- s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={earth:199};s.cargo=199;
+ s.artifacts={};s.notify=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={earth:199};s.cargo=199;
  s.driveSolids=()=>()=>false;
  const noop=()=>{};
  s.drillBar={clear:noop,fillStyle:noop,fillRoundedRect:noop};
@@ -39,7 +40,8 @@ test('broken block reports its original material only when it fits in cargo; rep
  s.advanceVehicle(50,.05,'right');assert.equal(popups.length,1);
  s.world.x=24;s.rig.x=24.5*64;
  s.advanceVehicle(100,.05,'right');assert.equal(popups[1][0],'iron');assert.equal(popups[1][3],false);
- assert.equal(s.cargoHold.iron,undefined);assert.equal(cargoCount(s.cargoHold),200);
+ assert.equal(s.cargoHold.iron,undefined);assert.equal(cargoCount(s.cargoHold),200);assert.equal(s.artifacts['artifact-1-1'],2);
+ }finally{Math.random=originalRandom;}
 });
 
 
@@ -47,7 +49,7 @@ test('diagonal joystick pressure turns to the block face and collects ore throug
  const s=new Base(),blocks=new Set([24]);let pickups=0;
  s.world={x:23,y:26,heard:true,damage:new Map(),inside:()=>true,blocked:x=>blocks.has(x),material:()=> 'stone',drill(x){blocks.delete(x);return true;}};
  s.rig={x:23.5*64,y:26.5*64,angle:45,setPosition(x,y){this.x=x;this.y=y;return this;},setAngle(a){this.angle=a;return this;}};
- s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={};s.cargo=0;
+ s.artifacts={};s.notify=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={};s.cargo=0;
  s.driveSolids=()=>x=>blocks.has(x);
  const noop=()=>{};s.drillBar={clear:noop,fillStyle:noop,fillRoundedRect:noop};s.terrain={paintCell:noop,refreshAround:noop};s.dustEmitter=s.chipEmitter=s.sparkEmitter={emitParticleAt:noop};
  s.refreshHUD=s.checkLift=s.checkPorodnik=s.persist=noop;s.showCargoPickup=()=>pickups++;
