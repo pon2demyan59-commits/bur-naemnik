@@ -169,7 +169,8 @@ function collectionCargoCapacity(closed){return Math.floor(200*(1+collectionBuff
 function collectionProgress(c,artifacts,closed=[]){const done=closed.includes(c.id),found=c.artifacts.filter(id=>(artifacts[id]||0)>0).length;return {done,found,total:c.artifacts.length,ready:!done&&found===c.artifacts.length};}
 function prepareCollectionClose(id,artifacts,closed){const c=COLLECTIONS.find(c=>c.id===id);if(!c)return null;const owned=restoreArtifacts(artifacts),completed=restoreClosedCollections(closed);if(!collectionProgress(c,owned,completed).ready)return null;for(const key of c.artifacts){owned[key]--;if(!owned[key])delete owned[key];}return {artifacts:owned,closedCollections:restoreClosedCollections([...completed,id]),collection:c};}
 
-// Exact approved names and floor assignments from docs/canon-miro.txt. Effects are undecided.
+// Approved 200 names. Legacy floor fields identify the original catalog order,
+// not drop restrictions. Every 20 entries form one rarity; all can drop on any floor.
 const ARTIFACTS=[
  {
   "id": "artifact-1-1",
@@ -1174,23 +1175,29 @@ const ARTIFACTS=[
 ];
 
 
-const ARTIFACT_RESET_MS=24*60*60*1000;
+const ARTIFACT_DROP_FLOORS=[1,25,50,75,100];
+// Approved 2026-10-08. Percent per player-destroyed block, for a whole rarity.
+const ARTIFACT_DROP_BASE_PERCENT=[.1,.01,.005,.002,.001,.0005,.0002,.0001,.00005,.00001];
 const names=new Set(ARTIFACTS.map(a=>a.id));
 function restoreArtifacts(value={}){const result={};for(const [id,n] of Object.entries(value||{}))if(names.has(id)&&Number.isSafeInteger(n)&&n>0)result[id]=n;return result;}
-// Seeded positions persist across reloads; refresh only when entering a floor after 24h.
-function restoreHiddenArtifacts(value,world,now=Date.now()){
- const catalog=ARTIFACTS.filter(a=>a.floor===world.floor);
- const saved=value&&Number.isFinite(value.created)&&value.created<=now&&now-value.created<ARTIFACT_RESET_MS&&Array.isArray(value.items)&&value.items.length===catalog.length&&catalog.every(a=>value.items.some(i=>i.id===a.id&&Number.isInteger(i.cell)&&i.cell>=0&&i.cell<2500&&typeof i.found==='boolean'));
- if(saved)return {created:value.created,items:value.items.map(i=>({...i}))};
- const candidates=[];for(let y=2;y<48;y++)for(let x=2;x<48;x++)if(world.blocked(x,y))candidates.push(y*50+x);
- // Exhausted old floors still need two hidden blocks for this feature. Reserve only
- // the missing artifact cells, away from the parked drill and quest/lift chambers.
- if(candidates.length<catalog.length){const cleared=world.cleared;world.cleared=new Set();for(let y=2;y<48;y++)for(let x=2;x<48;x++){const cell=y*50+x;if(world.blocked(x,y)&&!candidates.includes(cell)&&Math.abs(x-world.x)+Math.abs(y-world.y)>3)candidates.push(cell);}world.cleared=cleared;}
- let seed=(world.materialSeed^Math.floor(now/ARTIFACT_RESET_MS)^world.floor)>>>0;
- const items=catalog.map(a=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;const index=seed%candidates.length;const cell=candidates.length?candidates.splice(index,1)[0]:-1;if(cell>=0){world.cleared.delete(cell);world.damage.delete(cell);}return {id:a.id,cell,found:false};});
- return {created:now,items};
+function artifactRarity(id){const index=ARTIFACTS.findIndex(a=>a.id===id);return index<0?0:Math.floor(index/20)+1;}
+function artifactDropChance(rarity,floor){
+ if(!Number.isInteger(rarity)||rarity<1||rarity>10||!Number.isFinite(floor)||floor<1)return 0;
+ const f=Math.min(100,floor);let factor=1;
+ for(let i=1;i<ARTIFACT_DROP_FLOORS.length;i++)if(f<=ARTIFACT_DROP_FLOORS[i]){factor=i+(f-ARTIFACT_DROP_FLOORS[i-1])/(ARTIFACT_DROP_FLOORS[i]-ARTIFACT_DROP_FLOORS[i-1]);break;}
+ return ARTIFACT_DROP_BASE_PERCENT[rarity-1]*(rarity===1?1:factor);
 }
-function collectArtifact(hidden,collection,cell){const item=hidden?.items.find(i=>i.cell===cell&&!i.found);if(!item)return null;item.found=true;collection[item.id]=(collection[item.id]||0)+1;return ARTIFACTS.find(a=>a.id===item.id);}
+function rollArtifactDrop(floor,random=Math.random){
+ if(!Number.isFinite(floor)||floor<1)return null;
+ const roll=random();if(!Number.isFinite(roll)||roll<0||roll>=1)return null;
+ let threshold=0;
+ for(let rarity=1;rarity<=10;rarity++){
+  threshold+=artifactDropChance(rarity,floor)/100;
+  if(roll<threshold){const itemRoll=random();if(!Number.isFinite(itemRoll)||itemRoll<0||itemRoll>=1)return null;return ARTIFACTS[(rarity-1)*20+Math.floor(itemRoll*20)];}
+ }
+ return null;
+}
+function awardArtifactDrop(collection,floor,random=Math.random){const artifact=rollArtifactDrop(floor,random);if(artifact)collection[artifact.id]=(collection[artifact.id]||0)+1;return artifact;}
 
 
 
@@ -1214,7 +1221,7 @@ function createCollectionPage(scene){
  function artifactSlot(id,done=false,detail=false){
   const a=artifactInfo.get(id),owned=scene.artifacts[id]||0,has=done||owned>0,slot=document.createElement('div');slot.className='artifact-slot '+(has?'owned':'missing');slot.dataset.rarity=String(a.rarity);
   const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';
-  const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · этаж '+a.floor;copy.append(name,meta);
+  const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · может выпасть на любом этаже';copy.append(name,meta);
   const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(mark,copy,status);return slot;
  }
  function render(){
@@ -1248,16 +1255,9 @@ const collectionMethods={
 
 
 const artifactSceneMethods={
- updateArtifactFinds(){
-  const hidden=this.world.hiddenArtifacts;if(!hidden)return;
-  this.artifactViews??=new Map();
-  for(const item of hidden.items){
-   const x=item.cell%50,y=Math.floor(item.cell/50),revealed=item.cell>=0&&!item.found&&!this.world.blocked(x,y);
-   let view=this.artifactViews.get(item.id);
-   if(!revealed){view?.destroy();this.artifactViews.delete(item.id);continue;}
-   if(!view){const cx=(x+.5)*CELL,cy=(y+.5)*CELL,g=this.add.graphics().setDepth(12);g.fillStyle(0x0c2526,.35);g.fillEllipse(cx,cy+15,38,14);g.lineStyle(4,0x49331d);g.fillStyle(0xe5aa55);g.fillRoundedRect(cx-15,cy-19,30,34,8);g.strokeRoundedRect(cx-15,cy-19,30,34,8);g.fillStyle(0x73babe);g.fillCircle(cx,cy-4,8);g.lineStyle(2,0xffe9a5);g.strokeCircle(cx,cy-4,11);this.artifactViews.set(item.id,g);view=g;}
-   if(Math.hypot(this.rig.x-(x+.5)*CELL,this.rig.y-(y+.5)*CELL)<CELL){const a=collectArtifact(hidden,this.artifacts,item.cell);if(a){view.destroy();this.artifactViews.delete(item.id);this.notify('АРТЕФАКТ НАЙДЕН · '+a.name);this.persist();}}
-  }
+ findArtifactInBrokenBlock(){
+  const artifact=awardArtifactDrop(this.artifacts,this.floorNumber);if(!artifact)return null;
+  this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name+' · '+RARITY_NAMES[artifactRarity(artifact.id)-1]);return artifact;
  }
 };
 
@@ -1790,7 +1790,6 @@ function bunkerFloorTexture(scene) {
 
 
 
-
 const LIFT = {x:33,y:21};
 const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
 const FLOOR_LIFT = {x:25,y:7};
@@ -1844,7 +1843,7 @@ class FloorWorld {
     if(validMaterialSeed(progress.materialSeed)&&progress.materialGeneration!==2)for(const key of this.damage.keys()) {
       if(!this.materialOverrides.has(key))this.materialOverrides.set(key,legacyDepositMaterial(this.materialSeed,this.floor,key%BASE_SIZE,Math.floor(key/BASE_SIZE)));
     }
-    this.hiddenArtifacts=restoreHiddenArtifacts(progress.hiddenArtifacts,this);this.rescued=true;this.heard=true;
+    this.rescued=true;this.heard=true;
     const parked=progress.drive;
     const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
     const px=hasParked?parked.x:(this.x+.5)*CELL,py=hasParked?parked.y:(this.y+.5)*CELL;
@@ -1856,7 +1855,7 @@ class FloorWorld {
   hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
-  snapshot(){return {hiddenArtifacts:{created:this.hiddenArtifacts.created,items:this.hiddenArtifacts.items.map(i=>({...i}))},location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+  snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
 
 
@@ -3647,7 +3646,7 @@ class Base extends globalThis.Phaser.Scene {
       return;
     }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
-    this.updateArtifactFinds();this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
+    this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.repairShop?.update(Math.min(delta,50),this.repairQuest.serviceRemaining>0);
@@ -3717,7 +3716,7 @@ class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        const artifact=collectArtifact(this.world.hiddenArtifacts,this.artifacts,key);if(artifact)this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name);
+        this.findArtifactInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
@@ -4092,7 +4091,7 @@ function createInventoryPanel(p={}){
  const items=panelSection(panel,'Сюжетные предметы');let count=0;
  for(const [has,label,asset] of [[p.workshopQuest?.tools&&!p.workshopQuest?.ready,'Инструменты','tools'],[p.armoryQuest?.blueprint,'Чертёж первой пушки','blueprint'],[p.constructionQuest?.unlocked,'Чертёж склада','blueprint'],[p.repairQuest?.kit&&!p.repairQuest?.ready,'Ремонтный комплект','repair-kit']])if(has){const row=infoRow(items,label,'Получено');row.className+=' quest-item-row';const img=document.createElement('img');img.src='./public/assets/quests/'+asset+'.svg';img.alt='';row.append(img);count++;}
  if(!count)infoRow(items,'Предметов пока нет','—');
- const artifacts=panelSection(panel,'Артефакты');const collection=restoreArtifacts(p.artifacts);let found=0;for(const a of ARTIFACTS)if(collection[a.id]){infoRow(artifacts,a.name,collection[a.id]);found++;}if(!found)infoRow(artifacts,'Артефактов пока нет','—');const artifactNote=document.createElement('p');artifactNote.className='terminal-note';artifactNote.textContent='По два артефакта спрятано в породе каждого этажа. Повторы хранятся здесь. Артефакты расходуются при закрытии коллекций. Баф действует только после полного закрытия набора.';artifacts.append(artifactNote);
+ const artifacts=panelSection(panel,'Артефакты');const collection=restoreArtifacts(p.artifacts);let found=0;for(const a of ARTIFACTS)if(collection[a.id]){infoRow(artifacts,a.name,collection[a.id]);found++;}if(!found)infoRow(artifacts,'Артефактов пока нет','—');const artifactNote=document.createElement('p');artifactNote.className='terminal-note';artifactNote.textContent='Артефакты выпадают по шансу при разрушении блоков буром на этажах. Обычная редкость: 0,1% на блок. Более редкие встречаются реже, с глубиной их шансы растут. Количество не ограничено; повторные экземпляры хранятся здесь. Артефакты расходуются при закрытии коллекций. Баф действует только после полного закрытия набора.';artifacts.append(artifactNote);
  const access=panelSection(panel,'Карты доступа');const cards=ownedKeycards(p);
  for(const floor of cards)infoRow(access,'Карта этажа '+floor,floor<=(p.highestFloor||0)?'Этаж открыт':'Готова к использованию');
  if(!cards.length)infoRow(access,'Карты пока не найдены','—');
