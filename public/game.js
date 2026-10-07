@@ -475,7 +475,7 @@ const STORY_LINES = {
   rescue:[
     'Живой… Я уж думал, никто не остался. Все ушли искать другие бункеры.',
     'Я задержался — хотел забрать инструмент. Тут начался обвал.',
-    'Меня заперло, а лифт засыпало землёй.',
+    'Меня заперло, а лифт засыпало землёй. Держи карту от лифта — она откроет доступ на первый этаж.',
     'Спасибо, что вытащил. Теперь надо добраться до лифта — другого пути отсюда нет'
   ],
   porodnik:[
@@ -495,7 +495,6 @@ function storyPresentation(kind,page) {
   return {text:typeof entry==='string'?entry:entry.text,speaker,
     portrait:kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
-
 
 
 function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
