@@ -1,4 +1,4 @@
-import { PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
+import { PORODNIK_CYCLE_MS, restorePorodnikJob, stepPorodnikJob, PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { STORY_LINES } from './story-content.js';
@@ -13,7 +13,7 @@ const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false} = {}) {
-    const p=save?.progress||{};this.campaign=p;this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;
+    const p=save?.progress||{};this.campaign=p;this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;
     this.floorNumber=this.sys.settings.key==='Floor'?1:0;
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
@@ -103,6 +103,7 @@ export class Base extends globalThis.Phaser.Scene {
       const m=PORODNIK_MACHINE,d=PORODNIK_DECK;
       this.porodnik=this.add.image(m.x,m.y,'porodnik','machine').setOrigin(0).setDisplaySize(m.width,m.height).setDepth(2.4);
       this.porodnikDeck=this.add.image(d.x,d.y,'porodnik','parking').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.4);
+      this.porodnikMotion=this.add.graphics().setDepth(5);
       this.porodnikLed=this.add.circle(20.1*CELL,30.95*CELL,4,0xffac46).setDepth(5);
       this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
       this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
@@ -131,8 +132,8 @@ export class Base extends globalThis.Phaser.Scene {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
     const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig);
-    const label=saving?'СПАСТИ СЕРЁГУ':unloading?'ВЫГРУЗИТЬ ПОРОДУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(unloading?this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    const label=saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ВЫГРУЗИТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
+    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
@@ -154,7 +155,7 @@ export class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[1]=local;
     const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[])])];
-    return {...base,cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -169,10 +170,49 @@ export class Base extends globalThis.Phaser.Scene {
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
   }
   unloadPorodnik() {
-    if(!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
-    const amount=this.cargo;this.cargo=0;this.credits+=amount;
+    if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
+    this.porodnikJob={amount:this.cargo,remaining:PORODNIK_CYCLE_MS};this.cargo=0;
     this.speed=0;this.dialogClosed();this.refreshHUD();this.persist();
-    this.notify(`ПОРОДА ПРИНЯТА · +${amount} КРЕДИТОВ`);
+    this.notify('ПОРОДА ПРИНЯТА · ПЕРЕРАБОТКА 3 СЕКУНДЫ');
+  }
+  updatePorodnikCycle(delta) {
+    const amount=stepPorodnikJob(this.porodnikJob,delta);
+    if(!amount)return;
+    this.porodnikJob=null;this.credits+=amount;this.refreshHUD();this.persist();
+    this.notify(`ПЕРЕРАБОТКА ЗАВЕРШЕНА · +${amount} КРЕДИТОВ`);
+  }
+  animatePorodnik(time) {
+    if(!this.porodnik)return;
+    const m=PORODNIK_MACHINE,g=this.porodnikMotion,job=this.porodnikJob;
+    g.clear();
+    const working=!!job&&this.world.porodnikPowered;
+    const dx=working?Math.sin(time*.075)*.85:0,dy=working?Math.cos(time*.061)*.6:0;
+    this.porodnik.setPosition(m.x+dx,m.y+dy);g.setPosition(dx,dy);
+    this.porodnikLed.setFillStyle(working?(Math.sin(time*.023)>0?0xffd065:0xff9b35):this.world.porodnikPowered?0x74ee87:0xffac46);
+    this.porodnikLed.setAlpha(working?1:this.world.porodnikPowered ? .75+.25*Math.sin(time*.003) : 1);
+    if(!working)return;
+    const elapsed=PORODNIK_CYCLE_MS-job.remaining,bx=m.x+115,by=m.y+178,bw=91,bh=29;
+    // Moving belt bars stay inside the actual intake opening.
+    g.fillStyle(0x182329,.85);g.fillRect(bx,by,bw,bh);
+    const phase=elapsed*.055%8;
+    for(let y=by-phase;y<by+bh;y+=8) {
+      const top=Math.max(by,y),height=Math.min(by+bh,y+3)-top;
+      if(height>0){g.fillStyle(0x81908c,.85);g.fillRect(bx+3,top,bw-6,height);}
+    }
+    // Rock chips feed from the deck into the hopper, without shaking the parked rig.
+    for(let i=0;i<6;i++) {
+      const travel=(elapsed/620+i/6)%1;
+      const x=m.x+160+Math.sin(i*7)*15,y=m.y+204-travel*58;
+      g.fillStyle(i%2?0x897a64:0xbaa080,.95);g.fillTriangle(x-4,y+3,x+5,y+1,x,y-5);
+      g.lineStyle(1,0x443d32,.8);g.lineBetween(x-4,y+3,x,y-5);
+      const puff=(elapsed/950+i/6)%1;
+      g.fillStyle(0xd4c29b,(1-puff)*.24);g.fillCircle(m.x+143+Math.sin(i*4)*25,m.y+151-puff*23,2+puff*7);
+    }
+    g.fillStyle(0x132525,.9);g.fillRoundedRect(m.x+116,m.y+209,88,5,2);
+    g.fillStyle(0xffcb65);g.fillRoundedRect(m.x+116,m.y+209,88*elapsed/PORODNIK_CYCLE_MS,5,2);
+    const status=document.querySelector('#quest-status');
+    const text=`Переработка: ${(job.remaining/1000).toFixed(1)} с · Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
+    if(status&&status.textContent!==text)status.textContent=text;
   }
   checkPorodnik() {
     if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.world)>0)return;
@@ -289,6 +329,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.keys||document.hidden)return;
     this.syncAction();this.drawLiftGlow(time);
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
