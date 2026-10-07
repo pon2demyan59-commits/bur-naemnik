@@ -53,7 +53,7 @@ test('finished-wave old saves receive briefing; rescued master opens constructio
 });
 test('construction dialogue resumes and builder has a separate identity',()=>{
  const q=restoreConstruction({dialogue:'builderReturn',dialoguePage:2,rescued:true});assert.equal(q.dialoguePage,2);assert.equal(q.dialogue,'builderReturn');assert.equal(q.unlocked,false);
- assert.equal(storyPresentation('builderRescue',0).portrait,'builder-portrait.svg');assert.ok(STORY_LINES.builderBrief.some(l=>l.text.includes('карту четвёртого')));
+ assert.equal(storyPresentation('builderRescue',0).portrait,'builder-portrait-v2.webp');assert.ok(STORY_LINES.builderBrief.some(l=>l.text.includes('карту четвёртого')));
 });
 test('death loses carried materials but preserves warehouse stock and construction progress',()=>{
  const s=new Base();s.sys={settings:{key:'Floor'}};s.init({save:{progress:{location:'floor',floor:4,base:{rescued:true},cargoHold:{earth:20},constructionQuest:{briefed:true,rescued:true,unlocked:true,warehouse:true,stock:{stone:40}}}}});

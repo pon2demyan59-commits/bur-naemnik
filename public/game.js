@@ -13,8 +13,8 @@ function readSave(storage) {
 function readSettings() {
   try {
     const value = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
-    return { sound: value.sound !== false, music: value.music !== false };
-  } catch { return { sound: true, music: true }; }
+    return { sound: value.sound !== false, music: value.music !== false, radioInInventory: value.radioInInventory === true };
+  } catch { return { sound: true, music: true, radioInInventory: false }; }
 }
 function writeSettings(value) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(value)); return true; }
@@ -155,6 +155,1045 @@ function drawMountedTurret(scene,root,upgraded=false) {
  flash.fillStyle(0xffefb0);flash.fillTriangle(28,0,35,-2,34,2);flash.setVisible(false);
  return {barrel,flash};
 }
+
+// Exact approved names and floor assignments from docs/canon-miro.txt. Effects are undecided.
+const ARTIFACTS=[
+ {
+  "id": "artifact-1-1",
+  "floor": 1,
+  "name": "Последняя искра"
+ },
+ {
+  "id": "artifact-1-2",
+  "floor": 1,
+  "name": "Шёпот убежища"
+ },
+ {
+  "id": "artifact-2-1",
+  "floor": 2,
+  "name": "Ржавый талисман"
+ },
+ {
+  "id": "artifact-2-2",
+  "floor": 2,
+  "name": "Осколок рассвета"
+ },
+ {
+  "id": "artifact-3-1",
+  "floor": 3,
+  "name": "Слеза бетона"
+ },
+ {
+  "id": "artifact-3-2",
+  "floor": 3,
+  "name": "Пульс завала"
+ },
+ {
+  "id": "artifact-4-1",
+  "floor": 4,
+  "name": "Тёплый камень"
+ },
+ {
+  "id": "artifact-4-2",
+  "floor": 4,
+  "name": "Сердце проходчика"
+ },
+ {
+  "id": "artifact-5-1",
+  "floor": 5,
+  "name": "Мёртвый компас"
+ },
+ {
+  "id": "artifact-5-2",
+  "floor": 5,
+  "name": "Эхо лифта"
+ },
+ {
+  "id": "artifact-6-1",
+  "floor": 6,
+  "name": "Застывший гул"
+ },
+ {
+  "id": "artifact-6-2",
+  "floor": 6,
+  "name": "Печать бункера"
+ },
+ {
+  "id": "artifact-7-1",
+  "floor": 7,
+  "name": "Пепельная капля"
+ },
+ {
+  "id": "artifact-7-2",
+  "floor": 7,
+  "name": "Нить надежды"
+ },
+ {
+  "id": "artifact-8-1",
+  "floor": 8,
+  "name": "Медный призрак"
+ },
+ {
+  "id": "artifact-8-2",
+  "floor": 8,
+  "name": "Глаз тоннеля"
+ },
+ {
+  "id": "artifact-9-1",
+  "floor": 9,
+  "name": "Обугленный знак"
+ },
+ {
+  "id": "artifact-9-2",
+  "floor": 9,
+  "name": "Забытый сигнал"
+ },
+ {
+  "id": "artifact-10-1",
+  "floor": 10,
+  "name": "Светляк глубин"
+ },
+ {
+  "id": "artifact-10-2",
+  "floor": 10,
+  "name": "Косточка удачи"
+ },
+ {
+  "id": "artifact-11-1",
+  "floor": 11,
+  "name": "Железный лепесток"
+ },
+ {
+  "id": "artifact-11-2",
+  "floor": 11,
+  "name": "Звон пустоты"
+ },
+ {
+  "id": "artifact-12-1",
+  "floor": 12,
+  "name": "Пыльная звезда"
+ },
+ {
+  "id": "artifact-12-2",
+  "floor": 12,
+  "name": "Корень тишины"
+ },
+ {
+  "id": "artifact-13-1",
+  "floor": 13,
+  "name": "Слепая стрелка"
+ },
+ {
+  "id": "artifact-13-2",
+  "floor": 13,
+  "name": "Отпечаток войны"
+ },
+ {
+  "id": "artifact-14-1",
+  "floor": 14,
+  "name": "Золотая ржавчина"
+ },
+ {
+  "id": "artifact-14-2",
+  "floor": 14,
+  "name": "Стеклянный шёпот"
+ },
+ {
+  "id": "artifact-15-1",
+  "floor": 15,
+  "name": "Чёрный мотылёк"
+ },
+ {
+  "id": "artifact-15-2",
+  "floor": 15,
+  "name": "Капля памяти"
+ },
+ {
+  "id": "artifact-16-1",
+  "floor": 16,
+  "name": "Синий уголь"
+ },
+ {
+  "id": "artifact-16-2",
+  "floor": 16,
+  "name": "Ритм земли"
+ },
+ {
+  "id": "artifact-17-1",
+  "floor": 17,
+  "name": "Пустая гильза"
+ },
+ {
+  "id": "artifact-17-2",
+  "floor": 17,
+  "name": "Голос стены"
+ },
+ {
+  "id": "artifact-18-1",
+  "floor": 18,
+  "name": "Каменная слеза"
+ },
+ {
+  "id": "artifact-18-2",
+  "floor": 18,
+  "name": "Погасший маяк"
+ },
+ {
+  "id": "artifact-19-1",
+  "floor": 19,
+  "name": "Сломанная орбита"
+ },
+ {
+  "id": "artifact-19-2",
+  "floor": 19,
+  "name": "Жила рассвета"
+ },
+ {
+  "id": "artifact-20-1",
+  "floor": 20,
+  "name": "Ключ без двери"
+ },
+ {
+  "id": "artifact-20-2",
+  "floor": 20,
+  "name": "Серебряный след"
+ },
+ {
+  "id": "artifact-21-1",
+  "floor": 21,
+  "name": "Горький янтарь"
+ },
+ {
+  "id": "artifact-21-2",
+  "floor": 21,
+  "name": "Тихий разряд"
+ },
+ {
+  "id": "artifact-22-1",
+  "floor": 22,
+  "name": "Спящий магнит"
+ },
+ {
+  "id": "artifact-22-2",
+  "floor": 22,
+  "name": "Песчинка времени"
+ },
+ {
+  "id": "artifact-23-1",
+  "floor": 23,
+  "name": "Медовая искра"
+ },
+ {
+  "id": "artifact-23-2",
+  "floor": 23,
+  "name": "Шрам породы"
+ },
+ {
+  "id": "artifact-24-1",
+  "floor": 24,
+  "name": "Петля эха"
+ },
+ {
+  "id": "artifact-24-2",
+  "floor": 24,
+  "name": "Слепой фонарь"
+ },
+ {
+  "id": "artifact-25-1",
+  "floor": 25,
+  "name": "Холодное зерно"
+ },
+ {
+  "id": "artifact-25-2",
+  "floor": 25,
+  "name": "Последний импульс"
+ },
+ {
+  "id": "artifact-26-1",
+  "floor": 26,
+  "name": "Око шахтёра"
+ },
+ {
+  "id": "artifact-26-2",
+  "floor": 26,
+  "name": "Пружина судьбы"
+ },
+ {
+  "id": "artifact-27-1",
+  "floor": 27,
+  "name": "Плавающий осколок"
+ },
+ {
+  "id": "artifact-27-2",
+  "floor": 27,
+  "name": "Хрупкий гром"
+ },
+ {
+  "id": "artifact-28-1",
+  "floor": 28,
+  "name": "Сгусток света"
+ },
+ {
+  "id": "artifact-28-2",
+  "floor": 28,
+  "name": "Пепельный венец"
+ },
+ {
+  "id": "artifact-29-1",
+  "floor": 29,
+  "name": "Живой болт"
+ },
+ {
+  "id": "artifact-29-2",
+  "floor": 29,
+  "name": "Затонувший луч"
+ },
+ {
+  "id": "artifact-30-1",
+  "floor": 30,
+  "name": "Чёрная жемчужина"
+ },
+ {
+  "id": "artifact-30-2",
+  "floor": 30,
+  "name": "Кольцо обвала"
+ },
+ {
+  "id": "artifact-31-1",
+  "floor": 31,
+  "name": "Дрожащий кристалл"
+ },
+ {
+  "id": "artifact-31-2",
+  "floor": 31,
+  "name": "Сердце рельса"
+ },
+ {
+  "id": "artifact-32-1",
+  "floor": 32,
+  "name": "Туманная линза"
+ },
+ {
+  "id": "artifact-32-2",
+  "floor": 32,
+  "name": "Сухая молния"
+ },
+ {
+  "id": "artifact-33-1",
+  "floor": 33,
+  "name": "Ржавый нимб"
+ },
+ {
+  "id": "artifact-33-2",
+  "floor": 33,
+  "name": "Соль забвения"
+ },
+ {
+  "id": "artifact-34-1",
+  "floor": 34,
+  "name": "Зуб тишины"
+ },
+ {
+  "id": "artifact-34-2",
+  "floor": 34,
+  "name": "Сияющий мох"
+ },
+ {
+  "id": "artifact-35-1",
+  "floor": 35,
+  "name": "Двойной пульс"
+ },
+ {
+  "id": "artifact-35-2",
+  "floor": 35,
+  "name": "Лунный обломок"
+ },
+ {
+  "id": "artifact-36-1",
+  "floor": 36,
+  "name": "Слезинка металла"
+ },
+ {
+  "id": "artifact-36-2",
+  "floor": 36,
+  "name": "Колыбель искры"
+ },
+ {
+  "id": "artifact-37-1",
+  "floor": 37,
+  "name": "Беззвучный звонок"
+ },
+ {
+  "id": "artifact-37-2",
+  "floor": 37,
+  "name": "Тень костра"
+ },
+ {
+  "id": "artifact-38-1",
+  "floor": 38,
+  "name": "Медный цветок"
+ },
+ {
+  "id": "artifact-38-2",
+  "floor": 38,
+  "name": "Зеркало пыли"
+ },
+ {
+  "id": "artifact-39-1",
+  "floor": 39,
+  "name": "Сфера тревоги"
+ },
+ {
+  "id": "artifact-39-2",
+  "floor": 39,
+  "name": "Последняя частота"
+ },
+ {
+  "id": "artifact-40-1",
+  "floor": 40,
+  "name": "Игольчатое солнце"
+ },
+ {
+  "id": "artifact-40-2",
+  "floor": 40,
+  "name": "Печать глубины"
+ },
+ {
+  "id": "artifact-41-1",
+  "floor": 41,
+  "name": "Пепельный глаз"
+ },
+ {
+  "id": "artifact-41-2",
+  "floor": 41,
+  "name": "Живой разлом"
+ },
+ {
+  "id": "artifact-42-1",
+  "floor": 42,
+  "name": "Стеклянный корень"
+ },
+ {
+  "id": "artifact-42-2",
+  "floor": 42,
+  "name": "Вечная спичка"
+ },
+ {
+  "id": "artifact-43-1",
+  "floor": 43,
+  "name": "Ртутный лепесток"
+ },
+ {
+  "id": "artifact-43-2",
+  "floor": 43,
+  "name": "Сердце руины"
+ },
+ {
+  "id": "artifact-44-1",
+  "floor": 44,
+  "name": "Клубок шёпота"
+ },
+ {
+  "id": "artifact-44-2",
+  "floor": 44,
+  "name": "Обратный компас"
+ },
+ {
+  "id": "artifact-45-1",
+  "floor": 45,
+  "name": "Кристалл бессонницы"
+ },
+ {
+  "id": "artifact-45-2",
+  "floor": 45,
+  "name": "Капля грома"
+ },
+ {
+  "id": "artifact-46-1",
+  "floor": 46,
+  "name": "Чёрная спираль"
+ },
+ {
+  "id": "artifact-46-2",
+  "floor": 46,
+  "name": "Тёплая пустота"
+ },
+ {
+  "id": "artifact-47-1",
+  "floor": 47,
+  "name": "Осколок полудня"
+ },
+ {
+  "id": "artifact-47-2",
+  "floor": 47,
+  "name": "Голос недр"
+ },
+ {
+  "id": "artifact-48-1",
+  "floor": 48,
+  "name": "Пыльный нимб"
+ },
+ {
+  "id": "artifact-48-2",
+  "floor": 48,
+  "name": "Каменный колокольчик"
+ },
+ {
+  "id": "artifact-49-1",
+  "floor": 49,
+  "name": "Золотой нерв"
+ },
+ {
+  "id": "artifact-49-2",
+  "floor": 49,
+  "name": "Серый огонёк"
+ },
+ {
+  "id": "artifact-50-1",
+  "floor": 50,
+  "name": "Середина тьмы"
+ },
+ {
+  "id": "artifact-50-2",
+  "floor": 50,
+  "name": "Узел памяти"
+ },
+ {
+  "id": "artifact-51-1",
+  "floor": 51,
+  "name": "Титановая слеза"
+ },
+ {
+  "id": "artifact-51-2",
+  "floor": 51,
+  "name": "Сон механизма"
+ },
+ {
+  "id": "artifact-52-1",
+  "floor": 52,
+  "name": "Глаз давления"
+ },
+ {
+  "id": "artifact-52-2",
+  "floor": 52,
+  "name": "Осколок тишины"
+ },
+ {
+  "id": "artifact-53-1",
+  "floor": 53,
+  "name": "Грозовой кокон"
+ },
+ {
+  "id": "artifact-53-2",
+  "floor": 53,
+  "name": "Ключ забвения"
+ },
+ {
+  "id": "artifact-54-1",
+  "floor": 54,
+  "name": "Чёрный подснежник"
+ },
+ {
+  "id": "artifact-54-2",
+  "floor": 54,
+  "name": "Блуждающий импульс"
+ },
+ {
+  "id": "artifact-55-1",
+  "floor": 55,
+  "name": "Железная радуга"
+ },
+ {
+  "id": "artifact-55-2",
+  "floor": 55,
+  "name": "Туманное сердце"
+ },
+ {
+  "id": "artifact-56-1",
+  "floor": 56,
+  "name": "Звонкая капля"
+ },
+ {
+  "id": "artifact-56-2",
+  "floor": 56,
+  "name": "Шип времени"
+ },
+ {
+  "id": "artifact-57-1",
+  "floor": 57,
+  "name": "Корень молнии"
+ },
+ {
+  "id": "artifact-57-2",
+  "floor": 57,
+  "name": "Глубинная свеча"
+ },
+ {
+  "id": "artifact-58-1",
+  "floor": 58,
+  "name": "Кристалл тяжести"
+ },
+ {
+  "id": "artifact-58-2",
+  "floor": 58,
+  "name": "Пепельная ладонь"
+ },
+ {
+  "id": "artifact-59-1",
+  "floor": 59,
+  "name": "Дыхание скалы"
+ },
+ {
+  "id": "artifact-59-2",
+  "floor": 59,
+  "name": "Обруч пустоты"
+ },
+ {
+  "id": "artifact-60-1",
+  "floor": 60,
+  "name": "Ложный рассвет"
+ },
+ {
+  "id": "artifact-60-2",
+  "floor": 60,
+  "name": "Третий глаз"
+ },
+ {
+  "id": "artifact-61-1",
+  "floor": 61,
+  "name": "Рваный горизонт"
+ },
+ {
+  "id": "artifact-61-2",
+  "floor": 61,
+  "name": "Сердце магнита"
+ },
+ {
+  "id": "artifact-62-1",
+  "floor": 62,
+  "name": "Стеклянная буря"
+ },
+ {
+  "id": "artifact-62-2",
+  "floor": 62,
+  "name": "Печать давления"
+ },
+ {
+  "id": "artifact-63-1",
+  "floor": 63,
+  "name": "Застывшая искра"
+ },
+ {
+  "id": "artifact-63-2",
+  "floor": 63,
+  "name": "Лепесток бездны"
+ },
+ {
+  "id": "artifact-64-1",
+  "floor": 64,
+  "name": "Осколок притяжения"
+ },
+ {
+  "id": "artifact-64-2",
+  "floor": 64,
+  "name": "Немой набат"
+ },
+ {
+  "id": "artifact-65-1",
+  "floor": 65,
+  "name": "Чёрное семя"
+ },
+ {
+  "id": "artifact-65-2",
+  "floor": 65,
+  "name": "Свет в камне"
+ },
+ {
+  "id": "artifact-66-1",
+  "floor": 66,
+  "name": "Пульс разлома"
+ },
+ {
+  "id": "artifact-66-2",
+  "floor": 66,
+  "name": "Кристалл возвращения"
+ },
+ {
+  "id": "artifact-67-1",
+  "floor": 67,
+  "name": "Тень звезды"
+ },
+ {
+  "id": "artifact-67-2",
+  "floor": 67,
+  "name": "Последняя секунда"
+ },
+ {
+  "id": "artifact-68-1",
+  "floor": 68,
+  "name": "Спящий гром"
+ },
+ {
+  "id": "artifact-68-2",
+  "floor": 68,
+  "name": "Кольцо притяжения"
+ },
+ {
+  "id": "artifact-69-1",
+  "floor": 69,
+  "name": "Жила памяти"
+ },
+ {
+  "id": "artifact-69-2",
+  "floor": 69,
+  "name": "Холодный венец"
+ },
+ {
+  "id": "artifact-70-1",
+  "floor": 70,
+  "name": "Око глубин"
+ },
+ {
+  "id": "artifact-70-2",
+  "floor": 70,
+  "name": "Сгусток покоя"
+ },
+ {
+  "id": "artifact-71-1",
+  "floor": 71,
+  "name": "Сердце давления"
+ },
+ {
+  "id": "artifact-71-2",
+  "floor": 71,
+  "name": "Осколок вечера"
+ },
+ {
+  "id": "artifact-72-1",
+  "floor": 72,
+  "name": "Титановый мотылёк"
+ },
+ {
+  "id": "artifact-72-2",
+  "floor": 72,
+  "name": "Золотая тишина"
+ },
+ {
+  "id": "artifact-73-1",
+  "floor": 73,
+  "name": "Чёрный резонатор"
+ },
+ {
+  "id": "artifact-73-2",
+  "floor": 73,
+  "name": "Печать скалы"
+ },
+ {
+  "id": "artifact-74-1",
+  "floor": 74,
+  "name": "Капля горизонта"
+ },
+ {
+  "id": "artifact-74-2",
+  "floor": 74,
+  "name": "Нить возвращения"
+ },
+ {
+  "id": "artifact-75-1",
+  "floor": 75,
+  "name": "Голодный свет"
+ },
+ {
+  "id": "artifact-75-2",
+  "floor": 75,
+  "name": "Лунный нерв"
+ },
+ {
+  "id": "artifact-76-1",
+  "floor": 76,
+  "name": "Кристалл обвала"
+ },
+ {
+  "id": "artifact-76-2",
+  "floor": 76,
+  "name": "Тёплый призрак"
+ },
+ {
+  "id": "artifact-77-1",
+  "floor": 77,
+  "name": "Кольцо забытого пути"
+ },
+ {
+  "id": "artifact-77-2",
+  "floor": 77,
+  "name": "Искра бессмертия"
+ },
+ {
+  "id": "artifact-78-1",
+  "floor": 78,
+  "name": "Стеклянный пульс"
+ },
+ {
+  "id": "artifact-78-2",
+  "floor": 78,
+  "name": "Эхо поверхности"
+ },
+ {
+  "id": "artifact-79-1",
+  "floor": 79,
+  "name": "Слеза разлома"
+ },
+ {
+  "id": "artifact-79-2",
+  "floor": 79,
+  "name": "Грозовой глаз"
+ },
+ {
+  "id": "artifact-80-1",
+  "floor": 80,
+  "name": "Неподвижная звезда"
+ },
+ {
+  "id": "artifact-80-2",
+  "floor": 80,
+  "name": "Сердце лабиринта"
+ },
+ {
+  "id": "artifact-81-1",
+  "floor": 81,
+  "name": "Чёрный маяк"
+ },
+ {
+  "id": "artifact-81-2",
+  "floor": 81,
+  "name": "Осколок невесомости"
+ },
+ {
+  "id": "artifact-82-1",
+  "floor": 82,
+  "name": "Печать бездны"
+ },
+ {
+  "id": "artifact-82-2",
+  "floor": 82,
+  "name": "Кокон времени"
+ },
+ {
+  "id": "artifact-83-1",
+  "floor": 83,
+  "name": "Ржавое солнце"
+ },
+ {
+  "id": "artifact-83-2",
+  "floor": 83,
+  "name": "Шёпот колосса"
+ },
+ {
+  "id": "artifact-84-1",
+  "floor": 84,
+  "name": "Линза забвения"
+ },
+ {
+  "id": "artifact-84-2",
+  "floor": 84,
+  "name": "Каменное дыхание"
+ },
+ {
+  "id": "artifact-85-1",
+  "floor": 85,
+  "name": "Золотой призрак"
+ },
+ {
+  "id": "artifact-85-2",
+  "floor": 85,
+  "name": "Петля возвращения"
+ },
+ {
+  "id": "artifact-86-1",
+  "floor": 86,
+  "name": "Сердце бури"
+ },
+ {
+  "id": "artifact-86-2",
+  "floor": 86,
+  "name": "Кристалл отголоска"
+ },
+ {
+  "id": "artifact-87-1",
+  "floor": 87,
+  "name": "Глаз пустоты"
+ },
+ {
+  "id": "artifact-87-2",
+  "floor": 87,
+  "name": "Слеза притяжения"
+ },
+ {
+  "id": "artifact-88-1",
+  "floor": 88,
+  "name": "Пепел звезды"
+ },
+ {
+  "id": "artifact-88-2",
+  "floor": 88,
+  "name": "Нить вечности"
+ },
+ {
+  "id": "artifact-89-1",
+  "floor": 89,
+  "name": "Слепое солнце"
+ },
+ {
+  "id": "artifact-89-2",
+  "floor": 89,
+  "name": "Пульс неизвестного"
+ },
+ {
+  "id": "artifact-90-1",
+  "floor": 90,
+  "name": "Корона недр"
+ },
+ {
+  "id": "artifact-90-2",
+  "floor": 90,
+  "name": "Осколок первого света"
+ },
+ {
+  "id": "artifact-91-1",
+  "floor": 91,
+  "name": "Чёрный рассвет"
+ },
+ {
+  "id": "artifact-91-2",
+  "floor": 91,
+  "name": "Сердце Ксенорита"
+ },
+ {
+  "id": "artifact-92-1",
+  "floor": 92,
+  "name": "Зеркало бездны"
+ },
+ {
+  "id": "artifact-92-2",
+  "floor": 92,
+  "name": "Зов поверхности"
+ },
+ {
+  "id": "artifact-93-1",
+  "floor": 93,
+  "name": "Слеза колосса"
+ },
+ {
+  "id": "artifact-93-2",
+  "floor": 93,
+  "name": "Последний маяк"
+ },
+ {
+  "id": "artifact-94-1",
+  "floor": 94,
+  "name": "Кристалл невозможного"
+ },
+ {
+  "id": "artifact-94-2",
+  "floor": 94,
+  "name": "Узел вечности"
+ },
+ {
+  "id": "artifact-95-1",
+  "floor": 95,
+  "name": "Пульс забытого мира"
+ },
+ {
+  "id": "artifact-95-2",
+  "floor": 95,
+  "name": "Печать возвращения"
+ },
+ {
+  "id": "artifact-96-1",
+  "floor": 96,
+  "name": "Мёртвая звезда"
+ },
+ {
+  "id": "artifact-96-2",
+  "floor": 96,
+  "name": "Живое солнце"
+ },
+ {
+  "id": "artifact-97-1",
+  "floor": 97,
+  "name": "Сердце пустоты"
+ },
+ {
+  "id": "artifact-97-2",
+  "floor": 97,
+  "name": "Осколок надежды"
+ },
+ {
+  "id": "artifact-98-1",
+  "floor": 98,
+  "name": "Голос до войны"
+ },
+ {
+  "id": "artifact-98-2",
+  "floor": 98,
+  "name": "Ключ к рассвету"
+ },
+ {
+  "id": "artifact-99-1",
+  "floor": 99,
+  "name": "Память Земли"
+ },
+ {
+  "id": "artifact-99-2",
+  "floor": 99,
+  "name": "Искра нового мира"
+ },
+ {
+  "id": "artifact-100-1",
+  "floor": 100,
+  "name": "Последняя надежда"
+ },
+ {
+  "id": "artifact-100-2",
+  "floor": 100,
+  "name": "Сердце Забытого"
+ }
+];
+
+
+const ARTIFACT_RESET_MS=24*60*60*1000;
+const names=new Set(ARTIFACTS.map(a=>a.id));
+function restoreArtifacts(value={}){const result={};for(const [id,n] of Object.entries(value||{}))if(names.has(id)&&Number.isSafeInteger(n)&&n>0)result[id]=n;return result;}
+// Seeded positions persist across reloads; refresh only when entering a floor after 24h.
+function restoreHiddenArtifacts(value,world,now=Date.now()){
+ const catalog=ARTIFACTS.filter(a=>a.floor===world.floor);
+ const saved=value&&Number.isFinite(value.created)&&value.created<=now&&now-value.created<ARTIFACT_RESET_MS&&Array.isArray(value.items)&&value.items.length===catalog.length&&catalog.every(a=>value.items.some(i=>i.id===a.id&&Number.isInteger(i.cell)&&i.cell>=0&&i.cell<2500&&typeof i.found==='boolean'));
+ if(saved)return {created:value.created,items:value.items.map(i=>({...i}))};
+ const candidates=[];for(let y=2;y<48;y++)for(let x=2;x<48;x++)if(world.blocked(x,y))candidates.push(y*50+x);
+ // Exhausted old floors still need two hidden blocks for this feature. Reserve only
+ // the missing artifact cells, away from the parked drill and quest/lift chambers.
+ if(candidates.length<catalog.length){const cleared=world.cleared;world.cleared=new Set();for(let y=2;y<48;y++)for(let x=2;x<48;x++){const cell=y*50+x;if(world.blocked(x,y)&&!candidates.includes(cell)&&Math.abs(x-world.x)+Math.abs(y-world.y)>3)candidates.push(cell);}world.cleared=cleared;}
+ let seed=(world.materialSeed^Math.floor(now/ARTIFACT_RESET_MS)^world.floor)>>>0;
+ const items=catalog.map(a=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;const index=seed%candidates.length;const cell=candidates.length?candidates.splice(index,1)[0]:-1;if(cell>=0){world.cleared.delete(cell);world.damage.delete(cell);}return {id:a.id,cell,found:false};});
+ return {created:now,items};
+}
+function collectArtifact(hidden,collection,cell){const item=hidden?.items.find(i=>i.cell===cell&&!i.found);if(!item)return null;item.found=true;collection[item.id]=(collection[item.id]||0)+1;return ARTIFACTS.find(a=>a.id===item.id);}
+
+
+
+const artifactSceneMethods={
+ updateArtifactFinds(){
+  const hidden=this.world.hiddenArtifacts;if(!hidden)return;
+  this.artifactViews??=new Map();
+  for(const item of hidden.items){
+   const x=item.cell%50,y=Math.floor(item.cell/50),revealed=item.cell>=0&&!item.found&&!this.world.blocked(x,y);
+   let view=this.artifactViews.get(item.id);
+   if(!revealed){view?.destroy();this.artifactViews.delete(item.id);continue;}
+   if(!view){const cx=(x+.5)*CELL,cy=(y+.5)*CELL,g=this.add.graphics().setDepth(12);g.fillStyle(0x0c2526,.35);g.fillEllipse(cx,cy+15,38,14);g.lineStyle(4,0x49331d);g.fillStyle(0xe5aa55);g.fillRoundedRect(cx-15,cy-19,30,34,8);g.strokeRoundedRect(cx-15,cy-19,30,34,8);g.fillStyle(0x73babe);g.fillCircle(cx,cy-4,8);g.lineStyle(2,0xffe9a5);g.strokeCircle(cx,cy-4,11);this.artifactViews.set(item.id,g);view=g;}
+   if(Math.hypot(this.rig.x-(x+.5)*CELL,this.rig.y-(y+.5)*CELL)<CELL){const a=collectArtifact(hidden,this.artifacts,item.cell);if(a){view.destroy();this.artifactViews.delete(item.id);this.notify('АРТЕФАКТ НАЙДЕН · '+a.name);this.persist();}}
+  }
+ }
+};
 
 const BASE_SIZE = 50;
 const CELL = 64;
@@ -691,6 +1730,7 @@ function bunkerFloorTexture(scene) {
 
 
 
+
 const LIFT = {x:33,y:21};
 const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
 const FLOOR_LIFT = {x:25,y:7};
@@ -744,7 +1784,7 @@ class FloorWorld {
     if(validMaterialSeed(progress.materialSeed)&&progress.materialGeneration!==2)for(const key of this.damage.keys()) {
       if(!this.materialOverrides.has(key))this.materialOverrides.set(key,legacyDepositMaterial(this.materialSeed,this.floor,key%BASE_SIZE,Math.floor(key/BASE_SIZE)));
     }
-    this.rescued=true;this.heard=true;
+    this.hiddenArtifacts=restoreHiddenArtifacts(progress.hiddenArtifacts,this);this.rescued=true;this.heard=true;
     const parked=progress.drive;
     const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
     const px=hasParked?parked.x:(this.x+.5)*CELL,py=hasParked?parked.y:(this.y+.5)*CELL;
@@ -756,7 +1796,7 @@ class FloorWorld {
   hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
-  snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+  snapshot(){return {hiddenArtifacts:{created:this.hiddenArtifacts.created,items:this.hiddenArtifacts.items.map(i=>({...i}))},location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
 
 
@@ -852,7 +1892,7 @@ const STORY_LINES = {
   builderReturn:[
     {speaker:'Серёга Т',text:'Вот теперь можно строить. Стол подготовил, инструмент тоже.'},
     {speaker:'Строительный мастер',text:'Бур у тебя вместо карманов, что ли? Начнём со склада. Держи первый чертёж.'},
-    {speaker:'Строительный мастер',text:'Выбирай площадку у нашего стола, расчисти её и привези землю с камнем. Соберём склад вместе с Серёгой.'},
+    {speaker:'Строительный мастер',text:'Первый склад уже подготовлен. Пользуйся им бесплатно — материалы пригодятся для следующих построек.'},
     {speaker:'Герой',text:'А потом займёмся защитой базы.'}
   ],
   warehouseReady:[{speaker:'Строительный мастер',text:'Склад готов. Складывай сюда материалы и забирай перед вылазкой. Теперь есть где держать запас для будущих построек.'}],
@@ -956,7 +1996,7 @@ function storyPresentation(kind,page) {
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
     role:speaker==='Строительный мастер'?'СТРОИТЕЛЬНЫЙ МАСТЕР':speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
-    portrait:speaker==='Строительный мастер'?'builder-portrait.svg':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    portrait:speaker==='Строительный мастер'?'builder-portrait-v2.webp':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
 
 
@@ -1791,8 +2831,21 @@ function transferWarehouse(q,cargo,id,count,deposit){
 
 
 
+
+
 const inDeck=(rig,d)=>rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 const constructionMethods={
+ grantStarterWarehouse(announce=true){
+  const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
+  const others=['lift','porodnik','workshop','armory','repair'].map(key=>buildingGeometry(this.buildingLayout,key).footprint);
+  const original={plot:q.plot,offset:q.offset};const candidates=[original,...WAREHOUSE_PLOTS.map((_,plot)=>({plot,offset:{dx:0,dy:0}}))];
+  for(let y=12;y<=44;y++)for(let x=2;x<=44;x++)candidates.push({plot:0,offset:{dx:x-WAREHOUSE_PLOTS[0].x,dy:y-WAREHOUSE_PLOTS[0].y}});
+  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(g.footprint,f))&&!rectanglesOverlap(g.footprint,{x:21*CELL,y:23*CELL,width:3*CELL,height:2*CELL})&&!rectanglesOverlap(g.footprint,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
+  if(!position)return false;q.plot=position.plot;q.offset=position.offset;q.warehouse=true;q.remaining=null;
+  const b=warehouseBody(q);for(let y=b.y/CELL;y<(b.y+b.height)/CELL+1;y++)for(let x=b.x/CELL;x<(b.x+b.width)/CELL;x++){this.world.cleared.add(y*50+x);this.world.damage.delete(y*50+x);this.terrain?.paintCell(x,y);}
+  this.renderConstruction();
+  if(announce&&this.rig)this.rewardQuest('warehouseReady');else{const reward=claimQuestReward(this.questRewards,'warehouseReady',this.credits);this.credits=reward.credits;}return true;
+ },
  makeConstructionObjects(){
   const q=this.constructionQuest;
   if(this.floorNumber===4){
@@ -1862,6 +2915,7 @@ const constructionMethods={
  },
  openConstruction(){
   const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;this.dialogClosed();this.persist();
+  if(q.warehouse){const panel=document.createElement('div');panel.className='lift-console construction-controls';const text=document.createElement('p');text.className='service-readout';text.textContent='ПЕРВЫЙ СКЛАД ГОТОВ · БЕСПЛАТНО';const note=document.createElement('p');note.className='terminal-note';note.textContent='Подъезжай к воротам склада для хранения материалов. Следующие чертежи: преграда → башня. Их предстоит получить в следующих заданиях.';panel.append(text,note);showBuildingMenu('construction',panel);return;}
   const panel=document.createElement('div');panel.className='lift-console construction-controls';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' единиц';panel.append(title);
   const selection=document.createElement('p'),cost=document.createElement('p'),status=document.createElement('p');status.className='service-status';status.setAttribute('role','status');
@@ -1889,7 +2943,7 @@ const constructionMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   if(this.floorNumber===4){name.textContent='Есть кому строить';radio.textContent=q.rescued?'Мастер на борту. Вернись на базу через лифт.':q.signalHeard?'Слышны удары по трубе. Расчисти вход и убей пауков у комнаты.':'Ищи строительного мастера по слабому сигналу.';const distance=Math.hypot(this.rig.x-(BUILDER_SITE.x+.5)*CELL,this.rig.y-(BUILDER_SITE.y+.5)*CELL)/CELL;status.textContent=q.rescued?'Лифт: '+objectiveBearing(this.rig,FLOOR_LIFT):'Сигнал: '+(distance>18?'слабый':distance>10?'средний':'сильный')+' · '+objectiveBearing(this.rig,BUILDER_SITE)+' · Вход: '+(3-builderEntranceLeft(this.world))+'/3 · Пауки: '+(this.spiders?.filter(s=>s.hp<=0).length||0)+'/3';return;}
   if(this.floorNumber)return;
-  name.textContent=q.unlocked?'Первый склад':'Есть кому строить';radio.textContent=q.unlocked?'Стол с чертежами рядом с Серёгой. Выбери площадку, собери материалы и построй склад.':q.rescued?'Мастер спасён. Он готов открыть строительство на базе.':'Серёга выдал карту четвёртого этажа. Найди мастера за завалом.';
+  name.textContent=q.unlocked?'Первый склад':'Есть кому строить';radio.textContent=q.unlocked?'Первый склад уже готов. Подъезжай к воротам, чтобы оставить материалы или забрать запас.':q.rescued?'Мастер спасён. Он готов открыть строительство на базе.':'Серёга выдал карту четвёртого этажа. Найди мастера за завалом.';
   status.textContent=q.warehouse?'Склад готов · '+stockCount(q.stock)+'/'+WAREHOUSE_CAPACITY+' · '+objectiveBearing(this.rig,this.buildingPoint('warehouse')):q.remaining!=null?'Строительство: '+Math.ceil(q.remaining/1000)+' с':q.unlocked?'Площадка: '+objectiveBearing(this.rig,this.buildingPoint('warehouse'))+' · Завал: '+plotBlocked(q,this.world)+' · Земля '+(this.cargoHold.earth||0)+'/80 · Камень '+(this.cargoHold.stone||0)+'/20':'Карта задания: этаж 4';
  }
 };
@@ -2026,12 +3080,14 @@ const buildingLayoutMethods={
 
 
 
+
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const p=save?.progress||{};this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo);this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
@@ -2054,6 +3110,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   create() {
     this.makeTextures();
+    this.grantStarterWarehouse(false);
     this.makeMap();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
@@ -2204,7 +3261,7 @@ class Base extends globalThis.Phaser.Scene {
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <button class="hud-button building-mode-button" id="base-buildings" type="button">ПОСТРОЙКИ</button><div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
-    const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');
+    const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');radio.classList.toggle('radio-in-inventory',readSettings().radioInInventory);
     this.questCollapsed ??= !!window.matchMedia?.('(max-height:420px) and (min-aspect-ratio:1/1)')?.matches;
     const renderQuest=()=>{radio.classList.toggle('quest-collapsed',this.questCollapsed);toggle.setAttribute('aria-expanded',String(!this.questCollapsed));toggle.textContent=this.questCollapsed?'ЗАДАНИЕ ▾':'СВЕРНУТЬ ЗАДАНИЕ ▲';toggle.setAttribute('aria-label',this.questCollapsed?'Развернуть задание':'Свернуть задание');};
     toggle.addEventListener('click',()=>{this.questCollapsed=!this.questCollapsed;this.joystick?.reset();renderQuest();});renderQuest();
@@ -2269,7 +3326,7 @@ class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest});
-    return {...base,buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,artifacts:{...this.artifacts},buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -2405,7 +3462,7 @@ class Base extends globalThis.Phaser.Scene {
         holder.dialogue=null;holder.dialoguePage=0;this.rewardQuest(kind);
         if(kind==='builderBrief'){this.constructionQuest.briefed=true;this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 4');}
         if(kind==='builderSignal')this.constructionQuest.signalHeard=true;
-        if(kind==='builderReturn'){this.constructionQuest.unlocked=true;this.builderPassenger?.setVisible(false);this.passenger?.setVisible(false);this.renderConstruction();this.notify('СТРОИТЕЛЬСТВО ОТКРЫТО · ПЕРВЫЙ ЧЕРТЁЖ: СКЛАД');}
+        if(kind==='builderReturn'){this.constructionQuest.unlocked=true;this.grantStarterWarehouse();this.builderPassenger?.setVisible(false);this.passenger?.setVisible(false);this.renderConstruction();this.notify('СТРОИТЕЛЬСТВО ОТКРЫТО · ПЕРВЫЙ СКЛАД ГОТОВ');}
         if(kind==='repairBrief')this.repairQuest.briefed=true;
         if(kind==='repairReturn')this.repairQuest.returnBriefed=true;
         if(kind==='waveBrief'){this.repairQuest.wave='active';this.beginDefense();}
@@ -2518,7 +3575,7 @@ class Base extends globalThis.Phaser.Scene {
       return;
     }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
-    this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
+    this.updateArtifactFinds();this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.repairShop?.update(Math.min(delta,50),this.repairQuest.serviceRemaining>0);
@@ -2588,6 +3645,7 @@ class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
+        const artifact=collectArtifact(this.world.hiddenArtifacts,this.artifacts,key);if(artifact)this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name);
         const collected=addCargo(this.cargoHold,material);this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
@@ -2682,7 +3740,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods);
+Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods);
 
 
 class Floor extends Base {
@@ -2693,8 +3751,8 @@ class Floor extends Base {
 
 
 const BUILDING_MENUS={
- construction:{title:'СТРОИТЕЛЬСТВО',portrait:'builder-portrait',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад',svg:true},
- warehouse:{title:'СКЛАД',portrait:'builder-portrait',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками',svg:true},
+ construction:{title:'СТРОИТЕЛЬСТВО',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
+ warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
@@ -2736,7 +3794,10 @@ function createSettingsPanel(){
  const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=settings.sound;
  const status=document.createElement('p');status.className='storage-note';status.setAttribute('role','status');
  toggle.addEventListener('change',()=>{settings.sound=toggle.checked;status.textContent=writeSettings(settings)?'':'Браузер не разрешает сохранить настройки.';});
- row.append(caption,toggle);panel.append(row,status);return panel;
+ row.append(caption,toggle);panel.append(row);
+ const radioRow=document.createElement('label');radioRow.className='setting-row';const radioCaption=document.createElement('span');radioCaption.textContent='Убрать рацию в инвентарь';const radioToggle=document.createElement('input');radioToggle.type='checkbox';radioToggle.checked=settings.radioInInventory;
+ radioToggle.addEventListener('change',()=>{settings.radioInInventory=radioToggle.checked;const saved=writeSettings(settings);status.textContent=saved?'':'Браузер не разрешает сохранить настройки.';if(saved){document.querySelector('.radio-card')?.classList.toggle('radio-in-inventory',settings.radioInInventory);}});
+ radioRow.append(radioCaption,radioToggle);panel.append(radioRow,status);return panel;
 }
 function openPauseMenu(scene){
  const dialog=document.querySelector('#dialog');scene.dialogClosed();scene.persist();
@@ -2909,6 +3970,8 @@ if(game?.scale&&game?.events)startViewportSync(game,document.querySelector('#can
 
 
 
+
+
 function campaignObjective(p={}){
  const c=p.constructionQuest||{};if(c.warehouse)return 'Склад построен';if(c.remaining!=null)return 'Строительство склада';if(c.unlocked)return 'Построить первый склад';if(c.briefed)return c.rescued?'Вернуть мастера на базу':'Найти строительного мастера';
  const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{};
@@ -2936,6 +3999,10 @@ function infoRow(section,label,value){const row=document.createElement('div');ro
 function createInventoryPanel(p={}){
  const panel=document.createElement('div');panel.className='inventory-panel';
  const summary=campaignSummary(p),cargo=restoreCargo(p.cargoHold,p.cargo);
+ const radio=panelSection(panel,'Рация · текущее задание');
+ infoRow(radio,'Задание',globalThis.document?.querySelector?.('#quest-name')?.textContent||campaignObjective(p));
+ const message=document.createElement('p');message.className='terminal-note';message.textContent=globalThis.document?.querySelector?.('#radio-text')?.textContent||'';radio.append(message);
+ const tracker=globalThis.document?.querySelector?.('#quest-status')?.textContent;if(tracker)infoRow(radio,'Ориентир',tracker);
  const rig=panelSection(panel,'Бур');
  infoRow(rig,'Прочность',summary.hull+'/'+DRILL_MAX_HP);infoRow(rig,'Мощность',summary.power+'%');
  infoRow(rig,'Кредиты',summary.credits);infoRow(rig,'Оружие',p.armoryQuest?.installed?'Пушка · '+(100+(p.armoryQuest.weaponLevel||0)*2)+'%':'Не установлено');
@@ -2950,6 +4017,7 @@ function createInventoryPanel(p={}){
  const items=panelSection(panel,'Сюжетные предметы');let count=0;
  for(const [has,label,asset] of [[p.workshopQuest?.tools&&!p.workshopQuest?.ready,'Инструменты','tools'],[p.armoryQuest?.blueprint,'Чертёж первой пушки','blueprint'],[p.constructionQuest?.unlocked,'Чертёж склада','blueprint'],[p.repairQuest?.kit&&!p.repairQuest?.ready,'Ремонтный комплект','repair-kit']])if(has){const row=infoRow(items,label,'Получено');row.className+=' quest-item-row';const img=document.createElement('img');img.src='./public/assets/quests/'+asset+'.svg';img.alt='';row.append(img);count++;}
  if(!count)infoRow(items,'Предметов пока нет','—');
+ const artifacts=panelSection(panel,'Артефакты');const collection=restoreArtifacts(p.artifacts);let found=0;for(const a of ARTIFACTS)if(collection[a.id]){infoRow(artifacts,a.name,collection[a.id]);found++;}if(!found)infoRow(artifacts,'Артефактов пока нет','—');const artifactNote=document.createElement('p');artifactNote.className='terminal-note';artifactNote.textContent='По два артефакта спрятано в породе каждого этажа. Повторы хранятся здесь. Назначение артефактов пока не определено.';artifacts.append(artifactNote);
  const access=panelSection(panel,'Карты доступа');const cards=ownedKeycards(p);
  for(const floor of cards)infoRow(access,'Карта этажа '+floor,floor<=(p.highestFloor||0)?'Этаж открыт':'Готова к использованию');
  if(!cards.length)infoRow(access,'Карты пока не найдены','—');
@@ -2959,7 +4027,7 @@ function createInventoryPanel(p={}){
 function createHelpPanel(){
  const panel=document.createElement('div');panel.className='help-panel';
  const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Открыть паузу. Прогресс сохраняется.'],['На телефоне','Круглый джойстик слева: потяни для движения и бурения, отпусти для остановки. Чем дальше тянешь, тем быстрее едешь. Кнопка действия справа.']]],
- ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подойди к столу с чертежами на базе. Выбери площадку, расчисти 3×3 клетки и собери 80 земли и 20 камня. Склад хранит до 1000 единиц; запас не теряется при гибели.'],['Перенос зданий','На базе открой «Инвентарь → Постройки», потяни восстановленное здание на расчищенное место и подтверди. Потяни пустое место, чтобы переместить камеру.'],['Награды','Завершённые задания дают кредиты один раз. Повторная загрузка не выдаёт их заново.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, покупай несколько улучшений подряд и восстанавливай прочность в ремонтном цехе.']]],
+ ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подойди к столу с чертежами на базе. Первый склад появляется готовым бесплатно, без строительства и расхода материалов. Склад хранит до 1000 единиц; запас не теряется при гибели.'],['Перенос зданий','На базе открой «Инвентарь → Постройки», потяни восстановленное здание на расчищенное место и подтверди. Потяни пустое место, чтобы переместить камеру.'],['Награды','Завершённые задания дают кредиты один раз. Повторная загрузка не выдаёт их заново.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, покупай несколько улучшений подряд и восстанавливай прочность в ремонтном цехе.']]],
  ['Бои и лифт',[['Пушка','Стреляет автоматически: дальность две клетки. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
  for(const [title,rows] of sections){const section=panelSection(panel,title);for(const [label,value] of rows)infoRow(section,label,value);}
  return panel;

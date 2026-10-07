@@ -1,3 +1,5 @@
+import { buildingGeometry, rectanglesOverlap } from './building-layout-state.js';
+import { claimQuestReward } from './quest-rewards.js';
 import { FLOOR_LIFT } from './lift-state.js';
 import { BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_STORIES, CONSTRUCTION_DESK, WAREHOUSE_PLOTS, WAREHOUSE_RECIPE, WAREHOUSE_MS, WAREHOUSE_CAPACITY, warehouseBody, warehouseDeck, plotBlocked, builderEntranceLeft, canRescueBuilder, beginWarehouse, stepConstruction, transferWarehouse, stockCount } from './construction-state.js';
 import { CELL } from './base-state.js';
@@ -8,6 +10,17 @@ import { MATERIALS } from './materials.js';
 import { cargoCount } from './cargo-state.js';
 const inDeck=(rig,d)=>rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 export const constructionMethods={
+ grantStarterWarehouse(announce=true){
+  const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
+  const others=['lift','porodnik','workshop','armory','repair'].map(key=>buildingGeometry(this.buildingLayout,key).footprint);
+  const original={plot:q.plot,offset:q.offset};const candidates=[original,...WAREHOUSE_PLOTS.map((_,plot)=>({plot,offset:{dx:0,dy:0}}))];
+  for(let y=12;y<=44;y++)for(let x=2;x<=44;x++)candidates.push({plot:0,offset:{dx:x-WAREHOUSE_PLOTS[0].x,dy:y-WAREHOUSE_PLOTS[0].y}});
+  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(g.footprint,f))&&!rectanglesOverlap(g.footprint,{x:21*CELL,y:23*CELL,width:3*CELL,height:2*CELL})&&!rectanglesOverlap(g.footprint,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
+  if(!position)return false;q.plot=position.plot;q.offset=position.offset;q.warehouse=true;q.remaining=null;
+  const b=warehouseBody(q);for(let y=b.y/CELL;y<(b.y+b.height)/CELL+1;y++)for(let x=b.x/CELL;x<(b.x+b.width)/CELL;x++){this.world.cleared.add(y*50+x);this.world.damage.delete(y*50+x);this.terrain?.paintCell(x,y);}
+  this.renderConstruction();
+  if(announce&&this.rig)this.rewardQuest('warehouseReady');else{const reward=claimQuestReward(this.questRewards,'warehouseReady',this.credits);this.credits=reward.credits;}return true;
+ },
  makeConstructionObjects(){
   const q=this.constructionQuest;
   if(this.floorNumber===4){
@@ -77,6 +90,7 @@ export const constructionMethods={
  },
  openConstruction(){
   const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;this.dialogClosed();this.persist();
+  if(q.warehouse){const panel=document.createElement('div');panel.className='lift-console construction-controls';const text=document.createElement('p');text.className='service-readout';text.textContent='ПЕРВЫЙ СКЛАД ГОТОВ · БЕСПЛАТНО';const note=document.createElement('p');note.className='terminal-note';note.textContent='Подъезжай к воротам склада для хранения материалов. Следующие чертежи: преграда → башня. Их предстоит получить в следующих заданиях.';panel.append(text,note);showBuildingMenu('construction',panel);return;}
   const panel=document.createElement('div');panel.className='lift-console construction-controls';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' единиц';panel.append(title);
   const selection=document.createElement('p'),cost=document.createElement('p'),status=document.createElement('p');status.className='service-status';status.setAttribute('role','status');
@@ -104,7 +118,7 @@ export const constructionMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   if(this.floorNumber===4){name.textContent='Есть кому строить';radio.textContent=q.rescued?'Мастер на борту. Вернись на базу через лифт.':q.signalHeard?'Слышны удары по трубе. Расчисти вход и убей пауков у комнаты.':'Ищи строительного мастера по слабому сигналу.';const distance=Math.hypot(this.rig.x-(BUILDER_SITE.x+.5)*CELL,this.rig.y-(BUILDER_SITE.y+.5)*CELL)/CELL;status.textContent=q.rescued?'Лифт: '+objectiveBearing(this.rig,FLOOR_LIFT):'Сигнал: '+(distance>18?'слабый':distance>10?'средний':'сильный')+' · '+objectiveBearing(this.rig,BUILDER_SITE)+' · Вход: '+(3-builderEntranceLeft(this.world))+'/3 · Пауки: '+(this.spiders?.filter(s=>s.hp<=0).length||0)+'/3';return;}
   if(this.floorNumber)return;
-  name.textContent=q.unlocked?'Первый склад':'Есть кому строить';radio.textContent=q.unlocked?'Стол с чертежами рядом с Серёгой. Выбери площадку, собери материалы и построй склад.':q.rescued?'Мастер спасён. Он готов открыть строительство на базе.':'Серёга выдал карту четвёртого этажа. Найди мастера за завалом.';
+  name.textContent=q.unlocked?'Первый склад':'Есть кому строить';radio.textContent=q.unlocked?'Первый склад уже готов. Подъезжай к воротам, чтобы оставить материалы или забрать запас.':q.rescued?'Мастер спасён. Он готов открыть строительство на базе.':'Серёга выдал карту четвёртого этажа. Найди мастера за завалом.';
   status.textContent=q.warehouse?'Склад готов · '+stockCount(q.stock)+'/'+WAREHOUSE_CAPACITY+' · '+objectiveBearing(this.rig,this.buildingPoint('warehouse')):q.remaining!=null?'Строительство: '+Math.ceil(q.remaining/1000)+' с':q.unlocked?'Площадка: '+objectiveBearing(this.rig,this.buildingPoint('warehouse'))+' · Завал: '+plotBlocked(q,this.world)+' · Земля '+(this.cargoHold.earth||0)+'/80 · Камень '+(this.cargoHold.stone||0)+'/20':'Карта задания: этаж 4';
  }
 };

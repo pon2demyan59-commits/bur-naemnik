@@ -1,3 +1,4 @@
+import { restoreHiddenArtifacts } from './artifact-state.js';
 import { BUILDER_SITE, BUILDER_GUARDS } from './construction-state.js';
 import { createMaterialSeed, validMaterialSeed, depositMaterial, legacyDepositMaterial, restoreMaterialOverrides } from './deposits.js';
 import { circleHitsRect } from './drive-controller.js';
@@ -55,7 +56,7 @@ export class FloorWorld {
     if(validMaterialSeed(progress.materialSeed)&&progress.materialGeneration!==2)for(const key of this.damage.keys()) {
       if(!this.materialOverrides.has(key))this.materialOverrides.set(key,legacyDepositMaterial(this.materialSeed,this.floor,key%BASE_SIZE,Math.floor(key/BASE_SIZE)));
     }
-    this.rescued=true;this.heard=true;
+    this.hiddenArtifacts=restoreHiddenArtifacts(progress.hiddenArtifacts,this);this.rescued=true;this.heard=true;
     const parked=progress.drive;
     const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
     const px=hasParked?parked.x:(this.x+.5)*CELL,py=hasParked?parked.y:(this.y+.5)*CELL;
@@ -67,6 +68,6 @@ export class FloorWorld {
   hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
-  snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+  snapshot(){return {hiddenArtifacts:{created:this.hiddenArtifacts.created,items:this.hiddenArtifacts.items.map(i=>({...i}))},location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
 

@@ -15,7 +15,7 @@ export const STORY_LINES = {
   builderReturn:[
     {speaker:'Серёга Т',text:'Вот теперь можно строить. Стол подготовил, инструмент тоже.'},
     {speaker:'Строительный мастер',text:'Бур у тебя вместо карманов, что ли? Начнём со склада. Держи первый чертёж.'},
-    {speaker:'Строительный мастер',text:'Выбирай площадку у нашего стола, расчисти её и привези землю с камнем. Соберём склад вместе с Серёгой.'},
+    {speaker:'Строительный мастер',text:'Первый склад уже подготовлен. Пользуйся им бесплатно — материалы пригодятся для следующих построек.'},
     {speaker:'Герой',text:'А потом займёмся защитой базы.'}
   ],
   warehouseReady:[{speaker:'Строительный мастер',text:'Склад готов. Складывай сюда материалы и забирай перед вылазкой. Теперь есть где держать запас для будущих построек.'}],
@@ -119,6 +119,6 @@ export function storyPresentation(kind,page) {
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
     role:speaker==='Строительный мастер'?'СТРОИТЕЛЬНЫЙ МАСТЕР':speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
-    portrait:speaker==='Строительный мастер'?'builder-portrait.svg':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    portrait:speaker==='Строительный мастер'?'builder-portrait-v2.webp':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
 

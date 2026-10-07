@@ -10,8 +10,8 @@ export function readSave(storage) {
 export function readSettings() {
   try {
     const value = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
-    return { sound: value.sound !== false, music: value.music !== false };
-  } catch { return { sound: true, music: true }; }
+    return { sound: value.sound !== false, music: value.music !== false, radioInInventory: value.radioInInventory === true };
+  } catch { return { sound: true, music: true, radioInInventory: false }; }
 }
 export function writeSettings(value) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(value)); return true; }
@@ -26,3 +26,4 @@ export function resetSave() {
   try { localStorage.removeItem(SAVE_KEY); return localStorage.getItem(SAVE_KEY) === null; }
   catch { return false; }
 }
+

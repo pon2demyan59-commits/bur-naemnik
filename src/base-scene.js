@@ -1,3 +1,5 @@
+import { artifactSceneMethods } from './artifact-scene.js';
+import { restoreArtifacts, collectArtifact } from './artifact-state.js';
 import { restoreBuildingLayout } from './building-layout-state.js';
 import { buildingLayoutMethods } from './building-layout-scene.js';
 import { makeQuestItem } from './quest-item-view.js';
@@ -26,7 +28,7 @@ import { STORY_LINES } from './story-content.js';
 import { showStoryDialogue } from './story-dialogue.js';
 import { LiftView } from './lift-view.js';
 import { LIFT, LIFT_BLOCKS, FLOOR_LIFT, liftBlockCount, liftFrameCell, liftDestinations, ownedKeycards, questKeycard, FloorWorld } from './lift-state.js';
-import { writeSave } from './storage.js';
+import { writeSave, readSettings } from './storage.js';
 import { driveStep, driveFits, circleHitsRect } from './drive-controller.js';
 import { wrapDegrees, updateHeat } from './drill-motion.js';
 const middle = n => n * CELL + CELL / 2;
@@ -34,7 +36,7 @@ const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const p=save?.progress||{};this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo);this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
@@ -57,6 +59,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   create() {
     this.makeTextures();
+    this.grantStarterWarehouse(false);
     this.makeMap();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
@@ -207,7 +210,7 @@ export class Base extends globalThis.Phaser.Scene {
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <button class="hud-button building-mode-button" id="base-buildings" type="button">ПОСТРОЙКИ</button><div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
-    const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');
+    const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');radio.classList.toggle('radio-in-inventory',readSettings().radioInInventory);
     this.questCollapsed ??= !!window.matchMedia?.('(max-height:420px) and (min-aspect-ratio:1/1)')?.matches;
     const renderQuest=()=>{radio.classList.toggle('quest-collapsed',this.questCollapsed);toggle.setAttribute('aria-expanded',String(!this.questCollapsed));toggle.textContent=this.questCollapsed?'ЗАДАНИЕ ▾':'СВЕРНУТЬ ЗАДАНИЕ ▲';toggle.setAttribute('aria-label',this.questCollapsed?'Развернуть задание':'Свернуть задание');};
     toggle.addEventListener('click',()=>{this.questCollapsed=!this.questCollapsed;this.joystick?.reset();renderQuest();});renderQuest();
@@ -272,7 +275,7 @@ export class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest});
-    return {...base,buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,artifacts:{...this.artifacts},buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -408,7 +411,7 @@ export class Base extends globalThis.Phaser.Scene {
         holder.dialogue=null;holder.dialoguePage=0;this.rewardQuest(kind);
         if(kind==='builderBrief'){this.constructionQuest.briefed=true;this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 4');}
         if(kind==='builderSignal')this.constructionQuest.signalHeard=true;
-        if(kind==='builderReturn'){this.constructionQuest.unlocked=true;this.builderPassenger?.setVisible(false);this.passenger?.setVisible(false);this.renderConstruction();this.notify('СТРОИТЕЛЬСТВО ОТКРЫТО · ПЕРВЫЙ ЧЕРТЁЖ: СКЛАД');}
+        if(kind==='builderReturn'){this.constructionQuest.unlocked=true;this.grantStarterWarehouse();this.builderPassenger?.setVisible(false);this.passenger?.setVisible(false);this.renderConstruction();this.notify('СТРОИТЕЛЬСТВО ОТКРЫТО · ПЕРВЫЙ СКЛАД ГОТОВ');}
         if(kind==='repairBrief')this.repairQuest.briefed=true;
         if(kind==='repairReturn')this.repairQuest.returnBriefed=true;
         if(kind==='waveBrief'){this.repairQuest.wave='active';this.beginDefense();}
@@ -521,7 +524,7 @@ export class Base extends globalThis.Phaser.Scene {
       return;
     }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
-    this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
+    this.updateArtifactFinds();this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.repairShop?.update(Math.min(delta,50),this.repairQuest.serviceRemaining>0);
@@ -591,6 +594,7 @@ export class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
+        const artifact=collectArtifact(this.world.hiddenArtifacts,this.artifacts,key);if(artifact)this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name);
         const collected=addCargo(this.cargoHold,material);this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
@@ -685,4 +689,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods);
+Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods);
