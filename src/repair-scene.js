@@ -7,7 +7,7 @@ import { FLOOR_LIFT } from './lift-state.js';
 export const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
-  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop',sign:'РЕМОНТНЫЙ ЦЕХ'});this.repairShop.powered(q.ready);
+  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);
   }
   if(this.floorNumber!==3)return;
   this.repairman=makePerson(this,(REPAIRMAN_SITE.x+.5)*CELL,(REPAIRMAN_SITE.y+.5)*CELL,'ilya').setVisible(!q.rescued);
