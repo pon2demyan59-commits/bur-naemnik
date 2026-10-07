@@ -90,13 +90,13 @@ test('several workshop purchases share a service session, charge current prices 
 });
 test('workshop panel stays open for successive clicks and its service progresses while the dialog is open',async()=>{
  const {stepWorkshopService}=await import('../src/workshop-state.js');
- const element=()=>({listeners:{},children:[],addEventListener(kind,fn){this.listeners[kind]=fn;},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;}});
+ const element=()=>({listeners:{},children:[],addEventListener(kind,fn){this.listeners[kind]=fn;},append(...items){for(const item of items){if(item.parent)item.parent.children=item.parent.children.filter(c=>c!==item);item.parent=this;this.children.push(item);}},replaceChildren(...items){this.children=items;}});
  const dialog=element(),body=element(),title=element();dialog.open=false;
  dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;dialog.listeners.close?.();};
  globalThis.document={hidden:false,createElement:element,querySelector:id=>({'#dialog':dialog,'#dialog-body':body,'#dialog-title':title}[id])};
  const scene=new Base();scene.workshopQuest=restoreWorkshop({ready:true});scene.credits=1000;
  scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=()=>{};
- scene.openWorkshop();const [text,buy,status,exit]=body.children[0].children[1].children;
+ scene.openWorkshop();const text=body.children[0].children[0].children[3];const [buy,status,exit]=body.children[0].children[1].children;
  buy.listeners.click();buy.listeners.click();
  assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,775);
  assert.match(text.textContent,/104%/);assert.match(buy.textContent,/157/);assert.equal(exit.disabled,true);

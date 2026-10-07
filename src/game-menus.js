@@ -2,10 +2,10 @@ import { readSettings, writeSettings } from './storage.js';
 import { createInventoryPanel, createHelpPanel } from './interface-panels.js';
 
 const BUILDING_MENUS={
- workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'drill-compact',hint:'Улучшение мощности · 4 секунды'},
- armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'armory',hint:'Установка и модернизация · 4 секунды'},
- repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'drill-compact',hint:'Восстановление прочности · 4 секунды'},
- lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'freight-lift',hint:'Открытые этажи доступны навсегда'},
+ workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
+ armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
+ repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
+ lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
  porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
 };
 export function showGamePanel(title,content,kind='terminal',back=null){
@@ -13,23 +13,28 @@ export function showGamePanel(title,content,kind='terminal',back=null){
  // Property assignment also supports the lightweight DOM used by scene tests.
  if(dialog.dataset)dialog.dataset.menu=kind;
  document.querySelector('#dialog-title').textContent=title;
+ const close=document.querySelector('.close-dialog');
+ const shell=document.querySelector('.dialog-shell');if(close&&shell) shell.append(close);
  document.querySelector('#dialog-body').replaceChildren(content);
- const close=document.querySelector('.close-dialog');if(close)close.textContent=back?'← НАЗАД':kind==='pause'?'ПРОДОЛЖИТЬ':'ЗАКРЫТЬ';
+ if(close)close.textContent=back?'← НАЗАД':kind==='pause'?'ПРОДОЛЖИТЬ':'ЗАКРЫТЬ';
  if(!dialog.open)dialog.showModal();
 }
 export function showBuildingMenu(kind,controls){
  const spec=BUILDING_MENUS[kind],layout=document.createElement('section');layout.className='service-layout service-'+kind;
  const staff=document.createElement('aside');staff.className='service-staff';
- const art=document.createElement('img');art.className='service-art';art.src='./public/assets/game/'+spec.art+'.webp';art.alt='';
+ const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'?'game/':'ui/')+spec.art+'.webp';art.alt='';
  if(spec.portrait){
   const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+'.webp';portrait.alt=spec.name;
   const name=document.createElement('strong'),role=document.createElement('span');name.textContent=spec.name;role.textContent=spec.role;
   staff.append(portrait,name,role);
+  if(controls.children?.[0])staff.append(controls.children[0]);
+  if(kind==='repair'&&controls.children?.[0])staff.append(controls.children[0]);
  }else staff.append(art);
  const hint=document.createElement('p');hint.className='service-hint';hint.textContent=spec.hint;staff.append(hint);
  controls.className+=' service-controls';layout.append(staff,controls);
  if(spec.portrait){const machine=document.createElement('div');machine.className='service-machine';machine.append(art);layout.append(machine);}
  showGamePanel(spec.title,layout,kind);
+ const close=document.querySelector('.close-dialog');if(close)controls.append(close);
 }
 export function createSettingsPanel(){
  const settings=readSettings(),panel=document.createElement('div');panel.className='settings terminal-section';

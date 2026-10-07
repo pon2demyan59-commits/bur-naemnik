@@ -43,7 +43,7 @@ export const armoryMethods={
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig))return;
   this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'} · Мощность ${100+q.weaponLevel*2}% · Кредиты ${this.credits}`;
+  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'}\nМощность  ${100+q.weaponLevel*2}%\nКредиты  ${this.credits}`;
   const blueprint=document.createElement('p');blueprint.className='service-status';blueprint.textContent=q.installed?'Модернизация добавляет 2% мощности.':'Установка первой пушки бесплатна.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;

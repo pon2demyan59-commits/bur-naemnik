@@ -39,14 +39,14 @@ class ArtworkScene extends Phaser.Scene {
     const fit = ({ width, height }) => {
       const portrait = width / height < 1;
       const texture = this.textures.get(key).getSourceImage();
-      const isConsole = key === 'console';
-      const scale = portrait ? (isConsole ? width / (texture.width * .66) : Math.max(width / texture.width, height / texture.height)) : Math.min(width / texture.width, height / texture.height);
-      const y = portrait ? (isConsole ? texture.height * scale / 2 : height * .20) : height / 2;
-      this.art.setPosition(width / 2, y).setScale(scale).setAlpha(portrait && !isConsole ? .65 : 1);
+      const isConsole = key === 'console', isBackdrop=key==='menu-backdrop';
+      const scale = isBackdrop ? Math.max(width / texture.width, height / texture.height) : portrait ? (isConsole ? width / (texture.width * .66) : Math.max(width / texture.width, height / texture.height)) : Math.min(width / texture.width, height / texture.height);
+      const y = isBackdrop ? height / 2 : portrait ? (isConsole ? texture.height * scale / 2 : height * .20) : height / 2;
+      this.art.setPosition(width / 2, y).setScale(scale).setAlpha(isBackdrop ? .48 : portrait && !isConsole ? .65 : 1);
       const stage = ui.querySelector('.stage');
       if (stage) {
-        stage.style.width = portrait ? '100%' : `${texture.width * scale}px`;
-        stage.style.height = portrait ? '100%' : `${texture.height * scale}px`;
+        stage.style.width = isBackdrop || portrait ? '100%' : `${texture.width * scale}px`;
+        stage.style.height = isBackdrop || portrait ? '100%' : `${texture.height * scale}px`;
       }
     };
     this.scale.on('resize', fit);
@@ -70,6 +70,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    this.load.image('menu-backdrop','./public/assets/ui/menu-workshop-scene.webp');
     for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait','ilya-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('repair-shop', './public/assets/game/repair-shop.webp');
@@ -106,20 +107,21 @@ class Menu extends ArtworkScene {
   constructor() { super('Menu'); }
   create() {
     const stage = this.createUI('menu');
-    const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
-    this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
-    this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('СПРАВОЧНИК БУРА', createHelpPanel()));
-    this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
-      'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
-    this.button(stage, 'СБРОСИТЬ ПРОГРЕСС', 'reset-button', () => {
-      if(resetSave()){primary.textContent='НАЧАТЬ ИГРУ';}
-      else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');
-    });
-    this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
+    const terminal=document.createElement('section');terminal.className='main-terminal painted-console';
+    const heading=document.createElement('h2');heading.textContent='БУР';
+    const subtitle=document.createElement('p');subtitle.className='main-subtitle';subtitle.textContent='Забытые внизу';
+    terminal.append(heading,subtitle);stage.append(terminal);
+    const primary=this.button(terminal,readSave()?'ПРОДОЛЖИТЬ':'НАЧАТЬ ИГРУ','main-button metal-button primary',requestGameplay);
+    this.button(terminal,'НАСТРОЙКИ','main-button floor-button',showSettings);
+    this.button(terminal,'КАК ИГРАТЬ','main-button floor-button',()=>openDialog('СПРАВОЧНИК БУРА',createHelpPanel()));
+    this.button(terminal,'ОБ ИГРЕ','main-button floor-button',()=>openDialog('ОБ ИГРЕ','БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
+    const footer=document.createElement('footer');footer.className='main-footer';terminal.append(footer);
+    this.button(footer,'СБРОСИТЬ ПРОГРЕСС','main-reset',()=>{if(resetSave())primary.textContent='НАЧАТЬ ИГРУ';else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');});
+    this.button(footer,'← НАЗАД','main-back',()=>this.scene.start('Title'));
     const refresh = () => { primary.textContent = readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ'; };
     window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
     this.events.once('shutdown', () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); });
-    this.showArt('console');
+    this.showArt('menu-backdrop');this.art.setAlpha(.48);
   }
 }
 if (!Phaser) document.querySelector('#loading').textContent = 'Движок не загрузился. Обновите страницу.';

@@ -1341,7 +1341,7 @@ const repairMethods={
   if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig)||q.wave==='active')return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
+  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+'\nКредиты: '+this.credits;
   const button=document.createElement('button');button.className='metal-button';button.textContent='ВОССТАНОВИТЬ БУР · '+repairPrice(this.hull)+' КРЕДИТОВ';
   button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);if(this.hull>=DRILL_MAX_HP)button.textContent='БУР ПОЛНОСТЬЮ ИСПРАВЕН';
   button.addEventListener('click',()=>{
@@ -1587,7 +1587,7 @@ const armoryMethods={
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig))return;
   this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'} · Мощность ${100+q.weaponLevel*2}% · Кредиты ${this.credits}`;
+  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'}\nМощность  ${100+q.weaponLevel*2}%\nКредиты  ${this.credits}`;
   const blueprint=document.createElement('p');blueprint.className='service-status';blueprint.textContent=q.installed?'Модернизация добавляет 2% мощности.':'Установка первой пушки бесплатна.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;
@@ -1804,7 +1804,7 @@ class Base extends globalThis.Phaser.Scene {
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
     exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
-    const render=()=>{text.className='service-readout';text.textContent=`Мощность ${100+q.upgrades*2}%${q.upgrades<100?' → '+(102+q.upgrades*2)+'%':''} · Кредиты ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${100+q.upgrades*2}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
     this.workshopPanelRender=render;
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;render();this.refreshHUD();this.persist();});
@@ -2290,10 +2290,10 @@ class Floor extends Base {
 
 
 const BUILDING_MENUS={
- workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'drill-compact',hint:'Улучшение мощности · 4 секунды'},
- armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'armory',hint:'Установка и модернизация · 4 секунды'},
- repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'drill-compact',hint:'Восстановление прочности · 4 секунды'},
- lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'freight-lift',hint:'Открытые этажи доступны навсегда'},
+ workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
+ armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
+ repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
+ lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
  porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
 };
 function showGamePanel(title,content,kind='terminal',back=null){
@@ -2301,23 +2301,28 @@ function showGamePanel(title,content,kind='terminal',back=null){
  // Property assignment also supports the lightweight DOM used by scene tests.
  if(dialog.dataset)dialog.dataset.menu=kind;
  document.querySelector('#dialog-title').textContent=title;
+ const close=document.querySelector('.close-dialog');
+ const shell=document.querySelector('.dialog-shell');if(close&&shell) shell.append(close);
  document.querySelector('#dialog-body').replaceChildren(content);
- const close=document.querySelector('.close-dialog');if(close)close.textContent=back?'← НАЗАД':kind==='pause'?'ПРОДОЛЖИТЬ':'ЗАКРЫТЬ';
+ if(close)close.textContent=back?'← НАЗАД':kind==='pause'?'ПРОДОЛЖИТЬ':'ЗАКРЫТЬ';
  if(!dialog.open)dialog.showModal();
 }
 function showBuildingMenu(kind,controls){
  const spec=BUILDING_MENUS[kind],layout=document.createElement('section');layout.className='service-layout service-'+kind;
  const staff=document.createElement('aside');staff.className='service-staff';
- const art=document.createElement('img');art.className='service-art';art.src='./public/assets/game/'+spec.art+'.webp';art.alt='';
+ const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'?'game/':'ui/')+spec.art+'.webp';art.alt='';
  if(spec.portrait){
   const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+'.webp';portrait.alt=spec.name;
   const name=document.createElement('strong'),role=document.createElement('span');name.textContent=spec.name;role.textContent=spec.role;
   staff.append(portrait,name,role);
+  if(controls.children?.[0])staff.append(controls.children[0]);
+  if(kind==='repair'&&controls.children?.[0])staff.append(controls.children[0]);
  }else staff.append(art);
  const hint=document.createElement('p');hint.className='service-hint';hint.textContent=spec.hint;staff.append(hint);
  controls.className+=' service-controls';layout.append(staff,controls);
  if(spec.portrait){const machine=document.createElement('div');machine.className='service-machine';machine.append(art);layout.append(machine);}
  showGamePanel(spec.title,layout,kind);
+ const close=document.querySelector('.close-dialog');if(close)controls.append(close);
 }
 function createSettingsPanel(){
  const settings=readSettings(),panel=document.createElement('div');panel.className='settings terminal-section';
@@ -2390,14 +2395,14 @@ class ArtworkScene extends Phaser.Scene {
     const fit = ({ width, height }) => {
       const portrait = width / height < 1;
       const texture = this.textures.get(key).getSourceImage();
-      const isConsole = key === 'console';
-      const scale = portrait ? (isConsole ? width / (texture.width * .66) : Math.max(width / texture.width, height / texture.height)) : Math.min(width / texture.width, height / texture.height);
-      const y = portrait ? (isConsole ? texture.height * scale / 2 : height * .20) : height / 2;
-      this.art.setPosition(width / 2, y).setScale(scale).setAlpha(portrait && !isConsole ? .65 : 1);
+      const isConsole = key === 'console', isBackdrop=key==='menu-backdrop';
+      const scale = isBackdrop ? Math.max(width / texture.width, height / texture.height) : portrait ? (isConsole ? width / (texture.width * .66) : Math.max(width / texture.width, height / texture.height)) : Math.min(width / texture.width, height / texture.height);
+      const y = isBackdrop ? height / 2 : portrait ? (isConsole ? texture.height * scale / 2 : height * .20) : height / 2;
+      this.art.setPosition(width / 2, y).setScale(scale).setAlpha(isBackdrop ? .48 : portrait && !isConsole ? .65 : 1);
       const stage = ui.querySelector('.stage');
       if (stage) {
-        stage.style.width = portrait ? '100%' : `${texture.width * scale}px`;
-        stage.style.height = portrait ? '100%' : `${texture.height * scale}px`;
+        stage.style.width = isBackdrop || portrait ? '100%' : `${texture.width * scale}px`;
+        stage.style.height = isBackdrop || portrait ? '100%' : `${texture.height * scale}px`;
       }
     };
     this.scale.on('resize', fit);
@@ -2421,6 +2426,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
+    this.load.image('menu-backdrop','./public/assets/ui/menu-workshop-scene.webp');
     for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait','ilya-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('repair-shop', './public/assets/game/repair-shop.webp');
@@ -2457,20 +2463,21 @@ class Menu extends ArtworkScene {
   constructor() { super('Menu'); }
   create() {
     const stage = this.createUI('menu');
-    const primary = this.button(stage, readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ', 'menu-button primary', requestGameplay);
-    this.button(stage, 'НАСТРОЙКИ', 'menu-button settings-button', showSettings);
-    this.button(stage, 'КАК ИГРАТЬ', 'menu-button help-button', () => openDialog('СПРАВОЧНИК БУРА', createHelpPanel()));
-    this.button(stage, 'ОБ ИГРЕ', 'menu-button about-button', () => openDialog('ОБ ИГРЕ',
-      'БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
-    this.button(stage, 'СБРОСИТЬ ПРОГРЕСС', 'reset-button', () => {
-      if(resetSave()){primary.textContent='НАЧАТЬ ИГРУ';}
-      else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');
-    });
-    this.button(stage, '← НАЗАД', 'back-button', () => this.scene.start('Title'));
+    const terminal=document.createElement('section');terminal.className='main-terminal painted-console';
+    const heading=document.createElement('h2');heading.textContent='БУР';
+    const subtitle=document.createElement('p');subtitle.className='main-subtitle';subtitle.textContent='Забытые внизу';
+    terminal.append(heading,subtitle);stage.append(terminal);
+    const primary=this.button(terminal,readSave()?'ПРОДОЛЖИТЬ':'НАЧАТЬ ИГРУ','main-button metal-button primary',requestGameplay);
+    this.button(terminal,'НАСТРОЙКИ','main-button floor-button',showSettings);
+    this.button(terminal,'КАК ИГРАТЬ','main-button floor-button',()=>openDialog('СПРАВОЧНИК БУРА',createHelpPanel()));
+    this.button(terminal,'ОБ ИГРЕ','main-button floor-button',()=>openDialog('ОБ ИГРЕ','БУР: Забытые внизу — подземное приключение с бурением, развитием базы и обороной. Бинарный импульс.'));
+    const footer=document.createElement('footer');footer.className='main-footer';terminal.append(footer);
+    this.button(footer,'СБРОСИТЬ ПРОГРЕСС','main-reset',()=>{if(resetSave())primary.textContent='НАЧАТЬ ИГРУ';else openDialog('СБРОС НЕ ВЫПОЛНЕН','Браузер не разрешил удалить сохранение.');});
+    this.button(footer,'← НАЗАД','main-back',()=>this.scene.start('Title'));
     const refresh = () => { primary.textContent = readSave() ? 'ПРОДОЛЖИТЬ' : 'НАЧАТЬ ИГРУ'; };
     window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
     this.events.once('shutdown', () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); });
-    this.showArt('console');
+    this.showArt('menu-backdrop');this.art.setAlpha(.48);
   }
 }
 if (!Phaser) document.querySelector('#loading').textContent = 'Движок не загрузился. Обновите страницу.';

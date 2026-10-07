@@ -46,7 +46,7 @@ export const repairMethods={
   if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig)||q.wave==='active')return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
+  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+'\nКредиты: '+this.credits;
   const button=document.createElement('button');button.className='metal-button';button.textContent='ВОССТАНОВИТЬ БУР · '+repairPrice(this.hull)+' КРЕДИТОВ';
   button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);if(this.hull>=DRILL_MAX_HP)button.textContent='БУР ПОЛНОСТЬЮ ИСПРАВЕН';
   button.addEventListener('click',()=>{

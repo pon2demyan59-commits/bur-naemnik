@@ -4,7 +4,7 @@ import {openPauseMenu,showBuildingMenu} from '../src/game-menus.js';
 function menuDOM(){
  class Element {
   constructor(){this.children=[];this.listeners={};this.dataset={};this.open=false;}
-  append(...children){this.children.push(...children);}
+  append(...children){for(const child of children){if(child.parent)child.parent.children=child.parent.children.filter(c=>c!==child);child.parent=this;this.children.push(child);}}
   replaceChildren(...children){this.children=children;}
   setAttribute(){}
   addEventListener(type,fn,options){(this.listeners[type]??=[]).push({fn,once:options?.once});}
@@ -38,10 +38,10 @@ test('pause escape closure resumes and shutdown removes the resume callback',()=
 test('building consoles use canonical staff portraits and retain interactive controls',()=>{
  const {dialog,body,Element}=menuDOM();
  for(const [kind,portrait] of [['workshop','konstantin-portrait'],['armory','armorer-portrait'],['repair','ilya-portrait'],['lift',null],['porodnik',null]]){
-  const controls=new Element();controls.className='lift-console';showBuildingMenu(kind,controls);
+  const controls=new Element();controls.className='lift-console';controls.append(new Element());showBuildingMenu(kind,controls);
   assert.equal(dialog.dataset.menu,kind);assert.equal(body.children[0].children[1],controls);
   const image=body.children[0].children[0].children[0];
-  assert.ok(image.src.includes(portrait?'/ui/'+portrait:'/game/'));
+  assert.ok(image.src.includes(portrait?'/ui/'+portrait:kind==='lift'?'/ui/menu-lift-scene':'/game/'));
   assert.equal(dialog.menuBack,null);
  }
 });
