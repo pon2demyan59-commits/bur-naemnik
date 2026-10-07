@@ -6,7 +6,7 @@ import { FloorWorld } from '../src/lift-state.js';
 test('all thirteen mined materials have separate sheet frames, fully inside the sixteen-cell atlas',()=>{
  assert.equal(MATERIALS.length,13);assert.equal(new Set(MATERIALS.map(m=>m.frames[0])).size,13);
  for(const m of MATERIALS)for(let v=0;v<16;v++){const r=materialFrameRect(m.id,v,640);assert.equal(r.w,160);assert.equal(r.h,160);assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=640&&r.y+r.h<=640);}
- assert.equal(MATERIALS.find(m=>m.id==='xenorite').firstFloor,100);assert.equal(MATERIALS.some(m=>m.id==='asterion'),false);
+ assert.equal(MATERIALS.find(m=>m.id==='xenorite').canonicalHardness,100);assert.equal(MATERIALS.some(m=>m.id==='asterion'),false);
 });
 function fakeScene(){
  const textures=new Map();const context=new Proxy({drawImage(){},createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}});
@@ -27,7 +27,7 @@ test('every catalog material is wired to a real atlas, with only present materia
  const scene=fakeScene(),world={inside:()=>true,blocked:(x,y)=>y===10&&x>=5&&x<5+MATERIALS.length,material:(x,y)=>MATERIALS[x-5]?.id||'earth',damage:new Map()};
  const terrain=new WorldTerrain(scene,world);assert.equal(terrain.materialLayers.size,13);for(let i=0;i<MATERIALS.length;i++){const m=MATERIALS[i],g=terrain.materialLayers.get(m.id);assert.ok(g.layer.getTileAt(i+5,10));assert.equal(g.tiles.key,m.id==='earth'?'terrain-atlas':'terrain-'+m.id);}
 });
-test('both available mine floors can render every generated ore while the base remains earth',async()=>{
- const {BaseWorld}=await import('../src/base-state.js');const base=new BaseWorld();for(let y=2;y<48;y++)for(let x=2;x<48;x++)assert.equal(base.material(x,y),'earth');
- for(const floor of [1,2]){const world=new FloorWorld({materialSeed:12345},floor),seen=new Set();for(let y=2;y<48;y++)for(let x=2;x<48;x++)if(world.blocked(x,y))seen.add(terrainMaterial(world,x,y));assert.deepEqual([...seen].sort(),MATERIALS.map(m=>m.id).sort());}
+test('current floors keep rare ores possible without spawning deep resources at preview frequency',async()=>{
+ const {BaseWorld}=await import('../src/base-state.js');const {depositWeights}=await import('../src/deposits.js');const base=new BaseWorld();for(let y=2;y<48;y++)for(let x=2;x<48;x++)assert.equal(base.material(x,y),'earth');
+ for(const floor of [1,2]){const weights=depositWeights(floor);for(const m of MATERIALS)assert.ok(weights.some(([id,w])=>id===m.id&&w>0));assert.ok(weights.find(([id])=>id==='xenorite')[1]<.001);}
 });

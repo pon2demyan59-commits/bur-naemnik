@@ -10,7 +10,7 @@ globalThis.Phaser={Scene:class{}};
 const {Base}=await import('../src/base-scene.js');
 test('second floor uses harder stone with saved partial damage and separate floor storage',()=>{
  const world=new FloorWorld({},2);assert.equal(world.floor,2);
- let stone,earth;for(let y=12;y<20;y++)for(let x=5;x<20;x++){if(world.material(x,y)==='stone')stone={x,y};else earth={x,y};}
+ let stone,earth;for(let y=12;y<20;y++)for(let x=5;x<20;x++){if(world.material(x,y)==='stone')stone={x,y};else if(world.material(x,y)==='earth')earth={x,y};}
  assert.equal(world.drill(earth.x,earth.y,1),true);assert.equal(world.drill(stone.x,stone.y,1),false);
  const reload=new FloorWorld(world.snapshot(),2);assert.equal(reload.drill(stone.x,stone.y,1.5),true);
  const scene=new Base();scene.floorNumber=2;scene.world=reload;scene.rig={x:1600,y:800,angle:90};scene.campaign={base:{rescued:true},floors:{1:{cleared:[123]}},highestFloor:1};scene.armoryQuest=restoreArmory({briefed:true});scene.workshopQuest=restoreWorkshop({ready:true,upgrades:1});
