@@ -1,3 +1,4 @@
+import { PORODNIK, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { STORY_LINES } from './story-content.js';
@@ -12,10 +13,12 @@ const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false} = {}) {
-    const p=save?.progress||{};this.campaign=p;
+    const p=save?.progress||{};this.campaign=p;this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;
     this.floorNumber=this.sys.settings.key==='Floor'?1:0;
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
+    // Old saves may park inside the newly installed machine.
+    if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)){this.world.x=18;this.world.y=36;}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
@@ -61,7 +64,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.dialogClosed=()=>{this.hold=null;this.touchDirections.clear();this.input.keyboard.resetKeys();this.speed=0;};
     document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
     this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
-    this.refreshHUD();this.persist();this.checkLift();
+    this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();});
     this.cameras.main.fadeIn(300,12,26,27);
     if(!this.floorNumber&&!this.arrival)this.time.delayedCall(350,()=>{
@@ -94,7 +97,8 @@ export class Base extends globalThis.Phaser.Scene {
       const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
       if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
       this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance').setDisplaySize(530,530*704/1711).setDepth(2);
-      this.add.text(middle(18),middle(32),'ПОРОДНИК\nНЕ ЗАПУЩЕН',{fontFamily:'Arial',fontSize:'16px',align:'center',color:'#d2c7a3',backgroundColor:'#254d4b',padding:{x:10,y:7}}).setOrigin(.5).setDepth(5);
+      this.porodnik=this.add.image(PORODNIK.x*CELL,PORODNIK.y*CELL,'porodnik').setOrigin(0).setDisplaySize(PORODNIK.width*CELL,(PORODNIK.machineRows+PORODNIK.deckRows)*CELL).setDepth(2.4);
+      this.porodnikLed=this.add.circle(20.1*CELL,31.1*CELL,4,0xffac46).setDepth(5);
       this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
       this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
@@ -121,8 +125,9 @@ export class Base extends globalThis.Phaser.Scene {
   syncAction() {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
-    const label=saving?'СПАСТИ СЕРЁГУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig);
+    const label=saving?'СПАСТИ СЕРЁГУ':unloading?'ВЫГРУЗИТЬ ПОРОДУ':'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
+    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(unloading?this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
@@ -131,6 +136,12 @@ export class Base extends globalThis.Phaser.Scene {
     document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
     document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    if(!this.floorNumber&&w.porodnikPowered){
+      document.querySelector('#quest-name').textContent='«Породник» работает';
+      document.querySelector('#radio-text').textContent='Заезжай на площадку и выгружай породу. Лифт готов к спуску.';
+      document.querySelector('#quest-status').textContent=`Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
+    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5 · Груз: ${this.cargo}/200`;}
+    if(this.porodnikLed)this.porodnikLed.setFillStyle(w.porodnikPowered?0x74ee87:0xffac46);
     this.lift.powered(ready);this.syncAction();
   }
   snapshotCampaign() {
@@ -138,7 +149,7 @@ export class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[1]=local;
     const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[])])];
-    return {...base,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -149,14 +160,26 @@ export class Base extends globalThis.Phaser.Scene {
   interact() {
     if(this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(!this.floorNumber&&!this.world.rescued)this.rescue();
+    else if(!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig))this.unloadPorodnik();
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
+  }
+  unloadPorodnik() {
+    if(!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
+    const amount=this.cargo;this.cargo=0;this.credits+=amount;
+    this.speed=0;this.dialogClosed();this.refreshHUD();this.persist();
+    this.notify(`ПОРОДА ПРИНЯТА · +${amount} КРЕДИТОВ`);
+  }
+  checkPorodnik() {
+    if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.world)>0)return;
+    this.world.porodnikPowered=true;this.refreshHUD();this.persist();
+    this.notify('СЕРЁГА ВОССТАНОВИЛ ПИТАНИЕ · «ПОРОДНИК» РАБОТАЕТ');
   }
   rescue() {
     if(this.busy||this.storyActive||!this.world.canRescue(this.rig.x,this.rig.y)||document.querySelector('#dialog').open)return;
     this.busy=true;this.speed=0;this.dialogClosed();this.world.rescued=true;this.world.heard=true;this.world.dialogue='rescue';this.world.dialoguePage=0;
     this.marker.setVisible(false);this.persist();
     this.tweens.add({targets:this.person,x:this.rig.x,y:this.rig.y,scale:.4,alpha:0,duration:550,ease:'Sine.InOut',onComplete:()=>{
-      this.person.setVisible(false);this.passenger.setVisible(true);this.busy=false;this.refreshHUD();this.persist();this.checkLift();
+      this.person.setVisible(false);this.passenger.setVisible(true);this.busy=false;this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
       this.startStory('rescue');
     }});
   }
@@ -173,7 +196,7 @@ export class Base extends globalThis.Phaser.Scene {
         this.world.dialogue=null;this.world.dialoguePage=0;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
         if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
         if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
-        this.checkLift();
+        this.checkLift();this.checkPorodnik();
       }
     });
   }
@@ -270,14 +293,15 @@ export class Base extends globalThis.Phaser.Scene {
     this.animateVehicle(time,dt);
   }
   drawLiftGlow(time) {
-    this.blockGlow.clear();if(this.floorNumber||!this.world.rescued||this.liftReady())return;
+    this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;
+    const blocks=this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
     const pulse=.35+.15*Math.sin(time*.0035);
-    for(const p of LIFT_BLOCKS)if(this.world.blocked(p.x,p.y)) {
+    for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
       this.blockGlow.fillStyle(0xffcc6c,pulse*.22);this.blockGlow.fillRoundedRect(p.x*CELL+3,p.y*CELL+3,58,58,8);
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
   }
-  solidCell(x,y) { return liftFrameCell(x,y,this.liftCenter)|| !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  solidCell(x,y) { return (!this.floorNumber&&porodnikFrameCell(x,y))||liftFrameCell(x,y,this.liftCenter)|| !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   advanceVehicle(time,dt,direction) {
     const solid=(x,y)=>this.solidCell(x,y);
     const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
@@ -304,11 +328,12 @@ export class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
+        this.cargo=Math.min(200,this.cargo+1);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
         this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
-        this.refreshHUD();this.checkLift();this.persist();
+        this.refreshHUD();this.checkLift();this.checkPorodnik();this.persist();
       } else if(time-this.lastSave>300)this.persist();
       return;
     }
@@ -379,3 +404,4 @@ export class Base extends globalThis.Phaser.Scene {
     }
   }
 }
+

@@ -9,6 +9,8 @@ export function initialRubble(x, y) {
   if ((x >= 19 && x <= 23 && y >= 23 && y <= 29) || (x === RESCUE.x && y === RESCUE.y)) return false;
   // Space reserved for the physical freight lift; three entrance blocks jam it.
   if(x>=30&&x<=36&&y>=18&&y<=24)return y===24&&x>=32&&x<=34;
+  // Five blocks obstruct the unloading deck; the machine and approach stay clear.
+  if(x>=15&&x<=21&&y>=28&&y<=36)return y===33&&x>=16&&x<=20;
   // A fixed, reproducible starting base, not a regenerated level.
   if (x >= 24 && x <= 26 && y >= 24 && y <= 28) return true;
   if (y >= 6 && y <= 10 && x >= 18 && x <= 32) return false;
@@ -23,6 +25,7 @@ export class BaseWorld {
     this.rescued = progress.rescued === true;
     this.dialogue=['radio','rescue','porodnik'].includes(progress.dialogue)?progress.dialogue:null;
     this.dialoguePage=Number.isInteger(progress.dialoguePage)?Math.max(0,Math.min(this.dialogue==='porodnik'?7:3,progress.dialoguePage)):0;
+    this.porodnikPowered=progress.porodnikPowered===true;
     this.porodnikBriefed=progress.porodnikBriefed===true;
     this.liftAnnounced = progress.liftAnnounced === true;
     this.heard = progress.heard === true || this.rescued;
@@ -39,5 +42,6 @@ export class BaseWorld {
   canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {
     return !this.rescued&&Math.hypot(px-(RESCUE.x+.5)*CELL,py-(RESCUE.y+.5)*CELL)<=58;
   }
-  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, porodnikBriefed:this.porodnikBriefed, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
+  snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, porodnikBriefed:this.porodnikBriefed, porodnikPowered:this.porodnikPowered, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
 }
+

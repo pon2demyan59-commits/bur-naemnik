@@ -93,6 +93,7 @@ class Boot extends Phaser.Scene {
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
+    this.load.image('porodnik', './public/assets/game/porodnik.webp');
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
@@ -142,3 +143,4 @@ else game = new Phaser.Game({
   loader: { imageLoadType: 'HTMLImageElement' },
   render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });
+
