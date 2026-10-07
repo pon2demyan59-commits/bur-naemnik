@@ -328,3 +328,9 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
  .radio-card #radio-text { display:block; font-size:11px; line-height:1.4; margin:6px 0; }
  .radio-card #quest-details { padding:3px 0 8px; }
 }
+
+@media (pointer:coarse), (max-width:700px), (max-height:420px) and (min-aspect-ratio:1/1) {
+ .radio-card.quest-collapsed { width:132px; height:26px; min-height:0; max-height:none; padding:0; border:0; border-image:none; border-radius:5px; background:none; box-shadow:none; filter:none; overflow:visible; }
+ .radio-card.quest-collapsed .quest-toggle { position:relative; display:block; width:100%; height:26px; min-height:0; padding:3px 9px; border:1px solid #8eaa78; border-radius:5px; background:#12382fe8; color:#ffe791; font-size:11px; line-height:18px; text-align:center; }
+ .radio-card.quest-collapsed .quest-toggle::after { content:''; position:absolute; inset:-9px 0; }
+}

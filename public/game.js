@@ -1921,7 +1921,7 @@ class Base extends globalThis.Phaser.Scene {
     ui.append(hud);
     const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');
     this.questCollapsed ??= !!window.matchMedia?.('(max-height:420px) and (min-aspect-ratio:1/1)')?.matches;
-    const renderQuest=()=>{radio.classList.toggle('quest-collapsed',this.questCollapsed);toggle.setAttribute('aria-expanded',String(!this.questCollapsed));toggle.textContent=this.questCollapsed?'ЗАДАНИЕ · РАЗВЕРНУТЬ ▼':'СВЕРНУТЬ ЗАДАНИЕ ▲';};
+    const renderQuest=()=>{radio.classList.toggle('quest-collapsed',this.questCollapsed);toggle.setAttribute('aria-expanded',String(!this.questCollapsed));toggle.textContent=this.questCollapsed?'ЗАДАНИЕ ▾':'СВЕРНУТЬ ЗАДАНИЕ ▲';toggle.setAttribute('aria-label',this.questCollapsed?'Развернуть задание':'Свернуть задание');};
     toggle.addEventListener('click',()=>{this.questCollapsed=!this.questCollapsed;this.joystick?.reset();renderQuest();});renderQuest();
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
     hud.querySelector('#base-inventory').addEventListener('click',()=>this.openInventory());
