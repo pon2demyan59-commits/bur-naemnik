@@ -6,7 +6,7 @@ export function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   document.querySelector('#ui').append(dialog);document.querySelector('#ui').classList.add('story-open');
   const line=dialog.querySelector('.story-line'),next=dialog.querySelector('.story-next'),count=dialog.querySelector('.story-count');
   let index=Math.max(0,Math.min(page,lines.length-1)),closed=false;
-  const render=()=>{const presentation=storyPresentation(kind,index);line.textContent=presentation.text;dialog.querySelector('#story-name').textContent=presentation.speaker.toUpperCase();dialog.querySelector('.story-nameplate span').textContent=presentation.speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ';dialog.classList.toggle('player-turn',presentation.speaker==='Герой');dialog.querySelector('.story-portrait').src='./public/assets/ui/'+presentation.portrait;count.textContent=`${index+1} / ${lines.length}`;};
+  const render=()=>{const presentation=storyPresentation(kind,index);line.textContent=presentation.text;dialog.querySelector('#story-name').textContent=presentation.speaker.toUpperCase();dialog.querySelector('.story-nameplate span').textContent=presentation.role;dialog.classList.toggle('player-turn',presentation.speaker==='Герой');dialog.querySelector('.story-portrait').alt=presentation.speaker;dialog.querySelector('.story-portrait').src='./public/assets/ui/'+presentation.portrait;count.textContent=`${index+1} / ${lines.length}`;};
   const cleanup=()=>{document.removeEventListener('keydown',keyboard,true);dialog.removeEventListener('cancel',cancel);dialog.remove();document.querySelector('#ui').classList.remove('story-open');};
   const finish=()=>{if(closed)return;closed=true;cleanup();scene.events.off('shutdown',abort);scene.input.enabled=true;scene.scene.resume();onFinish();if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});};
   const advance=()=>{if(index<lines.length-1){index++;render();onPage(index);}else finish();};
@@ -16,3 +16,4 @@ export function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   next.addEventListener('click',advance);dialog.addEventListener('cancel',cancel);document.addEventListener('keydown',keyboard,true);scene.events.once('shutdown',abort);
   render();dialog.showModal();next.focus({preventScroll:true});scene.input.enabled=false;scene.scene.pause();
 }
+

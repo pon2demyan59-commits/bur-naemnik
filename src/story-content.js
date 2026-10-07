@@ -7,6 +7,28 @@ export const STORY_LINES = {
     'Меня заперло, а лифт засыпало землёй. Держи карту от лифта — она откроет доступ на первый этаж.',
     'Спасибо, что вытащил. Теперь надо добраться до лифта — другого пути отсюда нет'
   ],
+  workshop:[
+    {speaker:'Серёга Т',text:'Породу теперь сдавать можем. Давай восстановим мастерскую.'},
+    {speaker:'Герой',text:'Что нужно?'},
+    {speaker:'Серёга Т',text:'На первом этаже есть ящик с инструментами. Привези его.'},
+    {speaker:'Герой',text:'Я съезжу.'},
+    {speaker:'Серёга Т',text:'А я пока подготовлю место.'}
+  ],
+  mechanic:[
+    {speaker:'Константин Б',text:'Константин. Механик. Выход завалило — сам бы не выбрался.'},
+    {speaker:'Герой',text:'На базе восстанавливаем мастерскую. Поможешь?'},
+    {speaker:'Константин Б',text:'Помогу. Выбираемся на базу — там займусь твоим буром.'}
+  ],
+  workshopReturn:[
+    {speaker:'Серёга Т',text:'Инструменты привёз, механика нашёл. Осталось расчистить мастерскую.'},
+    {speaker:'Герой',text:'Покажи, где работать.'},
+    {speaker:'Серёга Т',text:'Вон помещение. Убери завал у ворот — дальше я сам.'}
+  ],
+  workshopReady:[
+    {speaker:'Серёга Т',text:'Готово. Мастерская снова работает.'},
+    {speaker:'Константин Б',text:'Заезжай. Мощность бура теперь можно повышать за кредиты.'},
+    {speaker:'Герой',text:'Начнём с первого улучшения.'}
+  ],
   porodnik:[
     {speaker:'Серёга Т',text:'Вон «Породник». Автомат приёма породы. Давай починим.'},
     {speaker:'Герой',text:'Зачем нам он?'},
@@ -22,5 +44,6 @@ export function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
-    portrait:kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    role:speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
+    portrait:speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }

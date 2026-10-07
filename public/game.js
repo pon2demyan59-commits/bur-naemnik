@@ -44,6 +44,8 @@ function initialRubble(x, y) {
   if(x>=30&&x<=36&&y>=18&&y<=24)return y===24&&x>=32&&x<=34;
   // Five blocks obstruct the unloading deck; the machine and approach stay clear.
   if(x>=15&&x<=21&&y>=28&&y<=36)return y===33&&x>=16&&x<=20;
+  // Workshop entrance remains obstructed until the player clears it.
+  if(x>=29&&x<=35&&y>=29&&y<=36)return y===34&&x>=31&&x<=33;
   // A fixed, reproducible starting base, not a regenerated level.
   if (x >= 24 && x <= 26 && y >= 24 && y <= 28) return true;
   if (y >= 6 && y <= 10 && x >= 18 && x <= 32) return false;
@@ -430,7 +432,7 @@ class FloorWorld {
     if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftGeometry(FLOOR_LIFT).colliders.some(rect=>circleHitsRect(px,py,rect))){this.x=25;this.y=7;}
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
-  blocked(x,y){return this.inside(x,y)&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
+  blocked(x,y){return this.inside(x,y)&&!(x===18&&y===20)&&!(x===32&&y===29)&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount;if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:1,x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
@@ -499,6 +501,28 @@ const STORY_LINES = {
     'Меня заперло, а лифт засыпало землёй. Держи карту от лифта — она откроет доступ на первый этаж.',
     'Спасибо, что вытащил. Теперь надо добраться до лифта — другого пути отсюда нет'
   ],
+  workshop:[
+    {speaker:'Серёга Т',text:'Породу теперь сдавать можем. Давай восстановим мастерскую.'},
+    {speaker:'Герой',text:'Что нужно?'},
+    {speaker:'Серёга Т',text:'На первом этаже есть ящик с инструментами. Привези его.'},
+    {speaker:'Герой',text:'Я съезжу.'},
+    {speaker:'Серёга Т',text:'А я пока подготовлю место.'}
+  ],
+  mechanic:[
+    {speaker:'Константин Б',text:'Константин. Механик. Выход завалило — сам бы не выбрался.'},
+    {speaker:'Герой',text:'На базе восстанавливаем мастерскую. Поможешь?'},
+    {speaker:'Константин Б',text:'Помогу. Выбираемся на базу — там займусь твоим буром.'}
+  ],
+  workshopReturn:[
+    {speaker:'Серёга Т',text:'Инструменты привёз, механика нашёл. Осталось расчистить мастерскую.'},
+    {speaker:'Герой',text:'Покажи, где работать.'},
+    {speaker:'Серёга Т',text:'Вон помещение. Убери завал у ворот — дальше я сам.'}
+  ],
+  workshopReady:[
+    {speaker:'Серёга Т',text:'Готово. Мастерская снова работает.'},
+    {speaker:'Константин Б',text:'Заезжай. Мощность бура теперь можно повышать за кредиты.'},
+    {speaker:'Герой',text:'Начнём с первого улучшения.'}
+  ],
   porodnik:[
     {speaker:'Серёга Т',text:'Вон «Породник». Автомат приёма породы. Давай починим.'},
     {speaker:'Герой',text:'Зачем нам он?'},
@@ -514,7 +538,8 @@ function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
-    portrait:kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    role:speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
+    portrait:speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
 
 
@@ -525,7 +550,7 @@ function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   document.querySelector('#ui').append(dialog);document.querySelector('#ui').classList.add('story-open');
   const line=dialog.querySelector('.story-line'),next=dialog.querySelector('.story-next'),count=dialog.querySelector('.story-count');
   let index=Math.max(0,Math.min(page,lines.length-1)),closed=false;
-  const render=()=>{const presentation=storyPresentation(kind,index);line.textContent=presentation.text;dialog.querySelector('#story-name').textContent=presentation.speaker.toUpperCase();dialog.querySelector('.story-nameplate span').textContent=presentation.speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ';dialog.classList.toggle('player-turn',presentation.speaker==='Герой');dialog.querySelector('.story-portrait').src='./public/assets/ui/'+presentation.portrait;count.textContent=`${index+1} / ${lines.length}`;};
+  const render=()=>{const presentation=storyPresentation(kind,index);line.textContent=presentation.text;dialog.querySelector('#story-name').textContent=presentation.speaker.toUpperCase();dialog.querySelector('.story-nameplate span').textContent=presentation.role;dialog.classList.toggle('player-turn',presentation.speaker==='Герой');dialog.querySelector('.story-portrait').alt=presentation.speaker;dialog.querySelector('.story-portrait').src='./public/assets/ui/'+presentation.portrait;count.textContent=`${index+1} / ${lines.length}`;};
   const cleanup=()=>{document.removeEventListener('keydown',keyboard,true);dialog.removeEventListener('cancel',cancel);dialog.remove();document.querySelector('#ui').classList.remove('story-open');};
   const finish=()=>{if(closed)return;closed=true;cleanup();scene.events.off('shutdown',abort);scene.input.enabled=true;scene.scene.resume();onFinish();if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});};
   const advance=()=>{if(index<lines.length-1){index++;render();onPage(index);}else finish();};
@@ -564,6 +589,69 @@ function stepPorodnikJob(job,delta) {
 }
 
 
+const TOOLS_SITE={x:18,y:20};
+const MECHANIC_SITE={x:32,y:29};
+const WORKSHOP_BLOCKS=[{x:31,y:34},{x:32,y:34},{x:33,y:34}];
+const WORKSHOP_BODY={x:30*CELL,y:30*CELL,width:320,height:192};
+const WORKSHOP_DECK={x:31*CELL,y:33*CELL,width:192,height:128};
+function restoreWorkshop(value={}) {
+ if(!value||typeof value!=='object')value={};
+ const kinds=['workshop','mechanic','workshopReturn','workshopReady'];
+ return {briefed:value.briefed===true,tools:value.tools===true,mechanic:value.mechanic===true,
+ returnBriefed:value.returnBriefed===true,ready:value.ready===true,
+ upgrades:Number.isInteger(value.upgrades)?Math.max(0,Math.min(100,value.upgrades)):0,
+ dialogue:kinds.includes(value.dialogue)?value.dialogue:null,
+ dialoguePage:Number.isInteger(value.dialoguePage)?Math.max(0,Math.min(4,value.dialoguePage)):0};
+}
+function nearWorkshopItem(rig,site) {return Math.hypot(rig.x-(site.x+.5)*CELL,rig.y-(site.y+.5)*CELL)<=58;}
+function onWorkshopDeck(rig) {const d=WORKSHOP_DECK;return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
+function workshopBlockCount(world) {return WORKSHOP_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
+function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefed&&workshopBlockCount(world)===0;}
+function workshopPrice(q) {return Math.ceil(100*Math.pow(1.25,q.upgrades));}
+function buyWorkshopUpgrade(q,credits) {
+ const price=workshopPrice(q);
+ if(!q.ready||q.upgrades>=100||credits<price)return {bought:false,credits};
+ q.upgrades++;return {bought:true,credits:credits-price};
+}
+function objectiveBearing(rig,site) {
+ const dx=(site.x+.5)*CELL-rig.x,dy=(site.y+.5)*CELL-rig.y;
+ const arrows=['→','↘','↓','↙','←','↖','↑','↗'];
+ return `${arrows[(Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8]} ${Math.round(Math.hypot(dx,dy)/CELL)} м`;
+}
+
+
+class WorkshopView {
+ constructor(scene) {
+  this.scene=scene;this.art=scene.add.graphics().setDepth(2.4);
+  const b=WORKSHOP_BODY;
+  this.label=scene.add.text(b.x+b.width/2,b.y+35,'МАСТЕРСКАЯ',{fontFamily:'Arial',fontStyle:'bold',fontSize:'18px',color:'#e5d0a0',backgroundColor:'#283c3d',padding:{x:9,y:6}}).setOrigin(.5).setDepth(5);
+  this.led=scene.add.circle(b.x+b.width-26,b.y+145,5,0xffac46).setDepth(5);
+  this.powered(false);
+ }
+ powered(ready) {
+  const g=this.art,b=WORKSHOP_BODY,d=WORKSHOP_DECK;g.clear();
+  g.fillStyle(0x142123,.8);g.fillRoundedRect(b.x+5,b.y+6,b.width,b.height,10);
+  g.fillStyle(ready?0x526567:0x3c4746);g.fillRoundedRect(b.x,b.y,b.width,b.height,10);
+  g.lineStyle(4,0x243537);g.strokeRoundedRect(b.x+3,b.y+3,b.width-6,b.height-6,8);
+  g.fillStyle(ready?0xaf7739:0x6d6247);g.fillRoundedRect(b.x+14,b.y+12,b.width-28,63,5);
+  for(let x=b.x+25;x<b.x+b.width-10;x+=45){g.fillStyle(0xc8ba91);g.fillCircle(x,b.y+17,2);g.fillCircle(x,b.y+68,2);}
+  for(let i=0;i<4;i++){g.fillStyle(0x1b2d30);g.fillRect(b.x+27+i*16,b.y+105,8,46);}
+  g.fillStyle(0x1a2c2e);g.fillRoundedRect(b.x+144,b.y+93,95,65,4);
+  g.lineStyle(3,ready?0xccae67:0x766d53);g.strokeRect(b.x+144,b.y+93,95,65);
+  // A visible wrench on the roof identifies the service bay without a menu marker.
+  g.lineStyle(7,0xd8cba7);g.lineBetween(b.x+166,b.y+140,b.x+206,b.y+111);
+  g.fillStyle(0xd8cba7);g.fillCircle(b.x+166,b.y+140,7);g.lineStyle(5,0xd8cba7);g.strokeCircle(b.x+207,b.y+110,10);
+  g.fillStyle(0x202f31);g.fillRect(d.x,d.y,d.width,d.height);
+  g.lineStyle(2,0x6d8080);for(let y=d.y+8;y<d.y+d.height;y+=12)g.lineBetween(d.x+12,y,d.x+d.width-12,y);
+  for(let y=d.y;y<d.y+d.height;y+=20){g.fillStyle(ready?0xe3af4b:0x8b784f);g.fillRect(d.x,y,9,12);g.fillRect(d.x+d.width-9,y,9,12);}
+  g.fillStyle(ready?0xe7bb66:0x83744d);g.fillTriangle(d.x+d.width/2,d.y+21,d.x+d.width/2-13,d.y+39,d.x+d.width/2+13,d.y+39);
+  this.led.setFillStyle(ready?0x77ee8d:0xffac46);
+ }
+}
+
+
+
+
 
 
 
@@ -578,12 +666,14 @@ const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false} = {}) {
-    const p=save?.progress||{};this.campaign=p;this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;
+    const p=save?.progress||{};this.campaign=p;this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;
     this.floorNumber=this.sys.settings.key==='Floor'?1:0;
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
     // Old saves may park inside the newly installed machine.
     if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)&&!onPorodnikDeck({x:middle(this.world.x),y:middle(this.world.y)})){this.world.x=18;this.world.y=35;}
+    if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),WORKSHOP_BODY)){this.world.x=32;this.world.y=35;}
+    if(this.floorNumber&&!this.workshopQuest.mechanic&&this.world.x===MECHANIC_SITE.x&&this.world.y===MECHANIC_SITE.y){this.world.x=FLOOR_LIFT.x;this.world.y=FLOOR_LIFT.y;}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
@@ -630,11 +720,14 @@ class Base extends globalThis.Phaser.Scene {
     document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
     this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
     this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
-    if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();});
+    if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();});
+    this.mechanicPassenger=this.add.image(-7,10,'mechanic').setScale(.32).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.cameras.main.fadeIn(300,12,26,27);
-    if(!this.floorNumber&&!this.arrival)this.time.delayedCall(350,()=>{
-      if(this.world.dialogue)this.startStory(this.world.dialogue);
+    if(!this.arrival)this.time.delayedCall(350,()=>{
+      if(this.workshopQuest.dialogue)this.startStory(this.workshopQuest.dialogue);
+      else if(this.world.dialogue)this.startStory(this.world.dialogue);
       else if(!this.world.heard)this.playRadio();
+      else this.checkWorkshop();
     });
   }
   makeTextures() {
@@ -647,7 +740,8 @@ class Base extends globalThis.Phaser.Scene {
     g.fillStyle(0xeeb348);g.fillEllipse(16,9,27,12);
     g.fillStyle(0xffd57c);g.fillRoundedRect(5,6,22,7,3);
     g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);
-    g.generateTexture('serega',32,40);g.destroy();
+    g.generateTexture('serega',32,40);g.clear();
+    g.fillStyle(0x102627,.5);g.fillEllipse(16,34,25,9);g.fillStyle(0x3b5747);g.fillRoundedRect(7,16,19,15,5);g.fillStyle(0xe3ad73);g.fillCircle(16,15,8);g.fillStyle(0x6e7851);g.fillEllipse(16,8,22,10);g.fillStyle(0xb4b5a0);g.fillRoundedRect(8,7,7,4,2);g.fillRoundedRect(17,7,7,4,2);g.fillStyle(0x565c52);g.fillEllipse(16,21,12,6);g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);g.generateTexture('mechanic',32,40);g.destroy();
   }
   makeMap() {
     const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,bunkerFloorTexture(this)).setOrigin(0).setDepth(0);
@@ -674,7 +768,56 @@ class Base extends globalThis.Phaser.Scene {
       this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
     }
+    this.makeWorkshopObjects();
     this.drillBar=this.add.graphics().setDepth(30);
+  }
+  makeWorkshopObjects() {
+    const q=this.workshopQuest;
+    const label=(x,y,text)=>this.add.text(middle(x),middle(y)-40,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
+    if(this.floorNumber) {
+      this.toolsArt=this.add.container(middle(TOOLS_SITE.x),middle(TOOLS_SITE.y)).setDepth(10).setVisible(!q.tools);
+      const box=this.add.graphics();box.fillStyle(0x182c30);box.fillRoundedRect(-24,-16,48,34,4);box.lineStyle(3,0xd9b36b);box.strokeRoundedRect(-23,-15,46,32,4);box.lineStyle(4,0xd9b36b);box.lineBetween(-9,-16,-9,-22);box.lineBetween(-9,-22,9,-22);box.lineBetween(9,-22,9,-16);box.lineStyle(5,0xb7c9c5);box.lineBetween(-11,9,9,-6);box.strokeCircle(12,-8,6);this.toolsArt.add(box);
+      this.toolsMarker=label(TOOLS_SITE.x,TOOLS_SITE.y,'! ИНСТРУМЕНТЫ').setVisible(!q.tools);
+      this.mechanic=this.add.image(middle(MECHANIC_SITE.x),middle(MECHANIC_SITE.y),'mechanic').setDisplaySize(40,50).setDepth(10).setVisible(!q.mechanic);
+      this.mechanicMarker=label(MECHANIC_SITE.x,MECHANIC_SITE.y,'! КОНСТАНТИН Б').setVisible(!q.mechanic);
+    }else{
+      this.workshop=new WorkshopView(this);this.workshop.powered(q.ready);
+      this.workshopMechanic=this.add.image(WORKSHOP_BODY.x+WORKSHOP_BODY.width+30,WORKSHOP_BODY.y+150,'mechanic').setDisplaySize(36,45).setDepth(10).setVisible(q.ready);
+    }
+  }
+  workshopFloorAction() {
+    const q=this.workshopQuest;
+    if(!this.floorNumber||!q.briefed)return null;
+    if(!q.tools&&nearWorkshopItem(this.rig,TOOLS_SITE))return 'tools';
+    if(!q.mechanic&&nearWorkshopItem(this.rig,MECHANIC_SITE))return 'mechanic';
+    return null;
+  }
+  collectWorkshopItem(kind) {
+    const q=this.workshopQuest;
+    if(kind==='tools'&&!q.tools){q.tools=true;this.toolsArt.setVisible(false);this.toolsMarker.setVisible(false);this.notify('ЯЩИК С ИНСТРУМЕНТАМИ ПОЛУЧЕН');}
+    if(kind==='mechanic'&&!q.mechanic){q.mechanic=true;this.mechanic.setVisible(false);this.mechanicMarker.setVisible(false);this.mechanicPassenger.setVisible(true);this.startStory('mechanic');}
+    this.refreshHUD();this.persist();
+  }
+  checkWorkshop() {
+    const q=this.workshopQuest;if(!q||this.busy||this.storyActive||this.world.dialogue||document.querySelector('#dialog').open)return;
+    if(q.dialogue){this.startStory(q.dialogue);return;}
+    if(this.floorNumber)return;
+    if(!this.world.porodnikPowered)return;
+    if(!q.briefed){this.startStory('workshop');return;}
+    if(q.tools&&q.mechanic&&!q.returnBriefed){this.startStory('workshopReturn');return;}
+    if(!q.ready&&canRestoreWorkshop(q,this.world)){
+      q.ready=true;this.workshop.powered(true);this.workshopMechanic.setVisible(true);this.mechanicPassenger.setVisible(false);
+      this.persist();this.startStory('workshopReady');
+    }
+  }
+  openWorkshop() {
+    if(!this.workshopQuest.ready||!onWorkshopDeck(this.rig))return;
+    this.dialogClosed();this.persist();const q=this.workshopQuest;
+    const panel=document.createElement('div');panel.className='lift-console';
+    const text=document.createElement('p'),buy=document.createElement('button');buy.className='metal-button';
+    const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);};
+    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;this.refreshHUD();this.persist();render();this.notify(`МОЩНОСТЬ БУРА: ${100+q.upgrades*2}%`);});render();panel.append(text,buy);
+    document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
   }
   makeHUD() {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
@@ -697,8 +840,9 @@ class Base extends globalThis.Phaser.Scene {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const saving=!this.floorNumber&&!this.world.rescued;
     const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig);
-    const label=saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ВЫГРУЗИТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||(unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig);
+    const label=questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ВЫГРУЗИТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
+    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
@@ -713,6 +857,16 @@ class Base extends globalThis.Phaser.Scene {
       document.querySelector('#quest-status').textContent=`Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
     }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5 · Груз: ${this.cargo}/200`;}
     if(this.porodnikLed)this.porodnikLed.setFillStyle(w.porodnikPowered?0x74ee87:0xffac46);
+    const q=this.workshopQuest;
+    if(q?.briefed) {
+      const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
+      if(this.floorNumber){
+        name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
+        status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
+      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${100+q.upgrades*2}% · Груз: ${this.cargo}/200 · Кредиты: ${this.credits}`;
+      }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
+      }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,LIFT)}`;}
+    }
     this.lift.powered(ready);this.syncAction();
   }
   snapshotCampaign() {
@@ -720,7 +874,7 @@ class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[1]=local;
     const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[])])];
-    return {...base,porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -729,8 +883,11 @@ class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    if(!this.floorNumber&&!this.world.rescued)this.rescue();
+    if(this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    const item=this.workshopFloorAction();
+    if(item)this.collectWorkshopItem(item);
+    else if(!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig))this.openWorkshop();
+    else if(!this.floorNumber&&!this.world.rescued)this.rescue();
     else if(!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig))this.unloadPorodnik();
     else if(this.liftReady()&&this.lift.contains(this.rig))this.openLift();
   }
@@ -799,11 +956,14 @@ class Base extends globalThis.Phaser.Scene {
   }
   startStory(kind) {
     if(this.busy||this.storyActive||!STORY_LINES[kind])return;
-    this.storyActive=true;this.speed=0;this.dialogClosed();this.world.dialogue=kind;this.persist();
-    showStoryDialogue(this,{kind,lines:STORY_LINES[kind],page:this.world.dialoguePage,
-      onPage:page=>{this.world.dialoguePage=page;this.persist();},
+    const holder=['workshop','mechanic','workshopReturn','workshopReady'].includes(kind)?this.workshopQuest:this.world;
+    this.storyActive=true;this.speed=0;this.dialogClosed();holder.dialogue=kind;this.persist();
+    showStoryDialogue(this,{kind,lines:STORY_LINES[kind],page:holder.dialoguePage,
+      onPage:page=>{holder.dialoguePage=page;this.persist();},
       onFinish:()=>{
-        this.world.dialogue=null;this.world.dialoguePage=0;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        holder.dialogue=null;holder.dialoguePage=0;if(kind==='workshop')this.workshopQuest.briefed=true;if(kind==='workshopReturn')this.workshopQuest.returnBriefed=true;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='workshop')this.notify('НОВОЕ ЗАДАНИЕ · ИНСТРУМЕНТЫ ДЛЯ МАСТЕРСКОЙ');
+        if(kind==='workshopReady')this.notify('МАСТЕРСКАЯ ВОССТАНОВЛЕНА · МЕХАНИК КОНСТАНТИН Б');
         if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
         if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
         this.checkLift();this.checkPorodnik();
@@ -901,21 +1061,21 @@ class Base extends globalThis.Phaser.Scene {
     const direction=this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);
-    this.animateVehicle(time,dt);
+    this.animateVehicle(time,dt);this.checkWorkshop();
   }
   drawLiftGlow(time) {
     this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;
-    const blocks=this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
+    const blocks=this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?WORKSHOP_BLOCKS:this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
     const pulse=.35+.15*Math.sin(time*.0035);
     for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
       this.blockGlow.fillStyle(0xffcc6c,pulse*.22);this.blockGlow.fillRoundedRect(p.x*CELL+3,p.y*CELL+3,58,58,8);
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
   }
-  solidCell(x,y) { return !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  solidCell(x,y) { return (this.floorNumber&&!this.workshopQuest.mechanic&&x===MECHANIC_SITE.x&&y===MECHANIC_SITE.y)||!this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
-    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[PORODNIK_COLLIDER])];
+    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[PORODNIK_COLLIDER,WORKSHOP_BODY])];
     return solid;
   }
   advanceVehicle(time,dt,direction) {
@@ -939,7 +1099,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.world.blocked(x,y)) {
       this.cutting=true;
       const key=y*BASE_SIZE+x;
-      const broken=this.world.drill(x,y,dt);
+      const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02));
       this.terrain.paintCell(x,y);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
@@ -1118,7 +1278,7 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    for(const name of ['serega-neutral','serega-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
+    for(const name of ['serega-neutral','serega-portrait','konstantin-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
