@@ -20,7 +20,7 @@ export function createCollectionPage(scene){
  function artifactSlot(id,done=false,detail=false){
   const a=artifactInfo.get(id),owned=scene.artifacts[id]||0,has=done||owned>0,slot=document.createElement('div');slot.className='artifact-slot '+(has?'owned':'missing');slot.dataset.rarity=String(a.rarity);
   const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';
-  const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · этаж '+a.floor;copy.append(name,meta);
+  const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · может выпасть на любом этаже';copy.append(name,meta);
   const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(mark,copy,status);return slot;
  }
  function render(){
