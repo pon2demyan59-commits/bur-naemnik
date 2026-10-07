@@ -1,7 +1,7 @@
 import { buildingGeometry, rectanglesOverlap } from './building-layout-state.js';
 import { claimQuestReward } from './quest-rewards.js';
 import { FLOOR_LIFT } from './lift-state.js';
-import { BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_STORIES, CONSTRUCTION_DESK, WAREHOUSE_PLOTS, WAREHOUSE_RECIPE, WAREHOUSE_MS, WAREHOUSE_CAPACITY, warehouseBody, warehouseDeck, plotBlocked, builderEntranceLeft, canRescueBuilder, beginWarehouse, stepConstruction, transferWarehouse, stockCount } from './construction-state.js';
+import { BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_STORIES, CONSTRUCTION_DESK, WAREHOUSE_PLOTS, WAREHOUSE_RECIPE, WAREHOUSE_MS, WAREHOUSE_CAPACITY, warehouseCapacity, warehouseUpgradePrice, upgradeWarehouse, warehouseBody, warehouseDeck, plotBlocked, builderEntranceLeft, canRescueBuilder, beginWarehouse, stepConstruction, transferWarehouse, stockCount } from './construction-state.js';
 import { CELL } from './base-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
 import { makePerson, updatePerson } from './people-view.js';
@@ -80,19 +80,24 @@ export const constructionMethods={
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
   g.fillStyle(0x87c5aa,.12);g.fillRect(b.x,b.y,b.width,b.height+CELL);g.lineStyle(3,q.warehouse?0x6a8276:0xeec874,.8);g.strokeRect(b.x,b.y,b.width,b.height);
   if(!q.warehouse&&q.remaining==null)return;
-  g.fillStyle(0x68776c);g.fillRect(b.x,b.y+b.height,b.width,10);
-  // Construction progresses from corner supports to walls and the roof.
-  g.lineStyle(8,0x806b49);for(const x of [b.x+8,b.x+b.width-8])g.lineBetween(x,b.y+10,x,b.y+b.height);
-  if(progress>.25){g.fillStyle(0x546958);g.fillRoundedRect(b.x+6,b.y+14,b.width-12,b.height-20,7);g.lineStyle(2,0x2d493f);for(let x=b.x+18;x<b.x+b.width-10;x+=18)g.lineBetween(x,b.y+18,x,b.y+b.height-8);}
-  if(progress>.65){g.fillStyle(0x8b927a);g.fillRoundedRect(b.x-8,b.y-8,b.width+16,45,7);g.lineStyle(3,0x46594b);for(let y=b.y;y<b.y+30;y+=9)g.lineBetween(b.x-3,y,b.x+b.width+3,y);}
-  if(q.warehouse){g.fillStyle(0x243a31);g.fillRect(b.x+60,b.y+48,72,74);g.lineStyle(2,0x9ba990);for(let y=b.y+53;y<b.y+120;y+=10)g.lineBetween(b.x+63,y,b.x+129,y);g.fillStyle(0xe7ba64);g.fillCircle(b.x+122,b.y+93,3);this.warehouseSign.setPosition(b.x+b.width/2,b.y+23);}
+  g.fillStyle(0x182d2b,.45);g.fillRoundedRect(b.x-5,b.y+8,b.width+12,b.height+4,9);
+  g.fillStyle(0x897b61);g.fillRect(b.x,b.y+b.height,b.width,CELL);
+  g.lineStyle(2,0xbaa477);for(let x=b.x+10;x<b.x+b.width;x+=24)g.lineBetween(x,b.y+b.height+8,x+12,b.y+b.height+20);
+  g.lineStyle(8,0x65533e);for(const x of [b.x+8,b.x+b.width-8])g.lineBetween(x,b.y+10,x,b.y+b.height);
+  if(progress>.25){g.fillStyle(0x607e76);g.fillRoundedRect(b.x+4,b.y+12,b.width-8,b.height-14,7);g.lineStyle(2,0x354c48);for(let x=b.x+18;x<b.x+b.width-10;x+=18)g.lineBetween(x,b.y+18,x,b.y+b.height-8);}
+  if(progress>.65){g.fillStyle(0x304d4c);g.fillRoundedRect(b.x-6,b.y-6,b.width+12,45,8);g.fillStyle(0x77908a);g.fillRoundedRect(b.x-6,b.y-10,b.width+12,34,8);g.lineStyle(2,0x4b6662);for(let x=b.x+8;x<b.x+b.width;x+=20)g.lineBetween(x,b.y-6,x,b.y+19);}
+  if(q.warehouse){
+   g.fillStyle(0x203834);g.fillRoundedRect(b.x+55,b.y+43,82,83,4);g.fillStyle(0x928a6a);g.fillRect(b.x+59,b.y+46,74,18);g.lineStyle(2,0x484e40);for(let y=b.y+50;y<b.y+65;y+=5)g.lineBetween(b.x+60,y,b.x+132,y);
+   for(const [dx,dy] of [[13,85],[30,98],[148,92]]){g.fillStyle(0xb58b4e);g.fillRoundedRect(b.x+dx,b.y+dy,26,25,3);g.lineStyle(2,0x705532);g.strokeRect(b.x+dx+3,b.y+dy+3,20,19);g.lineBetween(b.x+dx+4,b.y+dy+4,b.x+dx+22,b.y+dy+21);}
+   g.fillStyle(0xffd578);g.fillCircle(b.x+48,b.y+57,4);g.fillCircle(b.x+144,b.y+57,4);this.warehouseSign.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y+28);
+  }
   else {g.fillStyle(0x183a31);g.fillRect(b.x+10,b.y+b.height+18,b.width-20,8);g.fillStyle(0xffd078);g.fillRect(b.x+10,b.y+b.height+18,(b.width-20)*progress,8);}
  },
  openConstruction(){
   const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;this.dialogClosed();this.persist();
   if(q.warehouse){const panel=document.createElement('div');panel.className='lift-console construction-controls';const text=document.createElement('p');text.className='service-readout';text.textContent='ПЕРВЫЙ СКЛАД ГОТОВ · БЕСПЛАТНО';const note=document.createElement('p');note.className='terminal-note';note.textContent='Подъезжай к воротам склада для хранения материалов. Следующие чертежи: преграда → башня. Их предстоит получить в следующих заданиях.';panel.append(text,note);showBuildingMenu('construction',panel);return;}
   const panel=document.createElement('div');panel.className='lift-console construction-controls';
-  const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' единиц';panel.append(title);
+  const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' каждого материала';panel.append(title);
   const selection=document.createElement('p'),cost=document.createElement('p'),status=document.createElement('p');status.className='service-status';status.setAttribute('role','status');
   const buttons=document.createElement('div');buttons.className='construction-plot-buttons';
   const prev=document.createElement('button'),next=document.createElement('button'),build=document.createElement('button');prev.className=next.className='floor-button';build.className='metal-button';prev.textContent='← МЕСТО';next.textContent='МЕСТО →';
@@ -106,10 +111,12 @@ export const constructionMethods={
   const q=this.constructionQuest;if(!q.warehouse||this.floorNumber||!inDeck(this.rig,warehouseDeck(q)))return;this.dialogClosed();
   const panel=document.createElement('div');panel.className='lift-console warehouse-controls';
   const summary=document.createElement('p');summary.className='service-readout';panel.append(summary);
-  const render=()=>{const close=panel.querySelector('.close-dialog');panel.replaceChildren();summary.textContent='Склад '+stockCount(q.stock)+'/'+WAREHOUSE_CAPACITY+' · Бур '+cargoCount(this.cargoHold)+'/'+this.cargoCapacity();if(!summary.isConnected)panel.append(summary);
-   for(const m of MATERIALS){if(!this.cargoHold[m.id]&&!q.stock[m.id])continue;const row=document.createElement('div');row.className='warehouse-row';const name=document.createElement('strong');name.textContent=m.name+' · бур '+(this.cargoHold[m.id]||0)+' / склад '+(q.stock[m.id]||0);const amount=document.createElement('input');amount.type='number';amount.min='1';amount.max=String(WAREHOUSE_CAPACITY);amount.value=String(Math.max(this.cargoHold[m.id]||0,q.stock[m.id]||0));amount.setAttribute('aria-label','Количество: '+m.name);row.append(name,amount);
-    for(const [deposit,label] of [[true,'СЛОЖИТЬ'],[false,'ЗАБРАТЬ']]){const button=document.createElement('button');button.className='floor-button';button.textContent=label;button.disabled=deposit?!this.cargoHold[m.id]||stockCount(q.stock)>=WAREHOUSE_CAPACITY:!q.stock[m.id]||cargoCount(this.cargoHold)>=this.cargoCapacity();button.addEventListener('click',()=>{transferWarehouse(q,this.cargoHold,m.id,Number(amount.value),deposit,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);this.refreshHUD();this.persist();render();});row.append(button);}panel.append(row);}
+  const render=()=>{const close=panel.querySelector('.close-dialog');panel.replaceChildren();summary.textContent='Склад · уровень '+(q.warehouseLevel||1)+' · до '+warehouseCapacity(q)+' каждого материала · Бур '+cargoCount(this.cargoHold)+'/'+this.cargoCapacity();if(!summary.isConnected)panel.append(summary);
+   for(const m of MATERIALS){if(!this.cargoHold[m.id]&&!q.stock[m.id])continue;const row=document.createElement('div');row.className='warehouse-row';const name=document.createElement('strong');name.textContent=m.name+' · бур '+(this.cargoHold[m.id]||0)+' / склад '+(q.stock[m.id]||0)+' из '+warehouseCapacity(q);const amount=document.createElement('input');amount.type='number';amount.min='1';amount.max=String(Math.max(warehouseCapacity(q),this.cargoHold[m.id]||0,q.stock[m.id]||0));amount.value=String(Math.max(this.cargoHold[m.id]||0,q.stock[m.id]||0));amount.setAttribute('aria-label','Количество: '+m.name);row.append(name,amount);
+    for(const [deposit,label] of [[true,'СЛОЖИТЬ'],[false,'ЗАБРАТЬ']]){const button=document.createElement('button');button.className='floor-button';button.textContent=label;button.disabled=deposit?!this.cargoHold[m.id]||(q.stock[m.id]||0)>=warehouseCapacity(q):!q.stock[m.id]||cargoCount(this.cargoHold)>=this.cargoCapacity();button.addEventListener('click',()=>{transferWarehouse(q,this.cargoHold,m.id,Number(amount.value),deposit,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);this.refreshHUD();this.persist();render();});row.append(button);}panel.append(row);}
    if(!stockCount(q.stock)&&!cargoCount(this.cargoHold)){const p=document.createElement('p');p.textContent='Пока пусто. Привези породу в грузовом отсеке.';panel.append(p);}
+   const upgrade=document.createElement('button');upgrade.className='metal-button';upgrade.textContent=warehouseCapacity(q)>=10000?'СКЛАД УЛУЧШЕН ДО МАКСИМУМА':'УЛУЧШИТЬ · ДО '+(warehouseCapacity(q)+100)+' КАЖДОГО · '+warehouseUpgradePrice(q)+' КРЕДИТОВ';upgrade.disabled=warehouseCapacity(q)>=10000||this.credits<warehouseUpgradePrice(q);upgrade.addEventListener('click',()=>{const result=upgradeWarehouse(q,this.credits);if(!result.bought)return;this.credits=result.credits;this.renderConstruction();this.refreshHUD();this.persist();render();});panel.append(upgrade);
+   const note=document.createElement('p');note.className='terminal-note';note.textContent='Каждый материал занимает собственную секцию. Старые запасы сверх лимита сохранены: их можно забрать, но пополнить секцию получится после освобождения места или улучшения.';panel.append(note);
    if(close)panel.append(close);
   };render();showBuildingMenu('warehouse',panel);
  },
@@ -119,6 +126,6 @@ export const constructionMethods={
   if(this.floorNumber===4){name.textContent='Есть кому строить';radio.textContent=q.rescued?'Мастер на борту. Вернись на базу через лифт.':q.signalHeard?'Слышны удары по трубе. Расчисти вход и убей пауков у комнаты.':'Ищи строительного мастера по слабому сигналу.';const distance=Math.hypot(this.rig.x-(BUILDER_SITE.x+.5)*CELL,this.rig.y-(BUILDER_SITE.y+.5)*CELL)/CELL;status.textContent=q.rescued?'Лифт: '+objectiveBearing(this.rig,FLOOR_LIFT):'Сигнал: '+(distance>18?'слабый':distance>10?'средний':'сильный')+' · '+objectiveBearing(this.rig,BUILDER_SITE)+' · Вход: '+(3-builderEntranceLeft(this.world))+'/3 · Пауки: '+(this.spiders?.filter(s=>s.hp<=0).length||0)+'/3';return;}
   if(this.floorNumber)return;
   name.textContent=q.unlocked?'Первый склад':'Есть кому строить';radio.textContent=q.unlocked?'Первый склад уже готов. Подъезжай к воротам, чтобы оставить материалы или забрать запас.':q.rescued?'Мастер спасён. Он готов открыть строительство на базе.':'Серёга выдал карту четвёртого этажа. Найди мастера за завалом.';
-  status.textContent=q.warehouse?'Склад готов · '+stockCount(q.stock)+'/'+WAREHOUSE_CAPACITY+' · '+objectiveBearing(this.rig,this.buildingPoint('warehouse')):q.remaining!=null?'Строительство: '+Math.ceil(q.remaining/1000)+' с':q.unlocked?'Площадка: '+objectiveBearing(this.rig,this.buildingPoint('warehouse'))+' · Завал: '+plotBlocked(q,this.world)+' · Земля '+(this.cargoHold.earth||0)+'/80 · Камень '+(this.cargoHold.stone||0)+'/20':'Карта задания: этаж 4';
+  status.textContent=q.warehouse?'Склад готов · '+stockCount(q.stock)+' ед. · до '+warehouseCapacity(q)+' каждого'+' · '+objectiveBearing(this.rig,this.buildingPoint('warehouse')):q.remaining!=null?'Строительство: '+Math.ceil(q.remaining/1000)+' с':q.unlocked?'Площадка: '+objectiveBearing(this.rig,this.buildingPoint('warehouse'))+' · Завал: '+plotBlocked(q,this.world)+' · Земля '+(this.cargoHold.earth||0)+'/80 · Камень '+(this.cargoHold.stone||0)+'/20':'Карта задания: этаж 4';
  }
 };
