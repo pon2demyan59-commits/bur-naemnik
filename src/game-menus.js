@@ -1,5 +1,5 @@
 import { readSettings, writeSettings } from './storage.js';
-import { createInventoryPanel, createHelpPanel } from './interface-panels.js';
+import { createInventoryPanel, createHelpPanel, createDrillPanel } from './interface-panels.js';
 
 const BUILDING_MENUS={
  construction:{title:'СТРОИТЕЛЬСТВО',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
@@ -62,6 +62,7 @@ export function openPauseMenu(scene){
   for(const [label,action,primary] of [
    ['ПРОДОЛЖИТЬ',()=>dialog.close(),true],
    ['ИНВЕНТАРЬ',()=>showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(scene.snapshotCampaign()),'inventory',render)],
+   ['ХАРАКТЕРИСТИКИ БУРА',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(scene.snapshotCampaign()),'drill',render)],
    ['КОЛЛЕКЦИИ',()=>scene.openCollections(render)],
    ['НАСТРОЙКИ',()=>showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings',render)],
    ['КАК ИГРАТЬ',()=>showGamePanel('СПРАВОЧНИК БУРА',createHelpPanel(),'help',render)],
