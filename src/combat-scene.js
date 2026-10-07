@@ -30,7 +30,7 @@ export const combatMethods={
   return combat;
  },
  beginDefense(saved){
-  if(this.floorNumber||this.spiders.length===20)return;
+  if(this.floorNumber||this.repairQuest.wave==='done'||this.spiders.length===20)return;
   this.repairQuest.wave='active';
   const solid=this.driveSolids(),start={x:this.rig.x,y:this.rig.y};
   // Spawn in the connected, excavated part of the base, never inside soil or buildings.
@@ -63,6 +63,8 @@ export const combatMethods={
   this.combatTime+=ms;this.weaponCooldown=Math.max(0,this.weaponCooldown-ms);
   const safe=this.lift.contains(this.rig);
   for(const s of this.spiders){
+   // Base enemies belong only to the finite tutorial wave, never to floor respawns.
+   if(!this.floorNumber&&!tutorial)continue;
    const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage);
@@ -72,7 +74,7 @@ export const combatMethods={
   }
   if(this.armoryQuest.installed&&this.weaponCooldown===0){
    const target=nearestTarget(this.rig,this.spiders,WEAPON_RANGE,solid);
-   if(target){this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);if(this.weaponArt)this.weaponArt.rotation=Math.atan2(target.y-this.rig.y,target.x-this.rig.x)-this.rig.rotation;}
+   if(target){this.weaponCooldown=1000;if(this.weaponArt)this.weaponArt.rotation=Math.atan2(target.y-this.rig.y,target.x-this.rig.x)-this.rig.rotation;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);this.animateWeaponShot?.();}
   }
   if(tutorial){
    for(const ally of this.allies){
@@ -95,6 +97,7 @@ export const combatMethods={
    }
    if(this.spiders.every(s=>s.hp<=0)){
     this.repairQuest.wave='done';this.allies.forEach(a=>a.root.destroy());this.allies=[];
+    this.spiderViews?.forEach(view=>view.root.destroy());this.spiderViews=[];this.spiders=[];
     this.refreshHUD();this.persist();this.startStory('waveComplete');
    }
   }

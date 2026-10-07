@@ -1,4 +1,5 @@
 import { queueRepairBrief } from './repair-state.js';
+import { drawMountedTurret } from './mounted-weapon.js';
 import { makePerson } from './people-view.js';
 import { ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, BLUEPRINT_SITE, armoryBlockCount, canRestoreArmory, onArmoryDeck, installWeapon, buyWeaponUpgrade, weaponUpgradePrice } from './armory-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
@@ -48,8 +49,22 @@ export const armoryMethods={
   button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
   panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
  },
- makeMountedWeapon(){this.weaponArt=this.add.graphics();this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
- refreshMountedWeapon(){const g=this.weaponArt;if(!g)return;g.clear();const q=this.armoryQuest;if(!q.installed)return;g.fillStyle(0x18282c);g.fillRoundedRect(-13,-18,26,20,4);g.lineStyle(2,0xaf9a65);g.strokeRoundedRect(-13,-18,26,20,4);g.fillStyle(0x708384);g.fillRect(-2,-15,29,5);g.fillRect(-2,-7,29,5);g.fillStyle(0x263436);g.fillRect(23,-16,6,7);g.fillRect(23,-8,6,7);g.fillStyle(q.weaponLevel?0xe1af5b:0x8b9a89);g.fillCircle(-4,-8,5);},
+ makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
+ refreshMountedWeapon(){
+  const root=this.weaponArt;if(!root)return;
+  if(this.weaponBarrel)this.tweens.killTweensOf(this.weaponBarrel);
+  this.weaponFlashTimer?.remove();this.weaponFlashTimer=null;
+  root.removeAll(true);root.setVisible(this.armoryQuest.installed);this.weaponBarrel=null;this.weaponFlash=null;
+  if(!this.armoryQuest.installed)return;
+  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
+ },
+ animateWeaponShot(){
+  if(!this.weaponBarrel)return;
+  this.tweens.killTweensOf(this.weaponBarrel);this.weaponBarrel.x=-4;
+  this.tweens.add({targets:this.weaponBarrel,x:0,duration:180,ease:'Cubic.Out'});
+  this.weaponFlash.setVisible(true);this.weaponFlashTimer?.remove();
+  this.weaponFlashTimer=this.time.delayedCall(75,()=>{this.weaponFlash?.setVisible(false);this.weaponFlashTimer=null;});
+ },
  refreshArmoryHUD() {
   const q=this.armoryQuest;if(!q.briefed||this.floorNumber===1)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');if(!name)return;

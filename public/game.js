@@ -31,6 +31,51 @@ function resetSave() {
 }
 
 
+// Painted vector turret: facing right in drill-local coordinates.
+function drawMountedTurret(scene,root,upgraded=false) {
+ const base=scene.add.graphics(),barrel=scene.add.container(0,0),steel=scene.add.graphics(),armor=scene.add.graphics(),flash=scene.add.graphics();
+ root.add([base,barrel,armor,flash]);barrel.add(steel);
+ const outline=0x172e32,accent=upgraded?0xe4b85c:0xaab9a0;
+ base.fillStyle(0x07191e,.5);base.fillEllipse(1,5,46,35);
+ base.fillStyle(outline);base.fillCircle(0,2,19);
+ base.fillStyle(0x657d77);base.fillCircle(0,0,17);
+ base.lineStyle(2,0xb3c1a0);base.strokeCircle(0,0,14);
+ base.fillStyle(0x263f42);base.fillCircle(0,0,11);
+ // A chunky cannon with a shaded sleeve, cooling rings and a dark muzzle.
+ steel.fillStyle(outline);steel.fillRoundedRect(3,-8,37,17,4);
+ steel.fillStyle(0x425d63);steel.fillRoundedRect(5,-6,32,12,3);
+ steel.fillStyle(0xabc1b6);steel.fillRoundedRect(6,-6,29,3,1);
+ steel.fillStyle(0x253e46);steel.fillRect(7,4,31,3);
+ for(const x of [17,23,29]){
+  steel.fillStyle(outline);steel.fillRoundedRect(x,-8,3,16,1);
+  steel.fillStyle(0x78948b);steel.fillRect(x,-6,2,4);
+ }
+ steel.fillStyle(outline);steel.fillRoundedRect(34,-10,11,20,3);
+ steel.fillStyle(0x698079);steel.fillRoundedRect(35,-8,8,16,2);
+ steel.fillStyle(0xc0c9a8);steel.fillRect(36,-8,6,3);
+ steel.fillStyle(0x102329);steel.fillRoundedRect(41,-5,4,10,1);
+ // Layered armour, rounded silhouette, rivets and a small glowing sight.
+ armor.fillStyle(outline);armor.fillRoundedRect(-19,-14,34,29,8);
+ armor.fillStyle(0x405954);armor.fillRoundedRect(-17,-11,30,25,6);
+ armor.fillStyle(0x91a58a);armor.fillRoundedRect(-17,-14,29,20,6);
+ armor.fillStyle(0xbdc5a1);armor.fillRoundedRect(-14,-13,23,4,2);
+ armor.fillStyle(0x6f866f);armor.fillRoundedRect(-15,-5,27,10,4);
+ armor.lineStyle(1,0x425b50);armor.lineBetween(-11,5,7,5);
+ armor.fillStyle(0x263d3a);armor.fillRoundedRect(-14,-8,8,12,2);
+ armor.lineStyle(1,0xadb59a);for(const y of [-5,-2,1])armor.lineBetween(-12,y,-8,y);
+ armor.fillStyle(0xb58645);armor.fillRoundedRect(-2,-8,12,12,3);
+ armor.fillStyle(accent);armor.fillRoundedRect(-1,-8,10,8,2);
+ armor.fillStyle(outline);armor.fillCircle(4,-4,3);
+ armor.fillStyle(0x8ef1c4);armor.fillCircle(4,-5,1.6);
+ for(const [x,y] of [[-13,-10],[8,-10],[-13,9],[8,9]]){
+  armor.fillStyle(outline);armor.fillCircle(x,y,2.2);
+  armor.fillStyle(0xe0d6a5);armor.fillCircle(x-.5,y-.7,1);
+ }
+ flash.fillStyle(0xffad46);flash.fillTriangle(44,0,58,-9,54,8);
+ flash.fillStyle(0xffefb0);flash.fillTriangle(44,0,54,-4,52,4);flash.setVisible(false);
+ return {barrel,flash};
+}
+
 const BASE_SIZE = 50;
 const CELL = 64;
 const RESCUE = { x: 27, y: 26 };
@@ -84,6 +129,7 @@ class BaseWorld {
   }
   snapshot() { return { location:'base', x:this.x, y:this.y, cleared:[...this.cleared], damage:[...this.damage], rescued:this.rescued, heard:this.heard, liftAnnounced:this.liftAnnounced, porodnikBriefed:this.porodnikBriefed, porodnikPowered:this.porodnikPowered, dialogue:this.dialogue, dialoguePage:this.dialoguePage }; }
 }
+
 
 
 function wrapDegrees(angle) { return ((angle + 180) % 360 + 360) % 360 - 180; }
@@ -165,6 +211,7 @@ function driveStep(state,direction,dt,solid) {
 }
 
 
+
 // Source sprite bounds prepared at build time; no pixel reads during gameplay.
 const FLOOR_PROP_FRAMES = {
   "prop-pipe": {
@@ -221,6 +268,7 @@ function materialFrameRect(id,variant,width,height=width){const m=materialDefini
 function terrainMaterial(world,x,y){return world.blocked(x,y)?materialDefinition(world.material?.(x,y)||'earth').id:'earth';}
 
 
+
 // docs/canon-miro.txt: hardness, chance on floors 1 / 50 / 100 (percent).
 const ORE_RULES=[
  {id:'iron',hardness:3,chances:[3,8,12]},
@@ -246,6 +294,7 @@ function depositMaterial(seed,floor,x,y){return weightedMaterial(depositRoll(see
 // Preserve a partly drilled block when upgrading from the short-lived all-ores preview.
 function legacyDepositMaterial(seed,floor,x,y){return weightedMaterial(depositRoll(seed,floor,x,y),[['earth',50],['stone',25],['iron',5],['copper',4],['bauxite',3],['tin',2],['zinc',2],['nickel',2],['chromium',2],['titanium',2],['tungsten',1],['gold',1.5],['xenorite',.5]]);}
 function restoreMaterialOverrides(value){return new Map(Array.isArray(value)?value.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<2500&&MATERIALS.some(m=>m.id===v[1])):[]);}
+
 
 
 const CARGO_CAPACITY=200;
@@ -283,6 +332,7 @@ function takeCargoSale(hold,selection){
 
 
 
+
 const cargoMethods={
  openPorodnik(){
   if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
@@ -315,6 +365,7 @@ const cargoMethods={
   this.porodnikJob=job;this.cargo=cargoCount(this.cargoHold);this.speed=0;this.refreshHUD();this.persist();return true;
  }
 };
+
 
 
 
@@ -543,6 +594,7 @@ function bunkerFloorTexture(scene) {
 
 
 
+
 const LIFT = {x:33,y:21};
 const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
 const FLOOR_LIFT = {x:25,y:7};
@@ -603,6 +655,7 @@ class FloorWorld {
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
+
 
 
 
@@ -677,6 +730,7 @@ class LiftView {
     rig.clearMask();this.platform.clearMask();shadow.setVisible(true);this.powered(true);this.scene.cameras.main.startFollow(rig,true,.10,.10);
   }
 }
+
 
 // Approved original dialogue and later scenes based on docs/canon-miro.txt. Rewards stay in UI.
 const STORY_LINES = {
@@ -784,6 +838,7 @@ function storyPresentation(kind,page) {
 }
 
 
+
 function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   const previousFocus=document.activeElement;
   const dialog=document.createElement('dialog');dialog.className='story-dialogue';dialog.setAttribute('aria-labelledby','story-name');
@@ -801,6 +856,7 @@ function showStoryDialogue(scene,{kind,lines,page=0,onPage,onFinish}) {
   next.addEventListener('click',advance);dialog.addEventListener('cancel',cancel);document.addEventListener('keydown',keyboard,true);scene.events.once('shutdown',abort);
   render();dialog.showModal();next.focus({preventScroll:true});scene.input.enabled=false;scene.scene.pause();
 }
+
 
 
 
@@ -835,6 +891,7 @@ function stepPorodnikJob(job,delta) {
   job.remaining=Math.max(0,job.remaining-Math.max(0,delta));
   return job.remaining===0?(job.payout??job.amount):0;
 }
+
 
 
 
@@ -885,6 +942,7 @@ function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK) {
  if(y>=exitY)q.serviceRemaining=null;
  return next;
 }
+
 
 
 class WorkshopView {
@@ -945,6 +1003,7 @@ class WorkshopView {
 
 
 
+
 const ARMORER_SITE={x:17,y:27};
 const BLUEPRINT_SITE={x:36,y:35};
 const ARMORY_BODY={x:39*CELL,y:29*CELL,width:320,height:192};
@@ -965,6 +1024,7 @@ function canRestoreArmory(q,world){return q.rescued&&q.blueprint&&q.returnBriefe
 function weaponUpgradePrice(q){return Math.ceil(100*Math.pow(1.25,q.weaponLevel));}
 function installWeapon(q){if(!q.ready||!q.gifted||q.installed||q.serviceRemaining!=null)return false;q.installed=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
 function buyWeaponUpgrade(q,credits){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||q.serviceRemaining!=null||q.weaponLevel>=100||credits<price)return {bought:false,credits};q.weaponLevel++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
+
 
 
 const REPAIRMAN_SITE={x:36,y:39};
@@ -999,6 +1059,7 @@ function queueRepairBrief(q,armory){
  if(q.briefed||q.dialogue||!armory.installed)return false;
  q.dialogue='repairBrief';q.dialoguePage=0;return true;
 }
+
 
 
 
@@ -1059,6 +1120,7 @@ function findTunnelPath(from,to,world,solid) {
  }
  return [];
 }
+
 
 
 
@@ -1164,6 +1226,7 @@ function hitSpider(spider,damage){
 }
 function spiderSnapshot(spiders){return spiders.map(({id,x,y,hp,respawn,bite,angle})=>({id,x,y,hp,respawn,bite,angle}));}
 
+
 const PEOPLE_ROWS = ['serega','mechanic','armorer'];
 function preparePeopleFrames(scene) {
   const texture=scene.textures.get('people'),source=texture.getSourceImage();
@@ -1202,6 +1265,7 @@ function updatePerson(person,delta,rig) {
   person.workerArt.setFrame(`${person.workerName}-${pose}`);
   for(const art of [person.workerArt,person.workerPrevious])art.setScale(78/art.frame.width,78/art.frame.height*(1+Math.sin(t*2.1)*.012));
 }
+
 
 
 
@@ -1286,6 +1350,7 @@ const repairMethods={
 
 
 
+
 const combatMethods={
  makeCombat(){
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
@@ -1313,7 +1378,7 @@ const combatMethods={
   return combat;
  },
  beginDefense(saved){
-  if(this.floorNumber||this.spiders.length===20)return;
+  if(this.floorNumber||this.repairQuest.wave==='done'||this.spiders.length===20)return;
   this.repairQuest.wave='active';
   const solid=this.driveSolids(),start={x:this.rig.x,y:this.rig.y};
   // Spawn in the connected, excavated part of the base, never inside soil or buildings.
@@ -1346,6 +1411,8 @@ const combatMethods={
   this.combatTime+=ms;this.weaponCooldown=Math.max(0,this.weaponCooldown-ms);
   const safe=this.lift.contains(this.rig);
   for(const s of this.spiders){
+   // Base enemies belong only to the finite tutorial wave, never to floor respawns.
+   if(!this.floorNumber&&!tutorial)continue;
    const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage);
@@ -1355,7 +1422,7 @@ const combatMethods={
   }
   if(this.armoryQuest.installed&&this.weaponCooldown===0){
    const target=nearestTarget(this.rig,this.spiders,WEAPON_RANGE,solid);
-   if(target){this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);if(this.weaponArt)this.weaponArt.rotation=Math.atan2(target.y-this.rig.y,target.x-this.rig.x)-this.rig.rotation;}
+   if(target){this.weaponCooldown=1000;if(this.weaponArt)this.weaponArt.rotation=Math.atan2(target.y-this.rig.y,target.x-this.rig.x)-this.rig.rotation;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);this.animateWeaponShot?.();}
   }
   if(tutorial){
    for(const ally of this.allies){
@@ -1378,6 +1445,7 @@ const combatMethods={
    }
    if(this.spiders.every(s=>s.hp<=0)){
     this.repairQuest.wave='done';this.allies.forEach(a=>a.root.destroy());this.allies=[];
+    this.spiderViews?.forEach(view=>view.root.destroy());this.spiderViews=[];this.spiders=[];
     this.refreshHUD();this.persist();this.startStory('waveComplete');
    }
   }
@@ -1448,6 +1516,7 @@ const combatMethods={
 
 
 
+
 const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
@@ -1491,8 +1560,22 @@ const armoryMethods={
   button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
   panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
  },
- makeMountedWeapon(){this.weaponArt=this.add.graphics();this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
- refreshMountedWeapon(){const g=this.weaponArt;if(!g)return;g.clear();const q=this.armoryQuest;if(!q.installed)return;g.fillStyle(0x18282c);g.fillRoundedRect(-13,-18,26,20,4);g.lineStyle(2,0xaf9a65);g.strokeRoundedRect(-13,-18,26,20,4);g.fillStyle(0x708384);g.fillRect(-2,-15,29,5);g.fillRect(-2,-7,29,5);g.fillStyle(0x263436);g.fillRect(23,-16,6,7);g.fillRect(23,-8,6,7);g.fillStyle(q.weaponLevel?0xe1af5b:0x8b9a89);g.fillCircle(-4,-8,5);},
+ makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
+ refreshMountedWeapon(){
+  const root=this.weaponArt;if(!root)return;
+  if(this.weaponBarrel)this.tweens.killTweensOf(this.weaponBarrel);
+  this.weaponFlashTimer?.remove();this.weaponFlashTimer=null;
+  root.removeAll(true);root.setVisible(this.armoryQuest.installed);this.weaponBarrel=null;this.weaponFlash=null;
+  if(!this.armoryQuest.installed)return;
+  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
+ },
+ animateWeaponShot(){
+  if(!this.weaponBarrel)return;
+  this.tweens.killTweensOf(this.weaponBarrel);this.weaponBarrel.x=-4;
+  this.tweens.add({targets:this.weaponBarrel,x:0,duration:180,ease:'Cubic.Out'});
+  this.weaponFlash.setVisible(true);this.weaponFlashTimer?.remove();
+  this.weaponFlashTimer=this.time.delayedCall(75,()=>{this.weaponFlash?.setVisible(false);this.weaponFlashTimer=null;});
+ },
  refreshArmoryHUD() {
   const q=this.armoryQuest;if(!q.briefed||this.floorNumber===1)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');if(!name)return;
@@ -2147,6 +2230,7 @@ class Base extends globalThis.Phaser.Scene {
 Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods);
 
 
+
 class Floor extends Base {
   constructor(){super('Floor');}
 }
@@ -2302,6 +2386,7 @@ else game = new Phaser.Game({
   loader: { imageLoadType: 'HTMLImageElement' },
   render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
 });
+
 
 
 })();

@@ -66,8 +66,29 @@ test('tutorial allies finish all twenty spiders without player firing; casualtie
   startStory(kind){this.story=kind;},fireAt:combatMethods.fireAt
  };
  for(let i=0;i<4000&&scene.repairQuest.wave==='active';i++){scene.time.now+=50;combatMethods.updateCombat.call(scene,50);}
- assert.equal(scene.repairQuest.wave,'done');assert.equal(scene.spiders.filter(s=>s.hp===0).length,20);
+ assert.equal(scene.repairQuest.wave,'done');assert.equal(scene.spiders.length,0);
  assert.equal(scene.inventory.fiber,20);assert.equal(scene.story,'waveComplete');assert.ok(scene.hull>=1);
+ const hullAfterWave=scene.hull;
+ for(let i=0;i<400;i++){scene.time.now+=50;combatMethods.updateCombat.call(scene,50);}
+ assert.equal(scene.spiders.length,0);assert.equal(scene.hull,hullAfterWave);
+});
+test('completed base wave ignores stale saved enemies on reload and cannot start again',()=>{
+ const scene={floorNumber:0,repairQuest:restoreRepair({wave:'done'}),campaign:{combat:{wave:[{id:0,hp:3}]}},
+  textures:{get:()=>({getSourceImage:()=>({width:400,height:100}),has:()=>true})},
+  beginDefense:combatMethods.beginDefense};
+ combatMethods.makeCombat.call(scene);
+ assert.deepEqual(scene.spiders,[]);
+ scene.beginDefense(scene.campaign.combat.wave);
+ assert.equal(scene.repairQuest.wave,'done');assert.deepEqual(scene.spiders,[]);
+ assert.equal(combatMethods.combatSnapshot.call(scene).wave,undefined);
+});
+test('stale dead base spiders never count down respawn after the tutorial is complete',()=>{
+ const dead={id:0,x:800,y:800,homeX:800,homeY:800,hp:0,respawn:50};
+ const scene={floorNumber:0,repairQuest:{wave:'done'},rig:{x:1000,y:1000},spiders:[dead],
+  armoryQuest:{installed:false},weaponCooldown:0,combatTime:0,time:{now:0},lastSave:0,
+  driveSolids:()=>open,lift:{contains:()=>false},renderCombat(){}};
+ for(let i=0;i<400;i++)combatMethods.updateCombat.call(scene,50);
+ assert.equal(dead.hp,0);assert.equal(dead.respawn,50);
 });
 test('third-floor rescue, typed unsold cargo, wounds and killed spiders survive campaign reload and evacuation',async()=>{
  globalThis.Phaser={Scene:class{}};
