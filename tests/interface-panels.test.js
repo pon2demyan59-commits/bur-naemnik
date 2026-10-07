@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {campaignSummary,campaignObjective,createInventoryPanel,createHelpPanel} from '../src/interface-panels.js';
+import {campaignSummary,campaignObjective,createInventoryPanel,createHelpPanel,createDrillPanel} from '../src/interface-panels.js';
 test('menu summary follows the actual mission and handles legacy cargo saves',()=>{
  assert.equal(campaignObjective({}),'Голос за завалом');
  const p={location:'floor',floor:3,cargo:7,credits:45,hull:12.2,workshopQuest:{upgrades:4},repairQuest:{briefed:true}};
@@ -23,3 +23,5 @@ test('guide explains current combat, repeat upgrades and permanent lift access',
  assert.match(content,/несколько улучшений подряд/);assert.match(content,/дальность две клетки/);
  assert.match(content,/доступным навсегда/);assert.match(content,/больше не появляются на базе/);
 });
+
+test('drill passport reports actual upgrades, weapon and warehouse capacity',()=>{const flatten=fakeDOM(),text=flatten(createDrillPanel({workshopQuest:{upgrades:10},armoryQuest:{installed:true,weaponLevel:5},constructionQuest:{warehouse:true,warehouseLevel:3}}));assert.match(text,/Мощность 120%/);assert.match(text,/Урон за выстрел 1.1/);assert.match(text,/300 каждого материала/);assert.match(text,/Частота 1 выстрел/);});
