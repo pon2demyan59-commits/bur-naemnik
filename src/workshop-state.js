@@ -22,9 +22,9 @@ export function onWorkshopDeck(rig) {const d=WORKSHOP_DECK;return rig.x>=d.x&&ri
 export function workshopBlockCount(world) {return WORKSHOP_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 export function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefed&&workshopBlockCount(world)===0;}
 export function workshopPrice(q) {return Math.ceil(100*Math.pow(1.25,q.upgrades));}
-export function buyWorkshopUpgrade(q,credits) {
+export function buyWorkshopUpgrade(q,credits,allowDuringService=false) {
  const price=workshopPrice(q);
- if(!q.ready||q.serviceRemaining!=null||q.upgrades>=100||credits<price)return {bought:false,credits};
+ if(!q.ready||(!allowDuringService&&q.serviceRemaining!=null)||q.upgrades>=100||credits<price)return {bought:false,credits};
  q.upgrades++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};
 }
 export function objectiveBearing(rig,site) {
@@ -34,10 +34,11 @@ export function objectiveBearing(rig,site) {
 }
 
 // The purchase is already paid and saved. This only runs its presentation and safe exit.
-export function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK) {
+export function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK,stay=false) {
  const next={...rig,speed:0,moving:false};dt=Math.max(0,Math.min(.05,dt));
  if(q.serviceRemaining==null)return next;
- if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);return next;}
+ if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);if(stay&&q.serviceRemaining===0)q.serviceRemaining=null;return next;}
+ if(stay){q.serviceRemaining=null;return next;}
  next.angle=smoothHeading(rig.angle,90,dt,240,10);
  if(Math.abs(wrapDegrees(90-next.angle))>4)return next;
  const exitY=deck.y+deck.height+28;

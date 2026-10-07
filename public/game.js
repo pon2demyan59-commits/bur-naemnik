@@ -917,9 +917,9 @@ function onWorkshopDeck(rig) {const d=WORKSHOP_DECK;return rig.x>=d.x&&rig.x<=d.
 function workshopBlockCount(world) {return WORKSHOP_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefed&&workshopBlockCount(world)===0;}
 function workshopPrice(q) {return Math.ceil(100*Math.pow(1.25,q.upgrades));}
-function buyWorkshopUpgrade(q,credits) {
+function buyWorkshopUpgrade(q,credits,allowDuringService=false) {
  const price=workshopPrice(q);
- if(!q.ready||q.serviceRemaining!=null||q.upgrades>=100||credits<price)return {bought:false,credits};
+ if(!q.ready||(!allowDuringService&&q.serviceRemaining!=null)||q.upgrades>=100||credits<price)return {bought:false,credits};
  q.upgrades++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};
 }
 function objectiveBearing(rig,site) {
@@ -929,10 +929,11 @@ function objectiveBearing(rig,site) {
 }
 
 // The purchase is already paid and saved. This only runs its presentation and safe exit.
-function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK) {
+function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK,stay=false) {
  const next={...rig,speed:0,moving:false};dt=Math.max(0,Math.min(.05,dt));
  if(q.serviceRemaining==null)return next;
- if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);return next;}
+ if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);if(stay&&q.serviceRemaining===0)q.serviceRemaining=null;return next;}
+ if(stay){q.serviceRemaining=null;return next;}
  next.angle=smoothHeading(rig.angle,90,dt,240,10);
  if(Math.abs(wrapDegrees(90-next.angle))>4)return next;
  const exitY=deck.y+deck.height+28;
@@ -942,7 +943,6 @@ function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK) {
  if(y>=exitY)q.serviceRemaining=null;
  return next;
 }
-
 
 
 class WorkshopView {
@@ -1766,9 +1766,13 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.workshopQuest.ready||this.workshopQuest.serviceRemaining!=null||!onWorkshopDeck(this.rig))return;
     this.dialogClosed();this.persist();const q=this.workshopQuest;
     const panel=document.createElement('div');panel.className='lift-console';
-    const text=document.createElement('p'),buy=document.createElement('button');buy.className='metal-button';
-    const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);};
-    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});render();panel.append(text,buy);
+    const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
+    exit.textContent='ГОТОВО · ВЫЙТИ ИЗ МАСТЕРСКОЙ';
+    const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    this.workshopPanelRender=render;
+    document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
+    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;render();this.refreshHUD();this.persist();});
+    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();panel.append(text,buy,status,exit);
     document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
   }
   makeHUD() {
@@ -2064,7 +2068,15 @@ class Base extends globalThis.Phaser.Scene {
   update(time,delta) {
     if(!this.keys||document.hidden)return;
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
-    if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.busy||this.storyActive)return;
+    if(document.querySelector('#dialog').open){
+      if(this.workshopPanelRender){
+        this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
+        if(this.workshopQuest.serviceRemaining!=null)this.updateWorkshopService(time,Math.min(delta,50)/1000);
+        this.workshopPanelRender();
+      }
+      return;
+    }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
@@ -2082,7 +2094,7 @@ class Base extends globalThis.Phaser.Scene {
     this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));if(this.busy||this.leaving)return;this.checkWorkshop();this.checkArmory();this.checkRepair();
   }
   updateWorkshopService(time,dt,q=this.workshopQuest,deck=WORKSHOP_DECK) {
-    const next=stepWorkshopService(q,{x:this.rig.x,y:this.rig.y,angle:this.rig.angle},dt,this.driveSolids(),deck);
+    const next=stepWorkshopService(q,{x:this.rig.x,y:this.rig.y,angle:this.rig.angle},dt,this.driveSolids(),deck,q===this.workshopQuest);
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);this.speed=next.speed;this.moving=next.moving;this.cutting=false;this.drillBar.clear();
     this.world.x=Math.floor(next.x/CELL);this.world.y=Math.floor(next.y/CELL);this.animateVehicle(time,dt);
@@ -2228,7 +2240,6 @@ class Base extends globalThis.Phaser.Scene {
 
 
 Object.assign(Base.prototype,armoryMethods,repairMethods,combatMethods,cargoMethods);
-
 
 
 class Floor extends Base {

@@ -70,3 +70,41 @@ test('workshop automatic exit checks collision and releases the drill without ex
  assert.equal(restoreWorkshop({ready:true,upgrades:1,serviceRemaining:null}).serviceRemaining,null);
  assert.equal(restoreWorkshop({ready:false,serviceRemaining:1000}).serviceRemaining,null);
 });
+test('several workshop purchases share a service session, charge current prices and keep the drill parked',async()=>{
+ const {stepWorkshopService}=await import('../src/workshop-state.js');
+ let q=restoreWorkshop({ready:true}),credits=1000;
+ const rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:-90};
+ for(let i=0;i<3;i++){
+  const result=buyWorkshopUpgrade(q,credits,true);assert.equal(result.bought,true);credits=result.credits;
+  stepWorkshopService(q,rig,.05,()=>false,WORKSHOP_DECK,true);
+ }
+ assert.equal(q.upgrades,3);assert.equal(credits,618);
+ q=restoreWorkshop(JSON.parse(JSON.stringify(q)));
+ for(let i=0;i<80;i++){
+  const next=stepWorkshopService(q,rig,.05,()=>false,WORKSHOP_DECK,true);
+  assert.equal(next.x,rig.x);assert.equal(next.y,rig.y);assert.equal(next.angle,rig.angle);
+ }
+ assert.equal(q.serviceRemaining,null);assert.equal(q.upgrades,3);
+ assert.equal(buyWorkshopUpgrade(q,0,true).bought,false);
+ q.upgrades=100;assert.equal(buyWorkshopUpgrade(q,Number.MAX_SAFE_INTEGER,true).bought,false);
+});
+test('workshop panel stays open for successive clicks and its service progresses while the dialog is open',async()=>{
+ const {stepWorkshopService}=await import('../src/workshop-state.js');
+ const element=()=>({listeners:{},children:[],addEventListener(kind,fn){this.listeners[kind]=fn;},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=items;}});
+ const dialog=element(),body=element(),title=element();dialog.open=false;
+ dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;dialog.listeners.close?.();};
+ globalThis.document={hidden:false,createElement:element,querySelector:id=>({'#dialog':dialog,'#dialog-body':body,'#dialog-title':title}[id])};
+ const scene=new Base();scene.workshopQuest=restoreWorkshop({ready:true});scene.credits=1000;
+ scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=()=>{};
+ scene.openWorkshop();const [text,buy,status,exit]=body.children[0].children;
+ buy.listeners.click();buy.listeners.click();
+ assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,775);
+ assert.match(text.textContent,/104%/);assert.match(buy.textContent,/157/);assert.equal(exit.disabled,true);
+ scene.keys={};scene.syncAction=scene.drawLiftGlow=()=>{};scene.lift={update(){}};
+ scene.updateWorkshopService=()=>stepWorkshopService(scene.workshopQuest,scene.rig,.05,()=>false,WORKSHOP_DECK,true);
+ for(let i=0;i<80;i++)scene.update(i*50,50);
+ assert.equal(dialog.open,true);assert.equal(exit.disabled,false);assert.match(status.textContent,/выйти/);
+ buy.listeners.click();assert.equal(scene.workshopQuest.upgrades,3);assert.equal(scene.credits,618);
+ for(let i=0;i<80;i++)scene.update(i*50,50);
+ exit.listeners.click();assert.equal(dialog.open,false);assert.equal(scene.workshopPanelRender,null);
+});
