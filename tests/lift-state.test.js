@@ -59,3 +59,19 @@ test('keycard information derives from finished dialogues and keeps saved cards 
  assert.deepEqual(ownedKeycards({base:{rescued:true},armoryQuest:{briefed:true},repairQuest:{dialogue:'repairBrief',briefed:false}}),[1,2]);
  assert.deepEqual(ownedKeycards({base:{rescued:true},armoryQuest:{briefed:true},repairQuest:{briefed:true},keycards:[3,2,3,1,'4']}),[1,2,3]);
 });
+test('radio shows only the current quest card until its floor is opened, while access stays permanent',async()=>{
+ const {questKeycard}=await import('../src/lift-state.js');
+ assert.equal(questKeycard({}),null);
+ assert.equal(questKeycard({base:{rescued:true}}),1);
+ const progress={base:{rescued:true},keycards:[1,2,3],highestFloor:1,armoryQuest:{briefed:true}};
+ assert.equal(questKeycard(progress),2);
+ progress.highestFloor=2;assert.equal(questKeycard(progress),null);
+ progress.armoryQuest.ready=true;assert.equal(questKeycard(progress),null);
+ progress.repairQuest={briefed:true};assert.equal(questKeycard(progress),3);
+ progress.floor=3;assert.equal(questKeycard(progress),null);
+ progress.floor=0;progress.highestFloor=3;assert.equal(questKeycard(progress),null);
+ const reloaded=JSON.parse(JSON.stringify(progress));reloaded.keycards=[];
+ reloaded.base.rescued=false;reloaded.armoryQuest={};reloaded.repairQuest={};
+ assert.ok(liftDestinations(reloaded).filter(s=>s.floor<=3).every(s=>s.enabled));
+ assert.equal(questKeycard(reloaded),null);
+});

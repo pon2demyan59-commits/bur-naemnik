@@ -623,6 +623,13 @@ function liftDestinations(progress) {
   const last=Math.min(100,Math.max(highest+1,...cards));
   return [{floor:0,enabled:true},...Array.from({length:last},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
 }
+// The radio shows only the current mission's unused access card. Owned cards stay saved.
+function questKeycard(progress) {
+ const base=progress.base||progress,armory=progress.armoryQuest||{},repair=progress.repairQuest||{};
+ const target=repair.briefed?(repair.ready?null:3):armory.briefed?(armory.ready?null:2):base.rescued?1:null;
+ if(target==null||target<=(progress.highestFloor||0)||target===(progress.floor||0))return null;
+ return ownedKeycards(progress).includes(target)?target:null;
+}
 
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 class FloorWorld {
@@ -655,7 +662,6 @@ class FloorWorld {
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
-
 
 
 
@@ -1847,13 +1853,12 @@ class Base extends globalThis.Phaser.Scene {
   }
   refreshKeycards() {
     const info=document.querySelector('#keycard-info');if(!info)return;
-    const cards=ownedKeycards({...this.campaign,base:this.floorNumber?this.campaign.base:this.world,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
-    const signature=cards.join(',');if(info.dataset.cards===signature)return;
-    info.dataset.cards=signature;info.hidden=!cards.length;info.replaceChildren();
-    const title=document.createElement('span');title.className='keycard-caption';title.textContent='КАРТЫ ЛИФТА';info.append(title);
-    for(const floor of cards){
-      const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
-    }
+    const floor=questKeycard({...this.campaign,floor:this.floorNumber,base:this.floorNumber?this.campaign.base:this.world,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
+    const signature=String(floor);if(info.dataset.cards===signature)return;
+    info.dataset.cards=signature;info.hidden=floor==null;info.replaceChildren();
+    if(floor==null)return;
+    const title=document.createElement('span');title.className='keycard-caption';title.textContent='КАРТА ЗАДАНИЯ';info.append(title);
+    const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
   }
   snapshotCampaign() {
     const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};

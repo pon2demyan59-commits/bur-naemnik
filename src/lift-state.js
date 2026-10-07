@@ -29,6 +29,13 @@ export function liftDestinations(progress) {
   const last=Math.min(100,Math.max(highest+1,...cards));
   return [{floor:0,enabled:true},...Array.from({length:last},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
 }
+// The radio shows only the current mission's unused access card. Owned cards stay saved.
+export function questKeycard(progress) {
+ const base=progress.base||progress,armory=progress.armoryQuest||{},repair=progress.repairQuest||{};
+ const target=repair.briefed?(repair.ready?null:3):armory.briefed?(armory.ready?null:2):base.rescued?1:null;
+ if(target==null||target<=(progress.highestFloor||0)||target===(progress.floor||0))return null;
+ return ownedKeycards(progress).includes(target)?target:null;
+}
 
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 export class FloorWorld {
