@@ -27,6 +27,7 @@ test('every catalog material is wired to a real atlas, with only present materia
  const scene=fakeScene(),world={inside:()=>true,blocked:(x,y)=>y===10&&x>=5&&x<5+MATERIALS.length,material:(x,y)=>MATERIALS[x-5]?.id||'earth',damage:new Map()};
  const terrain=new WorldTerrain(scene,world);assert.equal(terrain.materialLayers.size,13);for(let i=0;i<MATERIALS.length;i++){const m=MATERIALS[i],g=terrain.materialLayers.get(m.id);assert.ok(g.layer.getTileAt(i+5,10));assert.equal(g.tiles.key,m.id==='earth'?'terrain-atlas':'terrain-'+m.id);}
 });
-test('first and second floor generation stays within the approved currently available materials',()=>{
- for(const floor of [1,2]){const world=new FloorWorld({},floor),seen=new Set();for(let y=2;y<48;y++)for(let x=2;x<48;x++)seen.add(terrainMaterial(world,x,y));assert.deepEqual([...seen].sort(),floor===1?['earth']:['earth','stone']);}
+test('both available mine floors can render every generated ore while the base remains earth',async()=>{
+ const {BaseWorld}=await import('../src/base-state.js');const base=new BaseWorld();for(let y=2;y<48;y++)for(let x=2;x<48;x++)assert.equal(base.material(x,y),'earth');
+ for(const floor of [1,2]){const world=new FloorWorld({materialSeed:12345},floor),seen=new Set();for(let y=2;y<48;y++)for(let x=2;x<48;x++)if(world.blocked(x,y))seen.add(terrainMaterial(world,x,y));assert.deepEqual([...seen].sort(),MATERIALS.map(m=>m.id).sort());}
 });

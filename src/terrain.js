@@ -139,13 +139,15 @@ function drawMaterialSurface(ctx,source,material,variant) {
 function makeTerrainAtlas(scene,material='earth') {
   const key=material==='earth'?'terrain-atlas':'terrain-'+material;
   if(scene.textures.exists(key))return key;
-  const texture=scene.textures.createCanvas(key,1088,1768);
+  const variants=material==='earth'?16:materialDefinition(material).frames.length>1?8:4;
+  const cornerBase=material==='earth'?288:variants*16;
+  const texture=scene.textures.createCanvas(key,1088,Math.ceil((cornerBase+variants*8)/16)*68);
   const sprites=Object.fromEntries(['pipe','cap','vent','drain','cable'].map(name=>[name,spriteSource(scene,'prop-'+name)]));
   const ctx=texture.getContext(),source=scene.textures.get('material-surfaces').getSourceImage();
   const faceTexture=scene.textures.createCanvas('material-face-'+material,256,64),faceCtx=faceTexture.getContext();
   for(let i=0;i<4;i++){faceCtx.save();faceCtx.translate(i*64,0);drawMaterialSurface(faceCtx,source,material,i);faceCtx.fillStyle='rgba(13,18,20,.25)';faceCtx.fillRect(0,0,64,64);faceCtx.restore();}
   faceTexture.refresh();const face=faceTexture.getSourceImage();
-  for(let variant=0;variant<16;variant++)for(let mask=0;mask<16;mask++) {
+  for(let variant=0;variant<variants;variant++)for(let mask=0;mask<16;mask++) {
     const index=variant*16+mask,ox=index%16*68+2,oy=Math.floor(index/16)*68+2;
     ctx.save();ctx.translate(ox,oy);ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();
     drawMaterialSurface(ctx,source,material,variant);
@@ -158,10 +160,10 @@ function makeTerrainAtlas(scene,material='earth') {
     ctx.drawImage(canvas,ox,oy-2,1,68,ox-2,oy-2,2,68);
     ctx.drawImage(canvas,ox+63,oy-2,1,68,ox+64,oy-2,2,68);
   }
-  for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
-  for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
-  for(let variant=0;variant<16;variant++)for(let type=0;type<8;type++) {
-    const index=288+variant*8+type;
+  if(material==='earth')for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
+  if(material==='earth')for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
+  for(let variant=0;variant<variants;variant++)for(let type=0;type<8;type++) {
+    const index=cornerBase+variant*8+type;
     ctx.save();ctx.translate(index%16*68+2,Math.floor(index/16)*68+2);
     ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();cornerPatch(ctx,type,variant,face);ctx.restore();
   }
@@ -182,16 +184,18 @@ export class WorldTerrain {
     const key=makeTerrainAtlas(this.scene,material),tiles=this.map.addTilesetImage(key,key,CELL,CELL,2,4);
     const layer=this.map.createBlankLayer('surface-'+material,tiles).setDepth(3);
     const corners=Array.from({length:4},(_,i)=>this.map.createBlankLayer('corner-'+material+'-'+i,tiles).setDepth(3.1));
-    const group={tiles,layer,corners};this.materialLayers.set(material,group);return group;
+    const variants=material==='earth'?16:materialDefinition(material).frames.length>1?8:4;
+    const group={tiles,layer,corners,variants,cornerBase:material==='earth'?288:variants*16};this.materialLayers.set(material,group);return group;
   }
   paintCell(x,y) {
     if(x<0||y<0||x>=BASE_SIZE||y>=BASE_SIZE)return;
     const group=this.layersFor(terrainMaterial(this.world,x,y));
     for(const other of this.materialLayers.values())if(other!==group){other.layer.removeTileAt(x,y);for(const corner of other.corners)corner.removeTileAt(x,y);}
-    const tile=group.layer.putTileAt(terrainTileIndex(this.world,x,y),x,y);
+    const rawIndex=terrainTileIndex(this.world,x,y),variant=((y%4)*4+x%4)%group.variants;
+    const tile=group.layer.putTileAt(this.world.blocked(x,y)?variant*16+(rawIndex%16):rawIndex,x,y);
     terrainCornerTypes(this.world,x,y).forEach((type,i)=>{
       if(type<0)group.corners[i].removeTileAt(x,y);
-      else group.corners[i].putTileAt(288+((y%4)*4+x%4)*8+type,x,y);
+      else group.corners[i].putTileAt(group.cornerBase+variant*8+type,x,y);
     });
     const fixture=floorFixtureIndex(this.world,x,y);
     if(fixture<0)this.fixtures.removeTileAt(x,y);else this.fixtures.putTileAt(fixture,x,y);

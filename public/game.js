@@ -68,6 +68,7 @@ class BaseWorld {
     this.heard = progress.heard === true || this.rescued;
     if (this.blocked(this.x, this.y) || (!this.rescued && this.x === RESCUE.x && this.y === RESCUE.y)) { this.x = SPAWN.x; this.y = SPAWN.y; }
   }
+  material(){return 'earth';}
   blocked(x, y) { return initialRubble(x, y) && !this.cleared.has(id(x, y)); }
   inside(x, y) { return x >= 2 && y >= 2 && x < 48 && y < 48; }
   drill(x, y, amount) {
@@ -218,6 +219,20 @@ function materialFrameRect(id,variant,width,height=width){const m=materialDefini
 function terrainMaterial(world,x,y){return world.blocked(x,y)?materialDefinition(world.material?.(x,y)||'earth').id:'earth';}
 
 
+// User-requested preview distribution: every drawn material is available from floor 1.
+const DEPOSIT_WEIGHTS=[['earth',50],['stone',25],['iron',5],['copper',4],['bauxite',3],['tin',2],['zinc',2],['nickel',2],['chromium',2],['titanium',2],['tungsten',1],['gold',1.5],['xenorite',.5]];
+function validMaterialSeed(seed){return Number.isInteger(seed)&&seed>=0&&seed<=0xffffffff;}
+function createMaterialSeed(){return Math.floor(Math.random()*0x100000000)>>>0;}
+function depositMaterial(seed,floor,x,y) {
+ let n=(seed^Math.imul(x+1,73856093)^Math.imul(y+1,19349663)^Math.imul(floor,83492791))>>>0;
+ n=Math.imul(n^(n>>>16),0x7feb352d);n=Math.imul(n^(n>>>15),0x846ca68b);n=(n^(n>>>16))>>>0;
+ const roll=n/0x100000000*100;let sum=0;
+ for(const [id,weight] of DEPOSIT_WEIGHTS){sum+=weight;if(roll<sum)return id;}
+ return 'earth';
+}
+function restoreMaterialOverrides(value){return new Map(Array.isArray(value)?value.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<2500&&MATERIALS.some(m=>m.id===v[1])):[]);}
+
+
 
 
 function terrainTileIndex(world,x,y) {
@@ -358,13 +373,15 @@ function drawMaterialSurface(ctx,source,material,variant) {
 function makeTerrainAtlas(scene,material='earth') {
   const key=material==='earth'?'terrain-atlas':'terrain-'+material;
   if(scene.textures.exists(key))return key;
-  const texture=scene.textures.createCanvas(key,1088,1768);
+  const variants=material==='earth'?16:materialDefinition(material).frames.length>1?8:4;
+  const cornerBase=material==='earth'?288:variants*16;
+  const texture=scene.textures.createCanvas(key,1088,Math.ceil((cornerBase+variants*8)/16)*68);
   const sprites=Object.fromEntries(['pipe','cap','vent','drain','cable'].map(name=>[name,spriteSource(scene,'prop-'+name)]));
   const ctx=texture.getContext(),source=scene.textures.get('material-surfaces').getSourceImage();
   const faceTexture=scene.textures.createCanvas('material-face-'+material,256,64),faceCtx=faceTexture.getContext();
   for(let i=0;i<4;i++){faceCtx.save();faceCtx.translate(i*64,0);drawMaterialSurface(faceCtx,source,material,i);faceCtx.fillStyle='rgba(13,18,20,.25)';faceCtx.fillRect(0,0,64,64);faceCtx.restore();}
   faceTexture.refresh();const face=faceTexture.getSourceImage();
-  for(let variant=0;variant<16;variant++)for(let mask=0;mask<16;mask++) {
+  for(let variant=0;variant<variants;variant++)for(let mask=0;mask<16;mask++) {
     const index=variant*16+mask,ox=index%16*68+2,oy=Math.floor(index/16)*68+2;
     ctx.save();ctx.translate(ox,oy);ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();
     drawMaterialSurface(ctx,source,material,variant);
@@ -377,10 +394,10 @@ function makeTerrainAtlas(scene,material='earth') {
     ctx.drawImage(canvas,ox,oy-2,1,68,ox-2,oy-2,2,68);
     ctx.drawImage(canvas,ox+63,oy-2,1,68,ox+64,oy-2,2,68);
   }
-  for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
-  for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
-  for(let variant=0;variant<16;variant++)for(let type=0;type<8;type++) {
-    const index=288+variant*8+type;
+  if(material==='earth')for(let mask=0;mask<16;mask++){ctx.save();ctx.translate(mask*68+2,1090);floorShadow(ctx,mask);ctx.restore();}
+  if(material==='earth')for(let type=0;type<8;type++){ctx.save();ctx.translate(type*68+2,1158);floorFixture(ctx,type,sprites);ctx.restore();}
+  for(let variant=0;variant<variants;variant++)for(let type=0;type<8;type++) {
+    const index=cornerBase+variant*8+type;
     ctx.save();ctx.translate(index%16*68+2,Math.floor(index/16)*68+2);
     ctx.beginPath();ctx.rect(0,0,64,64);ctx.clip();cornerPatch(ctx,type,variant,face);ctx.restore();
   }
@@ -401,16 +418,18 @@ class WorldTerrain {
     const key=makeTerrainAtlas(this.scene,material),tiles=this.map.addTilesetImage(key,key,CELL,CELL,2,4);
     const layer=this.map.createBlankLayer('surface-'+material,tiles).setDepth(3);
     const corners=Array.from({length:4},(_,i)=>this.map.createBlankLayer('corner-'+material+'-'+i,tiles).setDepth(3.1));
-    const group={tiles,layer,corners};this.materialLayers.set(material,group);return group;
+    const variants=material==='earth'?16:materialDefinition(material).frames.length>1?8:4;
+    const group={tiles,layer,corners,variants,cornerBase:material==='earth'?288:variants*16};this.materialLayers.set(material,group);return group;
   }
   paintCell(x,y) {
     if(x<0||y<0||x>=BASE_SIZE||y>=BASE_SIZE)return;
     const group=this.layersFor(terrainMaterial(this.world,x,y));
     for(const other of this.materialLayers.values())if(other!==group){other.layer.removeTileAt(x,y);for(const corner of other.corners)corner.removeTileAt(x,y);}
-    const tile=group.layer.putTileAt(terrainTileIndex(this.world,x,y),x,y);
+    const rawIndex=terrainTileIndex(this.world,x,y),variant=((y%4)*4+x%4)%group.variants;
+    const tile=group.layer.putTileAt(this.world.blocked(x,y)?variant*16+(rawIndex%16):rawIndex,x,y);
     terrainCornerTypes(this.world,x,y).forEach((type,i)=>{
       if(type<0)group.corners[i].removeTileAt(x,y);
-      else group.corners[i].putTileAt(288+((y%4)*4+x%4)*8+type,x,y);
+      else group.corners[i].putTileAt(group.cornerBase+variant*8+type,x,y);
     });
     const fixture=floorFixtureIndex(this.world,x,y);
     if(fixture<0)this.fixtures.removeTileAt(x,y);else this.fixtures.putTileAt(fixture,x,y);
@@ -435,6 +454,7 @@ function bunkerFloorTexture(scene) {
   }
   texture.refresh();return key;
 }
+
 
 
 
@@ -468,6 +488,13 @@ class FloorWorld {
     this.y=Number.isInteger(progress.y)?progress.y:FLOOR_LIFT.y;
     this.cleared=new Set(Array.isArray(progress.cleared)?progress.cleared.filter(n=>Number.isInteger(n)&&n>=0&&n<BASE_SIZE*BASE_SIZE):[]);
     this.damage=new Map(Array.isArray(progress.damage)?progress.damage.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<BASE_SIZE*BASE_SIZE&&Number.isFinite(v[1])&&v[1]>0&&v[1]<1):[]);
+    this.materialSeed=validMaterialSeed(progress.materialSeed)?progress.materialSeed:createMaterialSeed();
+    this.materialOverrides=restoreMaterialOverrides(progress.materialOverrides);
+    // Keep the material of partially drilled old blocks during migration.
+    if(!validMaterialSeed(progress.materialSeed))for(const key of this.damage.keys()) {
+      const x=key%BASE_SIZE,y=Math.floor(key/BASE_SIZE);
+      this.materialOverrides.set(key,this.floor===2&&((x*31+y*17+x*y)%100)<38?'stone':'earth');
+    }
     this.rescued=true;this.heard=true;
     const parked=progress.drive;
     const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
@@ -476,11 +503,11 @@ class FloorWorld {
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
   blocked(x,y){const item=this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
-  material(x,y){return this.floor===2&&((x*31+y*17+x*y)%100)<38?'stone':'earth';}
-  hardness(x,y){return this.material(x,y)==='stone'?2.5:1;}
+  material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
+  hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
-  snapshot(){return {location:'floor',floor:this.floor,x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+  snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
 
 

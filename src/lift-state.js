@@ -1,3 +1,4 @@
+import { createMaterialSeed, validMaterialSeed, depositMaterial, restoreMaterialOverrides } from './deposits.js';
 import { circleHitsRect } from './drive-controller.js';
 import { BASE_SIZE, CELL } from './base-state.js';
 export const LIFT = {x:33,y:21};
@@ -29,6 +30,13 @@ export class FloorWorld {
     this.y=Number.isInteger(progress.y)?progress.y:FLOOR_LIFT.y;
     this.cleared=new Set(Array.isArray(progress.cleared)?progress.cleared.filter(n=>Number.isInteger(n)&&n>=0&&n<BASE_SIZE*BASE_SIZE):[]);
     this.damage=new Map(Array.isArray(progress.damage)?progress.damage.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<BASE_SIZE*BASE_SIZE&&Number.isFinite(v[1])&&v[1]>0&&v[1]<1):[]);
+    this.materialSeed=validMaterialSeed(progress.materialSeed)?progress.materialSeed:createMaterialSeed();
+    this.materialOverrides=restoreMaterialOverrides(progress.materialOverrides);
+    // Keep the material of partially drilled old blocks during migration.
+    if(!validMaterialSeed(progress.materialSeed))for(const key of this.damage.keys()) {
+      const x=key%BASE_SIZE,y=Math.floor(key/BASE_SIZE);
+      this.materialOverrides.set(key,this.floor===2&&((x*31+y*17+x*y)%100)<38?'stone':'earth');
+    }
     this.rescued=true;this.heard=true;
     const parked=progress.drive;
     const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
@@ -37,10 +45,10 @@ export class FloorWorld {
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
   blocked(x,y){const item=this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
-  material(x,y){return this.floor===2&&((x*31+y*17+x*y)%100)<38?'stone':'earth';}
-  hardness(x,y){return this.material(x,y)==='stone'?2.5:1;}
+  material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
+  hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
   drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
-  snapshot(){return {location:'floor',floor:this.floor,x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
+  snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
 

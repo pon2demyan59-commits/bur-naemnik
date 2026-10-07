@@ -35,6 +35,7 @@ export class BaseWorld {
     this.heard = progress.heard === true || this.rescued;
     if (this.blocked(this.x, this.y) || (!this.rescued && this.x === RESCUE.x && this.y === RESCUE.y)) { this.x = SPAWN.x; this.y = SPAWN.y; }
   }
+  material(){return 'earth';}
   blocked(x, y) { return initialRubble(x, y) && !this.cleared.has(id(x, y)); }
   inside(x, y) { return x >= 2 && y >= 2 && x < 48 && y < 48; }
   drill(x, y, amount) {
