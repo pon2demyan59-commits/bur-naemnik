@@ -12,7 +12,7 @@ import { gameplayZoom } from './viewport-sync.js';
 import { createTouchJoystick } from './touch-joystick.js';
 import { showGamePanel, showBuildingMenu, openPauseMenu } from './game-menus.js';
 import { materialDefinition } from './materials.js';
-import { createInventoryPanel } from './interface-panels.js';
+import { createInventoryPanel, createDrillPanel } from './interface-panels.js';
 import { cargoMethods } from './cargo-scene.js';
 import { restoreCargo, cargoCount, addCargo } from './cargo-state.js';
 import { repairMethods } from './repair-scene.js';
@@ -286,7 +286,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
+    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
   }
   goMenu() {if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
