@@ -1,7 +1,7 @@
 import { collectionMethods } from './collection-page.js';
 import { restoreClosedCollections, collectionBuffTotals } from './collection-state.js';
 import { artifactSceneMethods } from './artifact-scene.js';
-import { restoreArtifacts, collectArtifact } from './artifact-state.js';
+import { restoreArtifacts } from './artifact-state.js';
 import { restoreBuildingLayout } from './building-layout-state.js';
 import { buildingLayoutMethods } from './building-layout-scene.js';
 import { makeQuestItem } from './quest-item-view.js';
@@ -526,7 +526,7 @@ export class Base extends globalThis.Phaser.Scene {
       return;
     }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
-    this.updateArtifactFinds();this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
+    this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.repairShop?.update(Math.min(delta,50),this.repairQuest.serviceRemaining>0);
@@ -596,7 +596,7 @@ export class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        const artifact=collectArtifact(this.world.hiddenArtifacts,this.artifacts,key);if(artifact)this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name);
+        this.findArtifactInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
