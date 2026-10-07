@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { restoreConstruction, beginWarehouse, stepConstruction, transferWarehouse, BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_GUARDS, canRescueBuilder, WAREHOUSE_PLOTS } from '../src/construction-state.js';
+import { restoreConstruction, beginWarehouse, stepConstruction, transferWarehouse, BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_GUARDS, canRescueBuilder, WAREHOUSE_PLOTS, warehouseCapacity, warehouseUpgradePrice, upgradeWarehouse } from '../src/construction-state.js';
 import { FloorWorld, ownedKeycards, questKeycard, liftDestinations } from '../src/lift-state.js';
 import { BaseWorld } from '../src/base-state.js';
 import { restoreSpider, stepSpider } from '../src/combat-state.js';
@@ -40,8 +40,8 @@ test('paid construction survives reload, completes once, and cannot be bought tw
 });
 test('warehouse respects both capacities, invalid inputs and saved stock',()=>{
  const q=restoreConstruction({rescued:true,unlocked:true,warehouse:true,stock:{earth:990}}),cargo={stone:20};
- assert.equal(transferWarehouse(q,cargo,'stone',20,true),10);assert.equal(q.stock.stone,10);assert.equal(cargo.stone,10);
- assert.equal(transferWarehouse(q,cargo,'earth',10000,false),190);assert.equal(cargo.earth,190);
+ assert.equal(transferWarehouse(q,cargo,'stone',20,true),20);assert.equal(q.stock.stone,20);assert.equal(cargo.stone,undefined);assert.equal(q.stock.earth,990);assert.equal(transferWarehouse(q,{earth:5},'earth',5,true),0);
+ assert.equal(transferWarehouse(q,cargo,'earth',10000,false),200);assert.equal(cargo.earth,200);
  assert.equal(transferWarehouse(q,cargo,'earth',1,false),0);assert.equal(transferWarehouse(q,cargo,'earth',-3,false),0);
  assert.equal(transferWarehouse(q,cargo,'invalid',1,true),0);assert.deepEqual(restoreConstruction(JSON.parse(JSON.stringify(q))).stock,q.stock);
  assert.deepEqual(restoreConstruction().stock,{});
@@ -59,3 +59,5 @@ test('death loses carried materials but preserves warehouse stock and constructi
  const s=new Base();s.sys={settings:{key:'Floor'}};s.init({save:{progress:{location:'floor',floor:4,base:{rescued:true},cargoHold:{earth:20},constructionQuest:{briefed:true,rescued:true,unlocked:true,warehouse:true,stock:{stone:40}}}}});
  s.rig={x:25.5*64,y:7.5*64,angle:0};let evacuation;s.scene={start:(name,args)=>{evacuation=args.save.progress;}};s.emergencyReturn();assert.equal(evacuation.cargo,0);assert.deepEqual(evacuation.cargoHold,{});assert.deepEqual(evacuation.constructionQuest.stock,{stone:40});assert.equal(evacuation.constructionQuest.warehouse,true);
 });
+
+test('warehouse upgrades persist and each material has its own limit',()=>{const q=restoreConstruction({rescued:true,unlocked:true,warehouse:true}),cargo={earth:150,stone:150};assert.equal(warehouseCapacity(q),100);assert.equal(transferWarehouse(q,cargo,'earth',150,true),100);assert.equal(transferWarehouse(q,cargo,'stone',150,true),100);assert.deepEqual(upgradeWarehouse(q,199),{bought:false,credits:199});assert.deepEqual(upgradeWarehouse(q,200),{bought:true,credits:0});assert.equal(warehouseUpgradePrice(q),250);assert.equal(warehouseCapacity(restoreConstruction(JSON.parse(JSON.stringify(q)))),200);assert.equal(transferWarehouse(q,cargo,'earth',50,true),50);assert.equal(warehouseCapacity(restoreConstruction({warehouseLevel:-5})),100);});
