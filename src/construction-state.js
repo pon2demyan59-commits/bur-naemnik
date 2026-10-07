@@ -8,17 +8,18 @@ export const BUILDER_STORIES=['builderBrief','builderSignal','builderRescue','bu
 export const CONSTRUCTION_DESK={x:22,y:24};
 export const WAREHOUSE_PLOTS=[{x:24,y:18,name:'У лифта'},{x:13,y:23,name:'Западная площадка'},{x:24,y:37,name:'Южная площадка'},{x:39,y:18,name:'Восточная площадка'}];
 export const WAREHOUSE_RECIPE={earth:80,stone:20};
-export const WAREHOUSE_MS=10000,WAREHOUSE_CAPACITY=1000;
+export const WAREHOUSE_MS=10000,WAREHOUSE_CAPACITY=100;
 const natural=n=>Number.isSafeInteger(n)&&n>0?n:0;
 export function stockCount(stock={}){return MATERIALS.reduce((n,m)=>n+natural(stock[m.id]),0);}
 export function restoreConstruction(v={}){
  if(!v||typeof v!=='object')v={};
- const stock={};let left=WAREHOUSE_CAPACITY;
- for(const m of MATERIALS){const n=Math.min(left,natural(v.stock?.[m.id]));if(n){stock[m.id]=n;left-=n;}}
+ const stock={};
+ for(const m of MATERIALS){const n=natural(v.stock?.[m.id]);if(n)stock[m.id]=n;}
  const rescued=v.rescued===true,unlocked=rescued&&v.unlocked===true;
  return {briefed:v.briefed===true,signalHeard:v.signalHeard===true,rescued,unlocked,
  offset:{dx:Number.isInteger(v.offset?.dx)&&Math.abs(v.offset.dx)<=45?v.offset.dx:0,dy:Number.isInteger(v.offset?.dy)&&Math.abs(v.offset.dy)<=45?v.offset.dy:0},
  plot:Number.isInteger(v.plot)&&v.plot>=0&&v.plot<WAREHOUSE_PLOTS.length?v.plot:0,
+ warehouseLevel:Number.isInteger(v.warehouseLevel)?Math.max(1,Math.min(100,v.warehouseLevel)):1,
  warehouse:unlocked&&v.warehouse===true,remaining:unlocked&&!v.warehouse&&Number.isFinite(v.remaining)?Math.max(0,Math.min(WAREHOUSE_MS,v.remaining)):null,stock,
  dialogue:BUILDER_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,Math.min(3,v.dialoguePage)):0};
 }
@@ -38,7 +39,12 @@ export function stepConstruction(q,delta){if(q.remaining==null)return false;q.re
 export function transferWarehouse(q,cargo,id,count,deposit,cargoCapacity=200){
  if(!q.warehouse||!MATERIALS.some(m=>m.id===id)||!Number.isSafeInteger(count)||count<=0)return 0;
  const source=deposit?cargo:q.stock,target=deposit?q.stock:cargo;
- const capacity=deposit?WAREHOUSE_CAPACITY:cargoCapacity;
- const n=Math.min(count,natural(source[id]),Math.max(0,capacity-stockCount(target)));
+ const free=deposit?warehouseCapacity(q)-natural(target[id]):cargoCapacity-stockCount(target);
+ const n=Math.min(count,natural(source[id]),Math.max(0,free));
  if(!n)return 0;source[id]-=n;if(!source[id])delete source[id];target[id]=natural(target[id])+n;return n;
 }
+
+export function warehouseCapacity(q={}){return WAREHOUSE_CAPACITY*(Number.isInteger(q.warehouseLevel)?Math.max(1,Math.min(100,q.warehouseLevel)):1);}
+// Temporary upgrade price; +100 of every material per level.
+export function warehouseUpgradePrice(q){return Math.ceil(200*Math.pow(1.25,warehouseCapacity(q)/100-1));}
+export function upgradeWarehouse(q,credits){const price=warehouseUpgradePrice(q);if(!q.warehouse||warehouseCapacity(q)>=10000||!Number.isSafeInteger(credits)||credits<price)return {bought:false,credits};q.warehouseLevel=warehouseCapacity(q)/100+1;return {bought:true,credits:credits-price};}
