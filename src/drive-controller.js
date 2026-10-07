@@ -1,7 +1,13 @@
 import { smoothHeading, wrapDegrees, damp } from './drill-motion.js';
 const angles = {right:0,down:90,left:180,up:-90};
 // A compact collision circle keeps narrow cleared passages usable.
+export function circleHitsRect(x,y,rect,radius=21) {
+  const nx=Math.max(rect.x,Math.min(x,rect.x+rect.width));
+  const ny=Math.max(rect.y,Math.min(y,rect.y+rect.height));
+  return (x-nx)**2+(y-ny)**2<radius**2;
+}
 export function driveFits(x,y,solid,radius=21,cell=64) {
+  if((solid.rectangles||[]).some(rect=>circleHitsRect(x,y,rect,radius)))return false;
   for(let cy=Math.floor((y-radius)/cell);cy<=Math.floor((y+radius)/cell);cy++)
     for(let cx=Math.floor((x-radius)/cell);cx<=Math.floor((x+radius)/cell);cx++) {
       if(!solid(cx,cy))continue;
@@ -59,3 +65,4 @@ export function driveStep(state,direction,dt,solid) {
   }
   return {x,y,angle,speed,blocked,moving:Math.hypot(x-state.x,y-state.y)>.001};
 }
+

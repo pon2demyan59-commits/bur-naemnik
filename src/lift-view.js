@@ -1,3 +1,4 @@
+import { liftGeometry } from './lift-state.js';
 import { CELL } from './base-state.js';
 import { readSettings } from './storage.js';
 export class LiftView {
@@ -9,6 +10,7 @@ export class LiftView {
     const image=(key,depth)=>{const [x,y,w,h]=pieces[key];if(!texture.has(key))texture.add(key,0,x,y,w,h);return scene.add.image(originX+(x-127)*scale,originY+(y-40)*scale,'freight-lift',key).setOrigin(0).setScale(scale).setDepth(depth);};
     this.deckX=originX+(333-127)*scale;this.deckY=originY+(320-40)*scale;
     this.deckW=665*scale;this.deckH=565*scale;
+    this.colliders=liftGeometry(center).colliders;
     this.shaft=scene.add.rectangle(this.deckX,this.deckY,this.deckW,this.deckH,0x0c1719).setOrigin(0).setDepth(2);
     this.platform=image('deck',2.2);this.parts=['top','bottom','left','right'].map(key=>image(key,25));
     this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
@@ -17,7 +19,7 @@ export class LiftView {
     this.indicator=scene.add.circle(this.x+169,this.y+24,4,0x86f672).setDepth(27);
     scene.events.once('shutdown',()=>{this.mask.destroy();this.gateMask.destroy();shaftClip.destroy();gateClip.destroy();});
   }
-  contains(rig){return rig.x>this.deckX+48&&rig.x<this.deckX+this.deckW-48&&rig.y>this.deckY+48&&rig.y<this.deckY+this.deckH-48;}
+  contains(rig){return rig.x>this.deckX+21&&rig.x<this.deckX+this.deckW-21&&rig.y>this.deckY+21&&rig.y<this.deckY+this.deckH-21;}
   powered(value){this.indicator.setFillStyle(value?0x74ee87:0xffad46);this.parts.forEach(p=>p.setDepth(value?25:2.5));}
   motor(duration=.8) {
     if(!readSettings().sound)return;
@@ -47,3 +49,4 @@ export class LiftView {
     rig.clearMask();this.platform.clearMask();shadow.setVisible(true);this.powered(true);this.scene.cameras.main.startFollow(rig,true,.10,.10);
   }
 }
+

@@ -92,7 +92,13 @@ function updateHeat(heat, cutting, dt) { return Math.max(0,Math.min(1,heat + (cu
 
 const angles = {right:0,down:90,left:180,up:-90};
 // A compact collision circle keeps narrow cleared passages usable.
+function circleHitsRect(x,y,rect,radius=21) {
+  const nx=Math.max(rect.x,Math.min(x,rect.x+rect.width));
+  const ny=Math.max(rect.y,Math.min(y,rect.y+rect.height));
+  return (x-nx)**2+(y-ny)**2<radius**2;
+}
 function driveFits(x,y,solid,radius=21,cell=64) {
+  if((solid.rectangles||[]).some(rect=>circleHitsRect(x,y,rect,radius)))return false;
   for(let cy=Math.floor((y-radius)/cell);cy<=Math.floor((y+radius)/cell);cy++)
     for(let cx=Math.floor((x-radius)/cell);cx<=Math.floor((x+radius)/cell);cx++) {
       if(!solid(cx,cy))continue;
@@ -387,6 +393,7 @@ function bunkerFloorTexture(scene) {
 
 
 
+
 const LIFT = {x:33,y:21};
 const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
 const FLOOR_LIFT = {x:25,y:7};
@@ -394,6 +401,15 @@ function liftBlockCount(world) { return LIFT_BLOCKS.filter(p=>world.blocked(p.x,
 function liftFrameCell(x,y,center=LIFT) {
   const dx=x-center.x,dy=y-center.y;
   return Math.abs(dx)<=3&&dy>=-3&&dy<=3&&!(Math.abs(dx)<=1&&dy>=-1);
+}
+// Match the cropped sprite in LiftView instead of blocking a seven-cell square.
+function liftGeometry(center=LIFT) {
+  const scale=384/1077,x=(center.x+.5)*CELL-192,y=(center.y+.5)*CELL-1063*scale/2;
+  const rect=(sx,sy,w,h)=>({x:x+(sx-127)*scale,y:y+(sy-40)*scale,width:w*scale,height:h*scale});
+  return {deck:rect(333,320,665,565),colliders:[
+    rect(127,40,1077,280),rect(127,320,206,565),rect(998,320,206,565),
+    rect(127,885,291,160),rect(915,885,289,160)
+  ]};
 }
 function liftDestinations(progress) {
   const base=progress.base||progress,highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0)));
@@ -408,7 +424,10 @@ class FloorWorld {
     this.cleared=new Set(Array.isArray(progress.cleared)?progress.cleared.filter(n=>Number.isInteger(n)&&n>=0&&n<BASE_SIZE*BASE_SIZE):[]);
     this.damage=new Map(Array.isArray(progress.damage)?progress.damage.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<BASE_SIZE*BASE_SIZE&&Number.isFinite(v[1])&&v[1]>0&&v[1]<1):[]);
     this.rescued=true;this.heard=true;
-    if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftFrameCell(this.x,this.y,FLOOR_LIFT)){this.x=25;this.y=7;}
+    const parked=progress.drive;
+    const hasParked=parked&&Number.isFinite(parked.x)&&Number.isFinite(parked.y)&&Math.floor(parked.x/CELL)===this.x&&Math.floor(parked.y/CELL)===this.y;
+    const px=hasParked?parked.x:(this.x+.5)*CELL,py=hasParked?parked.y:(this.y+.5)*CELL;
+    if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftGeometry(FLOOR_LIFT).colliders.some(rect=>circleHitsRect(px,py,rect))){this.x=25;this.y=7;}
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
   blocked(x,y){return this.inside(x,y)&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
@@ -416,6 +435,7 @@ class FloorWorld {
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:1,x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
+
 
 
 
@@ -429,6 +449,7 @@ class LiftView {
     const image=(key,depth)=>{const [x,y,w,h]=pieces[key];if(!texture.has(key))texture.add(key,0,x,y,w,h);return scene.add.image(originX+(x-127)*scale,originY+(y-40)*scale,'freight-lift',key).setOrigin(0).setScale(scale).setDepth(depth);};
     this.deckX=originX+(333-127)*scale;this.deckY=originY+(320-40)*scale;
     this.deckW=665*scale;this.deckH=565*scale;
+    this.colliders=liftGeometry(center).colliders;
     this.shaft=scene.add.rectangle(this.deckX,this.deckY,this.deckW,this.deckH,0x0c1719).setOrigin(0).setDepth(2);
     this.platform=image('deck',2.2);this.parts=['top','bottom','left','right'].map(key=>image(key,25));
     this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
@@ -437,7 +458,7 @@ class LiftView {
     this.indicator=scene.add.circle(this.x+169,this.y+24,4,0x86f672).setDepth(27);
     scene.events.once('shutdown',()=>{this.mask.destroy();this.gateMask.destroy();shaftClip.destroy();gateClip.destroy();});
   }
-  contains(rig){return rig.x>this.deckX+48&&rig.x<this.deckX+this.deckW-48&&rig.y>this.deckY+48&&rig.y<this.deckY+this.deckH-48;}
+  contains(rig){return rig.x>this.deckX+21&&rig.x<this.deckX+this.deckW-21&&rig.y>this.deckY+21&&rig.y<this.deckY+this.deckH-21;}
   powered(value){this.indicator.setFillStyle(value?0x74ee87:0xffad46);this.parts.forEach(p=>p.setDepth(value?25:2.5));}
   motor(duration=.8) {
     if(!readSettings().sound)return;
@@ -522,8 +543,13 @@ const PORODNIK_BLOCKS = Array.from({length:5},(_,i)=>({x:16+i,y:33}));
 function porodnikArea(x,y) { return x>=15&&x<=21&&y>=28&&y<=36; }
 function porodnikFrameCell(x,y) { return x>=16&&x<=20&&y>=29&&y<=32; }
 function porodnikBlockCount(world) { return PORODNIK_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length; }
+// Sprite frames and interaction use the same bounds, with no hidden inset.
+const PORODNIK_MACHINE={x:16*CELL,y:29*CELL,width:320,height:217.5};
+const PORODNIK_DECK={x:18.5*CELL-40,y:29*CELL+217.5,width:80,height:96};
+const PORODNIK_COLLIDER={x:PORODNIK_MACHINE.x+4,y:PORODNIK_MACHINE.y+4,width:312,height:PORODNIK_MACHINE.height-4};
 function onPorodnikDeck(rig) {
-  return rig.x>16*CELL+28&&rig.x<21*CELL-28&&rig.y>33*CELL+28&&rig.y<36*CELL-28;
+  const d=PORODNIK_DECK;
+  return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 }
 
 
@@ -546,7 +572,7 @@ class Base extends globalThis.Phaser.Scene {
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
     // Old saves may park inside the newly installed machine.
-    if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)){this.world.x=18;this.world.y=36;}
+    if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)&&!onPorodnikDeck({x:middle(this.world.x),y:middle(this.world.y)})){this.world.x=18;this.world.y=35;}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
@@ -559,7 +585,7 @@ class Base extends globalThis.Phaser.Scene {
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
-    if(parked&&[parked.x,parked.y,parked.angle].every(Number.isFinite)&&Math.floor(parked.x/CELL)===this.world.x&&Math.floor(parked.y/CELL)===this.world.y&&driveFits(parked.x,parked.y,(x,y)=>this.solidCell(x,y))) {
+    if(parked&&[parked.x,parked.y,parked.angle].every(Number.isFinite)&&Math.floor(parked.x/CELL)===this.world.x&&Math.floor(parked.y/CELL)===this.world.y&&driveFits(parked.x,parked.y,this.driveSolids())) {
       this.rig.setPosition(parked.x,parked.y).setAngle(wrapDegrees(parked.angle));
     }
     // Rotate around the chassis, not the center of a square image with a long nose.
@@ -625,8 +651,13 @@ class Base extends globalThis.Phaser.Scene {
       const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
       if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
       this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance').setDisplaySize(530,530*704/1711).setDepth(2);
-      this.porodnik=this.add.image(PORODNIK.x*CELL,PORODNIK.y*CELL,'porodnik').setOrigin(0).setDisplaySize(PORODNIK.width*CELL,(PORODNIK.machineRows+PORODNIK.deckRows)*CELL).setDepth(2.4);
-      this.porodnikLed=this.add.circle(20.1*CELL,31.1*CELL,4,0xffac46).setDepth(5);
+      const texture=this.textures.get('porodnik');
+      if(!texture.has('machine'))texture.add('machine',0,0,0,640,435);
+      if(!texture.has('parking'))texture.add('parking',0,58,435,525,403);
+      const m=PORODNIK_MACHINE,d=PORODNIK_DECK;
+      this.porodnik=this.add.image(m.x,m.y,'porodnik','machine').setOrigin(0).setDisplaySize(m.width,m.height).setDepth(2.4);
+      this.porodnikDeck=this.add.image(d.x,d.y,'porodnik','parking').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.4);
+      this.porodnikLed=this.add.circle(20.1*CELL,30.95*CELL,4,0xffac46).setDepth(5);
       this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
       this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
@@ -829,9 +860,14 @@ class Base extends globalThis.Phaser.Scene {
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
   }
-  solidCell(x,y) { return (!this.floorNumber&&porodnikFrameCell(x,y))||liftFrameCell(x,y,this.liftCenter)|| !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
-  advanceVehicle(time,dt,direction) {
+  solidCell(x,y) { return !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
+    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[PORODNIK_COLLIDER])];
+    return solid;
+  }
+  advanceVehicle(time,dt,direction) {
+    const solid=this.driveSolids();
     const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);

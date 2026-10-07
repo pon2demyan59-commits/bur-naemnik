@@ -1,4 +1,4 @@
-import { PORODNIK, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
+import { PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
 import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { STORY_LINES } from './story-content.js';
@@ -18,7 +18,7 @@ export class Base extends globalThis.Phaser.Scene {
     const local=this.floorNumber?(p.floors?.[1]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local):new BaseWorld(local);
     // Old saves may park inside the newly installed machine.
-    if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)){this.world.x=18;this.world.y=36;}
+    if(!this.floorNumber&&porodnikFrameCell(this.world.x,this.world.y)&&!onPorodnikDeck({x:middle(this.world.x),y:middle(this.world.y)})){this.world.x=18;this.world.y=35;}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
@@ -31,7 +31,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
-    if(parked&&[parked.x,parked.y,parked.angle].every(Number.isFinite)&&Math.floor(parked.x/CELL)===this.world.x&&Math.floor(parked.y/CELL)===this.world.y&&driveFits(parked.x,parked.y,(x,y)=>this.solidCell(x,y))) {
+    if(parked&&[parked.x,parked.y,parked.angle].every(Number.isFinite)&&Math.floor(parked.x/CELL)===this.world.x&&Math.floor(parked.y/CELL)===this.world.y&&driveFits(parked.x,parked.y,this.driveSolids())) {
       this.rig.setPosition(parked.x,parked.y).setAngle(wrapDegrees(parked.angle));
     }
     // Rotate around the chassis, not the center of a square image with a long nose.
@@ -97,8 +97,13 @@ export class Base extends globalThis.Phaser.Scene {
       const bx=middle(25),by=middle(8),doorTexture=this.textures.get('bunker-door');
       if(!doorTexture.has('entrance'))doorTexture.add('entrance',0,117,65,1711,704);
       this.bunkerDoor=this.add.image(bx,by-14,'bunker-door','entrance').setDisplaySize(530,530*704/1711).setDepth(2);
-      this.porodnik=this.add.image(PORODNIK.x*CELL,PORODNIK.y*CELL,'porodnik').setOrigin(0).setDisplaySize(PORODNIK.width*CELL,(PORODNIK.machineRows+PORODNIK.deckRows)*CELL).setDepth(2.4);
-      this.porodnikLed=this.add.circle(20.1*CELL,31.1*CELL,4,0xffac46).setDepth(5);
+      const texture=this.textures.get('porodnik');
+      if(!texture.has('machine'))texture.add('machine',0,0,0,640,435);
+      if(!texture.has('parking'))texture.add('parking',0,58,435,525,403);
+      const m=PORODNIK_MACHINE,d=PORODNIK_DECK;
+      this.porodnik=this.add.image(m.x,m.y,'porodnik','machine').setOrigin(0).setDisplaySize(m.width,m.height).setDepth(2.4);
+      this.porodnikDeck=this.add.image(d.x,d.y,'porodnik','parking').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.4);
+      this.porodnikLed=this.add.circle(20.1*CELL,30.95*CELL,4,0xffac46).setDepth(5);
       this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
       this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
@@ -301,9 +306,14 @@ export class Base extends globalThis.Phaser.Scene {
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
   }
-  solidCell(x,y) { return (!this.floorNumber&&porodnikFrameCell(x,y))||liftFrameCell(x,y,this.liftCenter)|| !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
-  advanceVehicle(time,dt,direction) {
+  solidCell(x,y) { return !this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
+    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[PORODNIK_COLLIDER])];
+    return solid;
+  }
+  advanceVehicle(time,dt,direction) {
+    const solid=this.driveSolids();
     const next=driveStep({x:this.rig.x,y:this.rig.y,angle:this.rig.angle,speed:this.speed},direction,dt,solid);
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);
