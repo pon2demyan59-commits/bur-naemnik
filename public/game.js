@@ -461,6 +461,8 @@ class LiftView {
     this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
     const gateClip=scene.make.graphics({x:0,y:0,add:false});gateClip.fillRect(this.deckX,this.deckY+this.deckH-15,this.deckW,24);this.gateMask=gateClip.createGeometryMask();this.gates.forEach(g=>g.setMask(this.gateMask));
     const shaftClip=scene.make.graphics({x:0,y:0,add:false});shaftClip.fillRect(this.deckX,this.deckY,this.deckW,this.deckH+2);this.mask=shaftClip.createGeometryMask();
+    // Actual amber lamps in the four painted corner housings.
+    this.lamps=[[200,140],[1135,140],[200,928],[1135,928]].map(([x,y])=>({x:originX+(x-127)*scale,y:originY+(y-40)*scale}));
     this.elapsed=0;this.ambient=scene.add.graphics().setDepth(26);
     this.indicator=scene.add.circle(this.x+169,this.y+24,4,0x86f672).setDepth(27);
     scene.events.once('shutdown',()=>{this.mask.destroy();this.gateMask.destroy();shaftClip.destroy();gateClip.destroy();});
@@ -468,9 +470,20 @@ class LiftView {
   contains(rig){return rig.x>this.deckX+21&&rig.x<this.deckX+this.deckW-21&&rig.y>this.deckY+21&&rig.y<this.deckY+this.deckH-21;}
   powered(value){this.ready=value;this.indicator.setFillStyle(value?0x74ee87:0xffad46);this.parts.forEach(p=>p.setDepth(value?25:2.5));}
   update(delta) {
-    this.elapsed+=delta;const pulse=.7+.18*Math.sin(this.elapsed*.0017);this.indicator.setAlpha(pulse);this.ambient.clear();
+    this.elapsed+=delta;const pulse=.45+.5*(.5+.5*Math.sin(this.elapsed*.0017));this.indicator.setAlpha(this.ready?pulse:1);
+    const g=this.ambient;g.clear();g.setDepth(27);
+    for(let i=0;i<this.lamps.length;i++) {
+      const p=this.lamps[i];
+      if(!this.ready){g.fillStyle(0x26312e,.65);g.fillEllipse(p.x,p.y,14,22);continue;}
+      // Diagonal pairs breathe alternately, with a bright core and soft amber halo.
+      const light=.16+.7*(.5+.5*Math.sin(this.elapsed*.0022+(i===0||i===3?0:Math.PI)));
+      g.fillStyle(0x493624,(1-light)*.65);g.fillEllipse(p.x,p.y,13,21);
+      g.fillStyle(0xffb43e,light*.18);g.fillCircle(p.x,p.y,18);
+      g.fillStyle(0xffc257,light*.65);g.fillEllipse(p.x,p.y,13,21);
+      g.fillStyle(0xffedaf,light);g.fillEllipse(p.x,p.y,5,13);
+    }
     if(!this.ready)return;
-    this.ambient.fillStyle(0x8fcba8,.025+.012*Math.sin(this.elapsed*.0017));this.ambient.fillEllipse(this.x,this.deckY+this.deckH-5,this.deckW*.8,22);
+    g.fillStyle(0xffce75,.055+.025*Math.sin(this.elapsed*.0017));g.fillEllipse(this.x,this.deckY+this.deckH-5,this.deckW*.8,22);
   }
   motor(duration=.8) {
     if(!readSettings().sound)return;
@@ -694,27 +707,27 @@ class WorkshopView {
  update(delta,intensive=false) {
   const g=this.effects;g.clear();if(!this.ready)return;
   this.elapsed+=delta;
-  this.roof.setPosition(this.body.x+Math.sin(this.elapsed*(intensive ? .085:.009))*(intensive?1:.12),this.body.y+Math.cos(this.elapsed*(intensive ? .063:.008))*(intensive ? .7:.08));const t=this.elapsed/1000,b=this.body,d=this.deck;
+  const t=this.elapsed/1000,b=this.body,d=this.deck;
   // Warm light breathes behind the entrance; the green control lamp pulses.
-  g.fillStyle(0xffba50,(intensive ? .22:.045)+(intensive ? .1:.018)*Math.sin(t*(intensive?12:3)));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
+  g.fillStyle(0xffba50,(intensive ? .22:.045)+(intensive ? .1:.018)*Math.sin(t*(intensive?8:3)));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
   g.fillStyle(0x75ff82,.65+.25*Math.sin(t*4));g.fillCircle(b.x+b.width*.91,b.y+b.height*.806,3);
   // Subtle rotating roof ventilator.
   const fx=b.x+b.width*.218,fy=b.y+b.height*.455;
   for(let i=0;i<6;i++) {
-   const a=t*(intensive?9:.65)+i*Math.PI/3;g.lineStyle(1.4,0xaeb7a6,.55);
+   const a=t*(intensive?7:2)+i*Math.PI/3;g.lineStyle(1.4,0xaeb7a6,.55);
    g.lineBetween(fx+Math.cos(a)*2,fy+Math.sin(a)*2,fx+Math.cos(a+.18)*10,fy+Math.sin(a+.18)*10);
   }
   // Small welding heads move along both rails, taking turns to work.
   for(let side=0;side<2;side++) {
-   const x=d.x+(side?d.width-20:20),y=d.y+38+Math.sin(t*(intensive?5:.7)+side*Math.PI)*(intensive?22:3);
+   const x=d.x+(side?d.width-20:20),y=d.y+38+Math.sin(t*(intensive?3.5:1.7)+side*Math.PI)*(intensive?22:14);
    g.lineStyle(3,0x26383a);g.lineBetween(x+(side?9:-9),y-15,x,y);
    g.fillStyle(0xc18b3d);g.fillCircle(x,y,3);
-   const period=intensive ? .65:6,burst=intensive ? .48:.09;
+   const period=intensive ? .85:2.4,burst=intensive ? .6:.48;
    const phase=(t+side*.75)%period;
    if(phase<burst) {
     g.fillStyle(0xb7f7ff,.5);g.fillCircle(x,y,5+Math.sin(t*65)*2);
     g.fillStyle(0xffffff,.9);g.fillCircle(x,y,1.8);
-    for(let i=0;i<(intensive?14:3);i++) {
+    for(let i=0;i<(intensive?14:8);i++) {
      const age=(phase+i*.057)%burst,a=i*2.399+side*Math.PI;
      const sx=x+Math.cos(a)*age*45,sy=y+Math.sin(a)*age*28+age*age*28;
      g.lineStyle(1,0xffc362,1-age/burst);g.lineBetween(sx,sy,sx+Math.cos(a)*3,sy+Math.sin(a)*2);
@@ -724,7 +737,7 @@ class WorkshopView {
   // Exhaust puffs drift and fade instead of accumulating game objects.
   for(let i=0;i<3;i++) {
    const age=(t*(intensive?1.5:.35)+i/3)%1;
-   g.fillStyle(0xa9bab0,(1-age)*(intensive ? .25:.055));g.fillEllipse(b.x+b.width*.83+Math.sin(age*4+i)*4,b.y+9-age*22,8+age*13,6+age*11);
+   g.fillStyle(0xa9bab0,(1-age)*(intensive ? .25:.13));g.fillEllipse(b.x+b.width*.83+Math.sin(age*4+i)*4,b.y+9-age*22,8+age*13,6+age*11);
   }
  }
 }
@@ -1089,10 +1102,34 @@ class Base extends globalThis.Phaser.Scene {
     g.clear();
     const working=!!job&&this.world.porodnikPowered;
     const powered=this.world.porodnikPowered;
-    const dx=powered?Math.sin(time*(working ? .075:.012))*(working ? .85:.18):0,dy=powered?Math.cos(time*(working ? .061:.01))*(working ? .6:.12):0;
-    this.porodnik.setPosition(m.x+dx,m.y+dy);g.setPosition(dx,dy);
+    // The housing stays still; only its conveyor, hopper and control lights move.
+    this.porodnik.setPosition(m.x,m.y);g.setPosition(0,0);
     this.porodnikLed.setFillStyle(working?(Math.sin(time*.023)>0?0xffd065:0xff9b35):this.world.porodnikPowered?0x74ee87:0xffac46);
     this.porodnikLed.setAlpha(working?1:this.world.porodnikPowered ? .75+.25*Math.sin(time*.003) : 1);
+    if(powered) {
+      const t=time/1000;
+      // Warm instrument screen and slowly cycling piston on the side of the intake.
+      g.fillStyle(0xffbd5e,.12+.06*Math.sin(t*2));g.fillRoundedRect(m.x+253,m.y+116,26,11,2);
+      const stroke=(.5+.5*Math.sin(t*(working?2.2:.75)))*(working?10:5);
+      g.lineStyle(3,0x253b3e,.8);g.lineBetween(m.x+244,m.y+180,m.x+244,m.y+198);
+      g.lineStyle(2,0xa6b1a2,.9);g.lineBetween(m.x+244,m.y+180,m.x+244,m.y+186+stroke);
+      g.fillStyle(0xb8944c);g.fillCircle(m.x+244,m.y+187+stroke,3);
+      // Tiny intermittent contact sparks; the whole machine never jolts.
+      const period=working?1.2:4.5,burst=working ? .35:.22,phase=t%period;
+      if(phase<burst) {
+        const x=m.x+239,y=m.y+188+stroke;
+        g.fillStyle(0xffdf9a,(1-phase/burst)*.7);g.fillCircle(x,y,2);
+        for(let i=0;i<(working?7:4);i++) {
+          const age=(phase+i*.035)%burst,a=i*2.399;
+          const sx=x+Math.cos(a)*age*32,sy=y+Math.sin(a)*age*22+age*age*20;
+          g.lineStyle(1,0xffc668,1-age/burst);g.lineBetween(sx,sy,sx+Math.cos(a)*2,sy+Math.sin(a)*2);
+        }
+      }
+      for(let i=0;i<2;i++) {
+        const age=(t*(working ? .55:.2)+i/2)%1;
+        g.fillStyle(0xc8b795,(1-age)*(working ? .13:.06));g.fillEllipse(m.x+46+Math.sin(age*4+i)*3,m.y+51-age*19,5+age*9,4+age*9);
+      }
+    }
     if(powered&&!working) {
       const bx=m.x+115,by=m.y+178,phase=time*.006%8;
       g.fillStyle(0x182329,.55);g.fillRect(bx,by,91,29);

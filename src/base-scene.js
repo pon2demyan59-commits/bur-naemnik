@@ -272,10 +272,34 @@ export class Base extends globalThis.Phaser.Scene {
     g.clear();
     const working=!!job&&this.world.porodnikPowered;
     const powered=this.world.porodnikPowered;
-    const dx=powered?Math.sin(time*(working ? .075:.012))*(working ? .85:.18):0,dy=powered?Math.cos(time*(working ? .061:.01))*(working ? .6:.12):0;
-    this.porodnik.setPosition(m.x+dx,m.y+dy);g.setPosition(dx,dy);
+    // The housing stays still; only its conveyor, hopper and control lights move.
+    this.porodnik.setPosition(m.x,m.y);g.setPosition(0,0);
     this.porodnikLed.setFillStyle(working?(Math.sin(time*.023)>0?0xffd065:0xff9b35):this.world.porodnikPowered?0x74ee87:0xffac46);
     this.porodnikLed.setAlpha(working?1:this.world.porodnikPowered ? .75+.25*Math.sin(time*.003) : 1);
+    if(powered) {
+      const t=time/1000;
+      // Warm instrument screen and slowly cycling piston on the side of the intake.
+      g.fillStyle(0xffbd5e,.12+.06*Math.sin(t*2));g.fillRoundedRect(m.x+253,m.y+116,26,11,2);
+      const stroke=(.5+.5*Math.sin(t*(working?2.2:.75)))*(working?10:5);
+      g.lineStyle(3,0x253b3e,.8);g.lineBetween(m.x+244,m.y+180,m.x+244,m.y+198);
+      g.lineStyle(2,0xa6b1a2,.9);g.lineBetween(m.x+244,m.y+180,m.x+244,m.y+186+stroke);
+      g.fillStyle(0xb8944c);g.fillCircle(m.x+244,m.y+187+stroke,3);
+      // Tiny intermittent contact sparks; the whole machine never jolts.
+      const period=working?1.2:4.5,burst=working ? .35:.22,phase=t%period;
+      if(phase<burst) {
+        const x=m.x+239,y=m.y+188+stroke;
+        g.fillStyle(0xffdf9a,(1-phase/burst)*.7);g.fillCircle(x,y,2);
+        for(let i=0;i<(working?7:4);i++) {
+          const age=(phase+i*.035)%burst,a=i*2.399;
+          const sx=x+Math.cos(a)*age*32,sy=y+Math.sin(a)*age*22+age*age*20;
+          g.lineStyle(1,0xffc668,1-age/burst);g.lineBetween(sx,sy,sx+Math.cos(a)*2,sy+Math.sin(a)*2);
+        }
+      }
+      for(let i=0;i<2;i++) {
+        const age=(t*(working ? .55:.2)+i/2)%1;
+        g.fillStyle(0xc8b795,(1-age)*(working ? .13:.06));g.fillEllipse(m.x+46+Math.sin(age*4+i)*3,m.y+51-age*19,5+age*9,4+age*9);
+      }
+    }
     if(powered&&!working) {
       const bx=m.x+115,by=m.y+178,phase=time*.006%8;
       g.fillStyle(0x182329,.55);g.fillRect(bx,by,91,29);

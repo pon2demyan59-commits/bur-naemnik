@@ -16,6 +16,8 @@ export class LiftView {
     this.gates=[-1,1].map(side=>scene.add.image(this.x+side*this.deckW,this.deckY+this.deckH-7,'freight-lift','gate').setDisplaySize(this.deckW/2,12).setDepth(26));
     const gateClip=scene.make.graphics({x:0,y:0,add:false});gateClip.fillRect(this.deckX,this.deckY+this.deckH-15,this.deckW,24);this.gateMask=gateClip.createGeometryMask();this.gates.forEach(g=>g.setMask(this.gateMask));
     const shaftClip=scene.make.graphics({x:0,y:0,add:false});shaftClip.fillRect(this.deckX,this.deckY,this.deckW,this.deckH+2);this.mask=shaftClip.createGeometryMask();
+    // Actual amber lamps in the four painted corner housings.
+    this.lamps=[[200,140],[1135,140],[200,928],[1135,928]].map(([x,y])=>({x:originX+(x-127)*scale,y:originY+(y-40)*scale}));
     this.elapsed=0;this.ambient=scene.add.graphics().setDepth(26);
     this.indicator=scene.add.circle(this.x+169,this.y+24,4,0x86f672).setDepth(27);
     scene.events.once('shutdown',()=>{this.mask.destroy();this.gateMask.destroy();shaftClip.destroy();gateClip.destroy();});
@@ -23,9 +25,20 @@ export class LiftView {
   contains(rig){return rig.x>this.deckX+21&&rig.x<this.deckX+this.deckW-21&&rig.y>this.deckY+21&&rig.y<this.deckY+this.deckH-21;}
   powered(value){this.ready=value;this.indicator.setFillStyle(value?0x74ee87:0xffad46);this.parts.forEach(p=>p.setDepth(value?25:2.5));}
   update(delta) {
-    this.elapsed+=delta;const pulse=.7+.18*Math.sin(this.elapsed*.0017);this.indicator.setAlpha(pulse);this.ambient.clear();
+    this.elapsed+=delta;const pulse=.45+.5*(.5+.5*Math.sin(this.elapsed*.0017));this.indicator.setAlpha(this.ready?pulse:1);
+    const g=this.ambient;g.clear();g.setDepth(27);
+    for(let i=0;i<this.lamps.length;i++) {
+      const p=this.lamps[i];
+      if(!this.ready){g.fillStyle(0x26312e,.65);g.fillEllipse(p.x,p.y,14,22);continue;}
+      // Diagonal pairs breathe alternately, with a bright core and soft amber halo.
+      const light=.16+.7*(.5+.5*Math.sin(this.elapsed*.0022+(i===0||i===3?0:Math.PI)));
+      g.fillStyle(0x493624,(1-light)*.65);g.fillEllipse(p.x,p.y,13,21);
+      g.fillStyle(0xffb43e,light*.18);g.fillCircle(p.x,p.y,18);
+      g.fillStyle(0xffc257,light*.65);g.fillEllipse(p.x,p.y,13,21);
+      g.fillStyle(0xffedaf,light);g.fillEllipse(p.x,p.y,5,13);
+    }
     if(!this.ready)return;
-    this.ambient.fillStyle(0x8fcba8,.025+.012*Math.sin(this.elapsed*.0017));this.ambient.fillEllipse(this.x,this.deckY+this.deckH-5,this.deckW*.8,22);
+    g.fillStyle(0xffce75,.055+.025*Math.sin(this.elapsed*.0017));g.fillEllipse(this.x,this.deckY+this.deckH-5,this.deckW*.8,22);
   }
   motor(duration=.8) {
     if(!readSettings().sound)return;
