@@ -1,6 +1,6 @@
 # Painted menu artwork
 
-The in-game controls use illustrated textures, not screenshots with baked-in text. Russian labels, prices, quantities, portraits, progress and actions remain live HTML. The title splash is unchanged. The main menu now uses the shared painted enclosure and the workshop backdrop.
+The in-game controls use illustrated textures, not screenshots with baked-in text. Russian labels, prices, quantities, portraits, progress and actions remain live HTML. The title splash is unchanged. The main menu retains the original physical console and buttons.
 
 Created using the built-in image generation tool with the approved menu concept as a style reference. The drill image was supplied as an identity reference for the room atlas. Atlas slicing and WebP compression preserve alpha; `border-image` preserves corners and rivets when controls resize.
 
@@ -12,11 +12,11 @@ All production assets are in `public/assets/ui/`:
 - `painted-amber.webp`, `painted-green.webp`: blank button textures.
 - `painted-nameplate.webp`: blank header plate.
 - `painted-screen.webp`: recessed information screen.
-- `menu-workshop-scene.webp`: the canonical orange and teal drill in the underground workshop; also used by the repair console and main menu backdrop.
+- `menu-workshop-scene.webp`: the canonical orange and teal drill in the underground workshop; also used by the repair console.
 - `menu-armory-scene.webp`: mounted cannon on the armory workbench.
 - `menu-lift-scene.webp`: freight lift in the underground shaft.
 
-Portraits reuse the canonical existing character assets. Interface examples `workshop-menu.webp` and `main-menu.webp` were rendered in Chromium from the real HTML/CSS menu code against an illustrative background. They are layout previews, not complete Phaser gameplay screenshots.
+Portraits reuse the canonical existing character assets. Interface example `workshop-menu.webp` was rendered in Chromium from the real HTML/CSS menu code against an illustrative background. This is a layout preview, not a complete Phaser gameplay screenshot.
 
 ## Generation prompts
 
