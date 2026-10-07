@@ -1,3 +1,4 @@
+import { preparePeopleFrames, makePerson, updatePerson } from './people-view.js';
 import { armoryMethods } from './armory-scene.js';
 import { restoreArmory, ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, ARMORY_STORIES, onArmoryDeck } from './armory-state.js';
 import { stepWorkshopService, restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
@@ -68,14 +69,14 @@ export class Base extends globalThis.Phaser.Scene {
       this.scale.off('resize',this.fit);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
-    this.passenger=this.add.image(-7,0,'serega').setScale(.32).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
+    this.passenger=this.add.image(-7,0,'people','serega-0').setDisplaySize(16,16).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
     this.dialogClosed=()=>{this.hold=null;this.touchDirections.clear();this.input.keyboard.resetKeys();this.speed=0;};
     document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
     this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
     this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();});
-    this.mechanicPassenger=this.add.image(-7,10,'mechanic').setScale(.32).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
-    this.armorerPassenger=this.add.image(-7,-8,'armorer').setScale(.32).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
+    this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
+    this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
     this.cameras.main.fadeIn(300,12,26,27);
     if(!this.arrival)this.time.delayedCall(350,()=>{
       if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
@@ -86,18 +87,12 @@ export class Base extends globalThis.Phaser.Scene {
     });
   }
   makeTextures() {
-    if(this.textures.exists('serega')) return;
+    preparePeopleFrames(this);
+    if(this.textures.exists('dust'))return;
     const g=this.make.graphics({x:0,y:0,add:false});
-    g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.clear();
-    g.fillStyle(0x081e1d,.5);g.fillEllipse(16,34,25,9);
-    g.fillStyle(0x234e55);g.fillRoundedRect(7,16,19,15,5);
-    g.fillStyle(0xe3ad73);g.fillCircle(16,15,9);
-    g.fillStyle(0xeeb348);g.fillEllipse(16,9,27,12);
-    g.fillStyle(0xffd57c);g.fillRoundedRect(5,6,22,7,3);
-    g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);
-    g.generateTexture('serega',32,40);g.clear();
-    g.fillStyle(0x102627,.5);g.fillEllipse(16,34,25,9);g.fillStyle(0x3b5747);g.fillRoundedRect(7,16,19,15,5);g.fillStyle(0xe3ad73);g.fillCircle(16,15,8);g.fillStyle(0x6e7851);g.fillEllipse(16,8,22,10);g.fillStyle(0xb4b5a0);g.fillRoundedRect(8,7,7,4,2);g.fillRoundedRect(17,7,7,4,2);g.fillStyle(0x565c52);g.fillEllipse(16,21,12,6);g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);g.generateTexture('mechanic',32,40);g.destroy();
+    g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.destroy();
   }
+
   makeMap() {
     const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,bunkerFloorTexture(this)).setOrigin(0).setDepth(0);
 
@@ -119,8 +114,8 @@ export class Base extends globalThis.Phaser.Scene {
       this.porodnikDeck=this.add.image(d.x,d.y,'porodnik','parking').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.4);
       this.porodnikMotion=this.add.graphics().setDepth(5);
       this.porodnikLed=this.add.circle(20.1*CELL,30.95*CELL,4,0xffac46).setDepth(5);
-      this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
-      this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
+      this.person=makePerson(this,middle(RESCUE.x),middle(RESCUE.y),'serega').setVisible(!this.world.rescued);
+      this.marker=this.add.text(this.person.x,this.person.y-55,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
     }
     this.makeWorkshopObjects();this.makeArmoryObjects();
@@ -128,12 +123,12 @@ export class Base extends globalThis.Phaser.Scene {
   }
   makeWorkshopObjects() {
     const q=this.workshopQuest;
-    const label=(x,y,text)=>this.add.text(middle(x),middle(y)-40,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
+    const label=(x,y,text)=>this.add.text(middle(x),middle(y)-55,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
     if(this.floorNumber===1) {
       this.toolsArt=this.add.container(middle(TOOLS_SITE.x),middle(TOOLS_SITE.y)).setDepth(10).setVisible(!q.tools);
       const box=this.add.graphics();box.fillStyle(0x182c30);box.fillRoundedRect(-24,-16,48,34,4);box.lineStyle(3,0xd9b36b);box.strokeRoundedRect(-23,-15,46,32,4);box.lineStyle(4,0xd9b36b);box.lineBetween(-9,-16,-9,-22);box.lineBetween(-9,-22,9,-22);box.lineBetween(9,-22,9,-16);box.lineStyle(5,0xb7c9c5);box.lineBetween(-11,9,9,-6);box.strokeCircle(12,-8,6);this.toolsArt.add(box);
       this.toolsMarker=label(TOOLS_SITE.x,TOOLS_SITE.y,'! ИНСТРУМЕНТЫ').setVisible(!q.tools);
-      this.mechanic=this.add.image(middle(MECHANIC_SITE.x),middle(MECHANIC_SITE.y),'mechanic').setDisplaySize(40,50).setDepth(10).setVisible(!q.mechanic);
+      this.mechanic=makePerson(this,middle(MECHANIC_SITE.x),middle(MECHANIC_SITE.y),'mechanic').setVisible(!q.mechanic);
       this.mechanicMarker=label(MECHANIC_SITE.x,MECHANIC_SITE.y,'! КОНСТАНТИН Б').setVisible(!q.mechanic);
     }else if(!this.floorNumber){
       this.workshop=new WorkshopView(this);this.workshop.powered(q.ready);
@@ -448,6 +443,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.keys||document.hidden)return;
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    for(const person of [this.person,this.mechanic,this.armorer])updatePerson(person,delta,this.rig);
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.armory?.update(Math.min(delta,50),this.armoryQuest.serviceRemaining>0);

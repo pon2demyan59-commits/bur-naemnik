@@ -90,6 +90,7 @@ class Boot extends Phaser.Scene {
     this.load.image('console', './public/assets/ui/console.webp');
     for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
+    this.load.image('people', './public/assets/game/people.webp');
     this.load.image('material-surfaces', './public/assets/game/material-surfaces.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory.webp');
@@ -104,7 +105,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','material-surfaces','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['people','armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','material-surfaces','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }

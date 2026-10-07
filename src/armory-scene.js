@@ -1,3 +1,4 @@
+import { makePerson } from './people-view.js';
 import { ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, BLUEPRINT_SITE, armoryBlockCount, canRestoreArmory, onArmoryDeck, installWeapon, buyWeaponUpgrade, weaponUpgradePrice } from './armory-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
 import { WorkshopView } from './workshop-view.js';
@@ -6,13 +7,10 @@ import { CELL } from './base-state.js';
 export const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
-  if(!this.textures.exists('armorer')) {
-   const g=this.make.graphics({x:0,y:0,add:false});g.fillStyle(0x132020,.5);g.fillEllipse(16,35,26,8);g.fillStyle(0x584d40);g.fillRoundedRect(5,18,23,16,4);g.fillStyle(0x282d2d);g.fillRect(11,22,10,12);g.fillStyle(0xdb9f6a);g.fillCircle(16,14,8);g.fillStyle(0x6b3130);g.fillRoundedRect(7,5,18,7,2);g.fillStyle(0x98a2a0);g.fillRect(9,6,5,4);g.fillRect(18,6,5,4);g.fillStyle(0x32271e);g.fillCircle(13,15,1);g.fillCircle(19,15,1);g.generateTexture('armorer',32,40);g.destroy();
-  }
   if(!this.floorNumber){this.armory=new WorkshopView(this,{body:ARMORY_BODY,deck:ARMORY_DECK,key:'armory'});this.armory.powered(q.ready);}
   if(this.floorNumber!==2)return;
-  const label=(site,text)=>this.add.text((site.x+.5)*CELL,(site.y+.5)*CELL-42,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
-  this.armorer=this.add.image((ARMORER_SITE.x+.5)*CELL,(ARMORER_SITE.y+.5)*CELL,'armorer').setDisplaySize(40,50).setDepth(10).setVisible(!q.rescued);
+  const label=(site,text)=>this.add.text((site.x+.5)*CELL,(site.y+.5)*CELL-55,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
+  this.armorer=makePerson(this,(ARMORER_SITE.x+.5)*CELL,(ARMORER_SITE.y+.5)*CELL,'armorer').setVisible(!q.rescued);
   this.armorerMarker=label(ARMORER_SITE,'! ОРУЖЕЙНИК').setVisible(!q.rescued);
   this.blueprintArt=this.add.container((BLUEPRINT_SITE.x+.5)*CELL,(BLUEPRINT_SITE.y+.5)*CELL).setDepth(10).setVisible(q.rescued&&!q.blueprint);
   const g=this.add.graphics();g.fillStyle(0x283b42);g.fillRoundedRect(-23,-25,46,50,3);g.lineStyle(3,0xaec0b8);g.strokeRect(-22,-24,44,48);g.fillStyle(0x377d95);g.fillRect(-16,-18,32,33);g.lineStyle(2,0xc1e9ee);g.lineBetween(-10,0,12,0);g.strokeCircle(-7,0,4);g.lineBetween(-2,-7,8,-7);g.lineBetween(-2,7,8,7);this.blueprintArt.add(g);

@@ -849,6 +849,44 @@ function weaponUpgradePrice(q){return Math.ceil(100*Math.pow(1.25,q.weaponLevel)
 function installWeapon(q){if(!q.ready||!q.gifted||q.installed||q.serviceRemaining!=null)return false;q.installed=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
 function buyWeaponUpgrade(q,credits){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||q.serviceRemaining!=null||q.weaponLevel>=100||credits<price)return {bought:false,credits};q.weaponLevel++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
 
+const PEOPLE_ROWS = ['serega','mechanic','armorer'];
+function preparePeopleFrames(scene) {
+  const texture=scene.textures.get('people'),source=texture.getSourceImage();
+  const width=source.width/4,height=source.height/3;
+  PEOPLE_ROWS.forEach((name,row)=>{
+    for(let pose=0;pose<4;pose++)if(!texture.has(`${name}-${pose}`))texture.add(`${name}-${pose}`,0,pose*width,row*height,width,height);
+  });
+}
+function makePerson(scene,x,y,name) {
+  const person=scene.add.container(x,y).setDepth(10);
+  const shadow=scene.add.ellipse(0,18,29,10,0x071919,.32);
+  const previous=scene.add.image(0,23,'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78).setAlpha(0);
+  const art=scene.add.image(0,23,'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78);
+  person.add([shadow,previous,art]);person.workerName=name;person.workerArt=art;
+  person.workerPrevious=previous;person.workerPose=0;person.workerBlend=1;
+  person.workerTime=PEOPLE_ROWS.indexOf(name)*1.37;
+  return person;
+}
+function updatePerson(person,delta,rig) {
+  if(!person?.visible)return;
+  person.workerTime+=Math.max(0,Math.min(delta,50))/1000;
+  const t=person.workerTime;
+  const near=rig&&Math.hypot(rig.x-person.x,rig.y-person.y)<220;
+  const phase=t%(near?4.5:6.5);
+  // A short greeting, then a longer rest. Keep the feet anchored.
+  const pose=phase<2.2?(phase<.3||phase>1.9?1:1+Math.floor((phase-.3)/.38)%2):0;
+  if(pose!==person.workerPose){
+    person.workerPrevious.setFrame(`${person.workerName}-${person.workerPose}`);
+    person.workerPose=pose;person.workerBlend=0;
+  }
+  person.workerBlend=Math.min(1,person.workerBlend+Math.max(0,Math.min(delta,50))/160);
+  person.workerArt.setAlpha(person.workerBlend);
+  person.workerPrevious.setAlpha(1-person.workerBlend);
+  person.workerArt.setFrame(`${person.workerName}-${pose}`);
+  for(const art of [person.workerArt,person.workerPrevious])art.setScale(78/art.frame.width,78/art.frame.height*(1+Math.sin(t*2.1)*.012));
+}
+
+
 
 
 
@@ -857,13 +895,10 @@ function buyWeaponUpgrade(q,credits){const price=weaponUpgradePrice(q);if(!q.rea
 const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
-  if(!this.textures.exists('armorer')) {
-   const g=this.make.graphics({x:0,y:0,add:false});g.fillStyle(0x132020,.5);g.fillEllipse(16,35,26,8);g.fillStyle(0x584d40);g.fillRoundedRect(5,18,23,16,4);g.fillStyle(0x282d2d);g.fillRect(11,22,10,12);g.fillStyle(0xdb9f6a);g.fillCircle(16,14,8);g.fillStyle(0x6b3130);g.fillRoundedRect(7,5,18,7,2);g.fillStyle(0x98a2a0);g.fillRect(9,6,5,4);g.fillRect(18,6,5,4);g.fillStyle(0x32271e);g.fillCircle(13,15,1);g.fillCircle(19,15,1);g.generateTexture('armorer',32,40);g.destroy();
-  }
   if(!this.floorNumber){this.armory=new WorkshopView(this,{body:ARMORY_BODY,deck:ARMORY_DECK,key:'armory'});this.armory.powered(q.ready);}
   if(this.floorNumber!==2)return;
-  const label=(site,text)=>this.add.text((site.x+.5)*CELL,(site.y+.5)*CELL-42,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
-  this.armorer=this.add.image((ARMORER_SITE.x+.5)*CELL,(ARMORER_SITE.y+.5)*CELL,'armorer').setDisplaySize(40,50).setDepth(10).setVisible(!q.rescued);
+  const label=(site,text)=>this.add.text((site.x+.5)*CELL,(site.y+.5)*CELL-55,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
+  this.armorer=makePerson(this,(ARMORER_SITE.x+.5)*CELL,(ARMORER_SITE.y+.5)*CELL,'armorer').setVisible(!q.rescued);
   this.armorerMarker=label(ARMORER_SITE,'! ОРУЖЕЙНИК').setVisible(!q.rescued);
   this.blueprintArt=this.add.container((BLUEPRINT_SITE.x+.5)*CELL,(BLUEPRINT_SITE.y+.5)*CELL).setDepth(10).setVisible(q.rescued&&!q.blueprint);
   const g=this.add.graphics();g.fillStyle(0x283b42);g.fillRoundedRect(-23,-25,46,50,3);g.lineStyle(3,0xaec0b8);g.strokeRect(-22,-24,44,48);g.fillStyle(0x377d95);g.fillRect(-16,-18,32,33);g.lineStyle(2,0xc1e9ee);g.lineBetween(-10,0,12,0);g.strokeCircle(-7,0,4);g.lineBetween(-2,-7,8,-7);g.lineBetween(-2,7,8,7);this.blueprintArt.add(g);
@@ -911,6 +946,7 @@ const armoryMethods={
   else{name.textContent='За оборванной связью';radio.textContent='Спустись на второй этаж. Найди товарища Константина и чертёж первой пушки.';status.textContent='Получена ключ-карта второго этажа';}
  }
 };
+
 
 
 
@@ -982,14 +1018,14 @@ class Base extends globalThis.Phaser.Scene {
       this.scale.off('resize',this.fit);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
-    this.passenger=this.add.image(-7,0,'serega').setScale(.32).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
+    this.passenger=this.add.image(-7,0,'people','serega-0').setDisplaySize(16,16).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
     this.dialogClosed=()=>{this.hold=null;this.touchDirections.clear();this.input.keyboard.resetKeys();this.speed=0;};
     document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
     this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
     this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();});
-    this.mechanicPassenger=this.add.image(-7,10,'mechanic').setScale(.32).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
-    this.armorerPassenger=this.add.image(-7,-8,'armorer').setScale(.32).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
+    this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
+    this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
     this.cameras.main.fadeIn(300,12,26,27);
     if(!this.arrival)this.time.delayedCall(350,()=>{
       if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
@@ -1000,18 +1036,12 @@ class Base extends globalThis.Phaser.Scene {
     });
   }
   makeTextures() {
-    if(this.textures.exists('serega')) return;
+    preparePeopleFrames(this);
+    if(this.textures.exists('dust'))return;
     const g=this.make.graphics({x:0,y:0,add:false});
-    g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.clear();
-    g.fillStyle(0x081e1d,.5);g.fillEllipse(16,34,25,9);
-    g.fillStyle(0x234e55);g.fillRoundedRect(7,16,19,15,5);
-    g.fillStyle(0xe3ad73);g.fillCircle(16,15,9);
-    g.fillStyle(0xeeb348);g.fillEllipse(16,9,27,12);
-    g.fillStyle(0xffd57c);g.fillRoundedRect(5,6,22,7,3);
-    g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);
-    g.generateTexture('serega',32,40);g.clear();
-    g.fillStyle(0x102627,.5);g.fillEllipse(16,34,25,9);g.fillStyle(0x3b5747);g.fillRoundedRect(7,16,19,15,5);g.fillStyle(0xe3ad73);g.fillCircle(16,15,8);g.fillStyle(0x6e7851);g.fillEllipse(16,8,22,10);g.fillStyle(0xb4b5a0);g.fillRoundedRect(8,7,7,4,2);g.fillRoundedRect(17,7,7,4,2);g.fillStyle(0x565c52);g.fillEllipse(16,21,12,6);g.fillStyle(0x422e21);g.fillCircle(13,16,1.5);g.fillCircle(20,16,1.5);g.generateTexture('mechanic',32,40);g.destroy();
+    g.fillStyle(0xffd477);g.fillCircle(5,5,5);g.generateTexture('dust',10,10);g.destroy();
   }
+
   makeMap() {
     const floor=this.add.tileSprite(0,0,BASE_SIZE*CELL,BASE_SIZE*CELL,bunkerFloorTexture(this)).setOrigin(0).setDepth(0);
 
@@ -1033,8 +1063,8 @@ class Base extends globalThis.Phaser.Scene {
       this.porodnikDeck=this.add.image(d.x,d.y,'porodnik','parking').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.4);
       this.porodnikMotion=this.add.graphics().setDepth(5);
       this.porodnikLed=this.add.circle(20.1*CELL,30.95*CELL,4,0xffac46).setDepth(5);
-      this.person=this.add.image(middle(RESCUE.x),middle(RESCUE.y),'serega').setDepth(10).setVisible(!this.world.rescued);
-      this.marker=this.add.text(this.person.x,this.person.y-44,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
+      this.person=makePerson(this,middle(RESCUE.x),middle(RESCUE.y),'serega').setVisible(!this.world.rescued);
+      this.marker=this.add.text(this.person.x,this.person.y-55,'! СЕРЁГА Т',{fontFamily:'Arial',fontSize:'16px',fontStyle:'bold',color:'#163d3b',backgroundColor:'#ffd372',padding:{x:9,y:5}}).setOrigin(.5).setDepth(11).setVisible(!this.world.rescued);
       this.tweens.add({targets:this.marker,y:this.marker.y-6,duration:800,yoyo:true,repeat:-1});
     }
     this.makeWorkshopObjects();this.makeArmoryObjects();
@@ -1042,12 +1072,12 @@ class Base extends globalThis.Phaser.Scene {
   }
   makeWorkshopObjects() {
     const q=this.workshopQuest;
-    const label=(x,y,text)=>this.add.text(middle(x),middle(y)-40,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
+    const label=(x,y,text)=>this.add.text(middle(x),middle(y)-55,text,{fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:'#173c3c',backgroundColor:'#ffd372',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11);
     if(this.floorNumber===1) {
       this.toolsArt=this.add.container(middle(TOOLS_SITE.x),middle(TOOLS_SITE.y)).setDepth(10).setVisible(!q.tools);
       const box=this.add.graphics();box.fillStyle(0x182c30);box.fillRoundedRect(-24,-16,48,34,4);box.lineStyle(3,0xd9b36b);box.strokeRoundedRect(-23,-15,46,32,4);box.lineStyle(4,0xd9b36b);box.lineBetween(-9,-16,-9,-22);box.lineBetween(-9,-22,9,-22);box.lineBetween(9,-22,9,-16);box.lineStyle(5,0xb7c9c5);box.lineBetween(-11,9,9,-6);box.strokeCircle(12,-8,6);this.toolsArt.add(box);
       this.toolsMarker=label(TOOLS_SITE.x,TOOLS_SITE.y,'! ИНСТРУМЕНТЫ').setVisible(!q.tools);
-      this.mechanic=this.add.image(middle(MECHANIC_SITE.x),middle(MECHANIC_SITE.y),'mechanic').setDisplaySize(40,50).setDepth(10).setVisible(!q.mechanic);
+      this.mechanic=makePerson(this,middle(MECHANIC_SITE.x),middle(MECHANIC_SITE.y),'mechanic').setVisible(!q.mechanic);
       this.mechanicMarker=label(MECHANIC_SITE.x,MECHANIC_SITE.y,'! КОНСТАНТИН Б').setVisible(!q.mechanic);
     }else if(!this.floorNumber){
       this.workshop=new WorkshopView(this);this.workshop.powered(q.ready);
@@ -1362,6 +1392,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.keys||document.hidden)return;
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    for(const person of [this.person,this.mechanic,this.armorer])updatePerson(person,delta,this.rig);
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.armory?.update(Math.min(delta,50),this.armoryQuest.serviceRemaining>0);
@@ -1604,6 +1635,7 @@ class Boot extends Phaser.Scene {
     this.load.image('console', './public/assets/ui/console.webp');
     for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
+    this.load.image('people', './public/assets/game/people.webp');
     this.load.image('material-surfaces', './public/assets/game/material-surfaces.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory.webp');
@@ -1618,7 +1650,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','material-surfaces','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['people','armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','material-surfaces','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
