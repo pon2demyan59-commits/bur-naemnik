@@ -131,7 +131,7 @@ export class Base extends globalThis.Phaser.Scene {
       this.mechanicMarker=label(MECHANIC_SITE.x,MECHANIC_SITE.y,'! КОНСТАНТИН Б').setVisible(!q.mechanic);
     }else{
       this.workshop=new WorkshopView(this);this.workshop.powered(q.ready);
-      this.workshopMechanic=this.add.image(WORKSHOP_BODY.x+WORKSHOP_BODY.width+30,WORKSHOP_BODY.y+150,'mechanic').setDisplaySize(36,45).setDepth(10).setVisible(q.ready);
+      // Konstantin works inside; his portrait remains in workshop dialogue.
     }
   }
   workshopFloorAction() {
@@ -155,7 +155,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!q.briefed){this.startStory('workshop');return;}
     if(q.tools&&q.mechanic&&!q.returnBriefed){this.startStory('workshopReturn');return;}
     if(!q.ready&&canRestoreWorkshop(q,this.world)){
-      q.ready=true;this.workshop.powered(true);this.workshopMechanic.setVisible(true);this.mechanicPassenger.setVisible(false);
+      q.ready=true;this.workshop.powered(true);this.mechanicPassenger.setVisible(false);
       this.persist();this.startStory('workshopReady');
     }
   }
@@ -402,6 +402,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.syncAction();this.drawLiftGlow(time);
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
+    this.workshop?.update(Math.min(delta,50));
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);

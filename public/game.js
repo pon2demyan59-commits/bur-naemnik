@@ -622,30 +622,55 @@ function objectiveBearing(rig,site) {
 
 class WorkshopView {
  constructor(scene) {
-  this.scene=scene;this.art=scene.add.graphics().setDepth(2.4);
-  const b=WORKSHOP_BODY;
-  this.label=scene.add.text(b.x+b.width/2,b.y+35,'МАСТЕРСКАЯ',{fontFamily:'Arial',fontStyle:'bold',fontSize:'18px',color:'#e5d0a0',backgroundColor:'#283c3d',padding:{x:9,y:6}}).setOrigin(.5).setDepth(5);
-  this.led=scene.add.circle(b.x+b.width-26,b.y+145,5,0xffac46).setDepth(5);
+  this.scene=scene;this.elapsed=0;
+  const b=WORKSHOP_BODY,d=WORKSHOP_DECK,texture=scene.textures.get('workshop');
+  // Frames follow the roof and narrower attached bay in the painted sprite.
+  if(!texture.has('roof')) {
+   texture.add('roof',0,0,0,640,292);
+   texture.add('bay',0,90,292,460,640-292);
+  }
+  this.roof=scene.add.image(b.x,b.y,'workshop','roof').setOrigin(0).setDisplaySize(b.width,b.height).setDepth(2.4);
+  this.bay=scene.add.image(d.x,d.y,'workshop','bay').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.3);
+  this.effects=scene.add.graphics().setDepth(5);
   this.powered(false);
  }
  powered(ready) {
-  const g=this.art,b=WORKSHOP_BODY,d=WORKSHOP_DECK;g.clear();
-  g.fillStyle(0x142123,.8);g.fillRoundedRect(b.x+5,b.y+6,b.width,b.height,10);
-  g.fillStyle(ready?0x526567:0x3c4746);g.fillRoundedRect(b.x,b.y,b.width,b.height,10);
-  g.lineStyle(4,0x243537);g.strokeRoundedRect(b.x+3,b.y+3,b.width-6,b.height-6,8);
-  g.fillStyle(ready?0xaf7739:0x6d6247);g.fillRoundedRect(b.x+14,b.y+12,b.width-28,63,5);
-  for(let x=b.x+25;x<b.x+b.width-10;x+=45){g.fillStyle(0xc8ba91);g.fillCircle(x,b.y+17,2);g.fillCircle(x,b.y+68,2);}
-  for(let i=0;i<4;i++){g.fillStyle(0x1b2d30);g.fillRect(b.x+27+i*16,b.y+105,8,46);}
-  g.fillStyle(0x1a2c2e);g.fillRoundedRect(b.x+144,b.y+93,95,65,4);
-  g.lineStyle(3,ready?0xccae67:0x766d53);g.strokeRect(b.x+144,b.y+93,95,65);
-  // A visible wrench on the roof identifies the service bay without a menu marker.
-  g.lineStyle(7,0xd8cba7);g.lineBetween(b.x+166,b.y+140,b.x+206,b.y+111);
-  g.fillStyle(0xd8cba7);g.fillCircle(b.x+166,b.y+140,7);g.lineStyle(5,0xd8cba7);g.strokeCircle(b.x+207,b.y+110,10);
-  g.fillStyle(0x202f31);g.fillRect(d.x,d.y,d.width,d.height);
-  g.lineStyle(2,0x6d8080);for(let y=d.y+8;y<d.y+d.height;y+=12)g.lineBetween(d.x+12,y,d.x+d.width-12,y);
-  for(let y=d.y;y<d.y+d.height;y+=20){g.fillStyle(ready?0xe3af4b:0x8b784f);g.fillRect(d.x,y,9,12);g.fillRect(d.x+d.width-9,y,9,12);}
-  g.fillStyle(ready?0xe7bb66:0x83744d);g.fillTriangle(d.x+d.width/2,d.y+21,d.x+d.width/2-13,d.y+39,d.x+d.width/2+13,d.y+39);
-  this.led.setFillStyle(ready?0x77ee8d:0xffac46);
+  this.ready=ready;this.roof.setTint(ready?0xffffff:0x788589);this.bay.setTint(ready?0xffffff:0x788589);
+  this.effects.clear();
+ }
+ update(delta) {
+  const g=this.effects;g.clear();if(!this.ready)return;
+  this.elapsed+=delta;const t=this.elapsed/1000,b=WORKSHOP_BODY,d=WORKSHOP_DECK;
+  // Warm light breathes behind the entrance; the green control lamp pulses.
+  g.fillStyle(0xffba50,.08+.04*Math.sin(t*3));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
+  g.fillStyle(0x75ff82,.65+.25*Math.sin(t*4));g.fillCircle(b.x+b.width*.91,b.y+b.height*.806,3);
+  // Subtle rotating roof ventilator.
+  const fx=b.x+b.width*.218,fy=b.y+b.height*.455;
+  for(let i=0;i<6;i++) {
+   const a=t*2+i*Math.PI/3;g.lineStyle(1.4,0xaeb7a6,.55);
+   g.lineBetween(fx+Math.cos(a)*2,fy+Math.sin(a)*2,fx+Math.cos(a+.18)*10,fy+Math.sin(a+.18)*10);
+  }
+  // Small welding heads move along both rails, taking turns to work.
+  for(let side=0;side<2;side++) {
+   const x=d.x+(side?d.width-20:20),y=d.y+38+Math.sin(t*1.7+side*Math.PI)*14;
+   g.lineStyle(3,0x26383a);g.lineBetween(x+(side?9:-9),y-15,x,y);
+   g.fillStyle(0xc18b3d);g.fillCircle(x,y,3);
+   const phase=(t+side*.75)%2.4;
+   if(phase<.48) {
+    g.fillStyle(0xb7f7ff,.5);g.fillCircle(x,y,5+Math.sin(t*65)*2);
+    g.fillStyle(0xffffff,.9);g.fillCircle(x,y,1.8);
+    for(let i=0;i<8;i++) {
+     const age=(phase+i*.057)%.48,a=i*2.399+side*Math.PI;
+     const sx=x+Math.cos(a)*age*45,sy=y+Math.sin(a)*age*28+age*age*28;
+     g.lineStyle(1,0xffc362,1-age/.48);g.lineBetween(sx,sy,sx+Math.cos(a)*3,sy+Math.sin(a)*2);
+    }
+   }
+  }
+  // Exhaust puffs drift and fade instead of accumulating game objects.
+  for(let i=0;i<3;i++) {
+   const age=(t*.65+i/3)%1;
+   g.fillStyle(0xa9bab0,(1-age)*.13);g.fillEllipse(b.x+b.width*.83+Math.sin(age*4+i)*4,b.y+9-age*22,8+age*13,6+age*11);
+  }
  }
 }
 
@@ -782,7 +807,7 @@ class Base extends globalThis.Phaser.Scene {
       this.mechanicMarker=label(MECHANIC_SITE.x,MECHANIC_SITE.y,'! КОНСТАНТИН Б').setVisible(!q.mechanic);
     }else{
       this.workshop=new WorkshopView(this);this.workshop.powered(q.ready);
-      this.workshopMechanic=this.add.image(WORKSHOP_BODY.x+WORKSHOP_BODY.width+30,WORKSHOP_BODY.y+150,'mechanic').setDisplaySize(36,45).setDepth(10).setVisible(q.ready);
+      // Konstantin works inside; his portrait remains in workshop dialogue.
     }
   }
   workshopFloorAction() {
@@ -806,7 +831,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!q.briefed){this.startStory('workshop');return;}
     if(q.tools&&q.mechanic&&!q.returnBriefed){this.startStory('workshopReturn');return;}
     if(!q.ready&&canRestoreWorkshop(q,this.world)){
-      q.ready=true;this.workshop.powered(true);this.workshopMechanic.setVisible(true);this.mechanicPassenger.setVisible(false);
+      q.ready=true;this.workshop.powered(true);this.mechanicPassenger.setVisible(false);
       this.persist();this.startStory('workshopReady');
     }
   }
@@ -1053,6 +1078,7 @@ class Base extends globalThis.Phaser.Scene {
     this.syncAction();this.drawLiftGlow(time);
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
+    this.workshop?.update(Math.min(delta,50));
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
@@ -1281,6 +1307,7 @@ class Boot extends Phaser.Scene {
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
+    this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
@@ -1291,7 +1318,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }
