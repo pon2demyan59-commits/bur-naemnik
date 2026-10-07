@@ -552,7 +552,7 @@ function onPorodnikDeck(rig) {
   return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 }
 
-const PORODNIK_CYCLE_MS=3000;
+const PORODNIK_CYCLE_MS=10000;
 function restorePorodnikJob(value) {
   if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>200||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
   return {amount:value.amount,remaining:value.remaining};
@@ -738,7 +738,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
     this.porodnikJob={amount:this.cargo,remaining:PORODNIK_CYCLE_MS};this.cargo=0;
     this.speed=0;this.dialogClosed();this.refreshHUD();this.persist();
-    this.notify('ПОРОДА ПРИНЯТА · ПЕРЕРАБОТКА 3 СЕКУНДЫ');
+    this.notify('ПОРОДА ПРИНЯТА · ПЕРЕРАБОТКА 10 СЕКУНД');
   }
   updatePorodnikCycle(delta) {
     const amount=stepPorodnikJob(this.porodnikJob,delta);

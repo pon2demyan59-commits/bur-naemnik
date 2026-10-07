@@ -13,7 +13,7 @@ export function onPorodnikDeck(rig) {
   return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 }
 
-export const PORODNIK_CYCLE_MS=3000;
+export const PORODNIK_CYCLE_MS=10000;
 export function restorePorodnikJob(value) {
   if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>200||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
   return {amount:value.amount,remaining:value.remaining};

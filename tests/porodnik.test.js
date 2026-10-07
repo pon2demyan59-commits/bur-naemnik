@@ -29,9 +29,9 @@ test('power waits for Serёga briefing and clearing; unloading runs once inside 
   scene.rig.y=PORODNIK_DECK.y+PORODNIK_DECK.height/2;scene.unloadPorodnik();assert.equal(scene.cargo,0);assert.equal(scene.credits,7);
   assert.equal(scene.porodnikJob.amount,15);
   scene.cargo=4;scene.unloadPorodnik();assert.equal(scene.cargo,4);
-  scene.updatePorodnikCycle(2999);assert.equal(scene.credits,7);
+  scene.updatePorodnikCycle(9999);assert.equal(scene.credits,7);
   scene.updatePorodnikCycle(1);assert.equal(scene.credits,22);assert.equal(scene.porodnikJob,null);
-  scene.updatePorodnikCycle(3000);assert.equal(scene.credits,22);scene.cargo=0;
+  scene.updatePorodnikCycle(10000);assert.equal(scene.credits,22);scene.cargo=0;
   scene.campaign={};const save=scene.snapshotCampaign();assert.equal(save.cargo,0);assert.equal(save.credits,22);
   assert.equal(save.base.porodnikPowered,true);
   scene.floorNumber=1;scene.world=new BaseWorld();scene.campaign=save;scene.cargo=12;
@@ -46,18 +46,18 @@ test('all four visible parking edges activate unloading without a hidden margin'
  assert.ok(d.width<=100&&d.height<=120);
 });
 
-test('unfinished three-second cycle survives reload and floor travel without losing cargo or paying twice',()=>{
+test('unfinished ten-second cycle survives reload and floor travel without losing cargo or paying twice',()=>{
  const scene=new Base();scene.world=new BaseWorld({porodnikPowered:true});scene.floorNumber=0;
- scene.campaign={};scene.cargo=0;scene.credits=10;scene.porodnikJob={amount:25,remaining:3000};
+ scene.campaign={};scene.cargo=0;scene.credits=10;scene.porodnikJob={amount:25,remaining:10000};
  scene.rig={x:18.5*CELL,y:PORODNIK_DECK.y+50,angle:-90};
  stepPorodnikJob(scene.porodnikJob,1200);
- const save=JSON.parse(JSON.stringify(scene.snapshotCampaign()));assert.equal(save.porodnikJob.remaining,1800);
+ const save=JSON.parse(JSON.stringify(scene.snapshotCampaign()));assert.equal(save.porodnikJob.remaining,8800);
  const restored=new Base();restored.floorNumber=1;restored.world=new BaseWorld();restored.campaign=save;
  restored.porodnikJob=restorePorodnikJob(save.porodnikJob);restored.cargo=8;restored.credits=save.credits;restored.rig=scene.rig;
  restored.refreshHUD=()=>{};restored.persist=()=>{};restored.notify=()=>{};
- restored.updatePorodnikCycle(1799);assert.equal(restored.credits,10);
+ restored.updatePorodnikCycle(8799);assert.equal(restored.credits,10);
  restored.updatePorodnikCycle(1);assert.equal(restored.credits,35);assert.equal(restored.cargo,8);
  restored.updatePorodnikCycle(100);assert.equal(restored.credits,35);
  assert.equal(restored.snapshotCampaign().porodnikJob,null);
- for(const bad of [{amount:-1,remaining:3000},{amount:1,remaining:Infinity},{amount:201,remaining:5},{amount:1,remaining:-1}])assert.equal(restorePorodnikJob(bad),null);
+ for(const bad of [{amount:-1,remaining:10000},{amount:1,remaining:Infinity},{amount:201,remaining:5},{amount:1,remaining:-1}])assert.equal(restorePorodnikJob(bad),null);
 });
