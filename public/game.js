@@ -324,6 +324,7 @@ function takeCargoSale(hold,selection){
 
 
 
+
 const cargoMethods={
  openPorodnik(){
   if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig)||!this.cargo)return;
@@ -343,12 +344,17 @@ const cargoMethods={
    const caption=document.createElement('span'),name=document.createElement('strong'),details=document.createElement('small');
    name.textContent=m.name;details.textContent='В буре: '+count+' · '+MATERIAL_PRICES[m.id]+' кр./шт.';caption.append(name,details);label.append(check,swatch,caption);
    const input=document.createElement('input');input.type='number';input.min='1';input.max=String(count);input.step='1';input.value=String(count);input.disabled=!check.checked;input.setAttribute('aria-label','Количество: '+m.name);
-   check.addEventListener('change',()=>{input.disabled=!check.checked;render();});input.addEventListener('input',render);
-   rows.push({id:m.id,count,check,input});row.append(label,input);list.append(row);
+   const stepper=document.createElement('div');stepper.className='cargo-stepper';
+   const minus=document.createElement('button'),plus=document.createElement('button');minus.type=plus.type='button';minus.textContent='−';plus.textContent='+';minus.setAttribute('aria-label','Уменьшить: '+m.name);plus.setAttribute('aria-label','Увеличить: '+m.name);
+   const enabled=()=>{input.disabled=minus.disabled=plus.disabled=!check.checked;};enabled();
+   const step=delta=>{input.value=String(Math.max(1,Math.min(count,(Number(input.value)||1)+delta)));render();};
+   minus.addEventListener('click',()=>step(-1));plus.addEventListener('click',()=>step(1));
+   check.addEventListener('change',()=>{enabled();render();});input.addEventListener('input',render);stepper.append(minus,input,plus);
+   rows.push({id:m.id,count,check,input});row.append(label,stepper);list.append(row);
   }
   sell.addEventListener('click',()=>{if(!this.sellCargo(selection()))return;document.querySelector('#dialog').close();this.dialogClosed();});
   panel.append(intro,list,total,sell);render();
-  document.querySelector('#dialog-title').textContent='«ПОРОДНИК» · ПРОДАЖА ПОРОДЫ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  showBuildingMenu('porodnik',panel);
  },
  sellCargo(selection){
   if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig))return false;
@@ -1293,6 +1299,7 @@ function updatePerson(person,delta,rig) {
 
 
 
+
 const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
@@ -1334,14 +1341,14 @@ const repairMethods={
   if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig)||q.wave==='active')return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.textContent='Илья К · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
+  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
   const button=document.createElement('button');button.className='metal-button';button.textContent='ВОССТАНОВИТЬ БУР · '+repairPrice(this.hull)+' КРЕДИТОВ';
-  button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);
+  button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);if(this.hull>=DRILL_MAX_HP)button.textContent='БУР ПОЛНОСТЬЮ ИСПРАВЕН';
   button.addEventListener('click',()=>{
    const result=buyRepair(q,this.hull,this.credits);if(!result.bought)return;
    this.hull=result.hp;this.credits=result.credits;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();
   });
-  panel.append(text,button);document.querySelector('#dialog-title').textContent='РЕМОНТНЫЙ ЦЕХ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  const meter=document.createElement('meter');meter.className='service-meter';meter.min=0;meter.max=DRILL_MAX_HP;meter.value=this.hull;meter.setAttribute('aria-label','Прочность бура');panel.append(text,meter,button);showBuildingMenu('repair',panel);
  },
  refreshRepairHUD(){
   const q=this.repairQuest;if(!q.briefed)return;
@@ -1543,6 +1550,7 @@ const combatMethods={
 
 
 
+
 const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
@@ -1579,12 +1587,12 @@ const armoryMethods={
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig))return;
   this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.textContent=`Оружейник · Первая пушка: ${q.installed?'установлена':'подарок, готова к установке'} · Мощность: ${100+q.weaponLevel*2}% · Кредиты: ${this.credits}`;
-  const blueprint=document.createElement('p');blueprint.textContent='Чертёж первой пушки сохранён.';
+  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'} · Мощность ${100+q.weaponLevel*2}% · Кредиты ${this.credits}`;
+  const blueprint=document.createElement('p');blueprint.className='service-status';blueprint.textContent=q.installed?'Модернизация добавляет 2% мощности.':'Установка первой пушки бесплатна.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;
   button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
-  panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  panel.append(text,blueprint,button);showBuildingMenu('armory',panel);
  },
  makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
  refreshMountedWeapon(){
@@ -1611,6 +1619,7 @@ const armoryMethods={
   else{name.textContent='За оборванной связью';radio.textContent='Спустись на второй этаж. Найди товарища Константина и чертёж первой пушки.';status.textContent='Получена ключ-карта второго этажа';}
  }
 };
+
 
 
 
@@ -1794,18 +1803,18 @@ class Base extends globalThis.Phaser.Scene {
     this.dialogClosed();this.persist();const q=this.workshopQuest;
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
-    exit.textContent='ГОТОВО · ВЫЙТИ ИЗ МАСТЕРСКОЙ';
-    const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность ${100+q.upgrades*2}%${q.upgrades<100?' → '+(102+q.upgrades*2)+'%':''} · Кредиты ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
     this.workshopPanelRender=render;
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;render();this.refreshHUD();this.persist();});
     exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();panel.append(text,buy,status,exit);
-    document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+    showBuildingMenu('workshop',panel);
   }
   makeHUD() {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
-      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">☰ МЕНЮ</button></div></header>
+      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
       <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
@@ -1878,10 +1887,9 @@ class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();document.querySelector('#dialog-title').textContent='ИНВЕНТАРЬ';
-    document.querySelector('#dialog-body').replaceChildren(createInventoryPanel(this.snapshotCampaign()));document.querySelector('#dialog').showModal();
+    this.dialogClosed();this.persist();showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(this.snapshotCampaign()),'inventory');
   }
-  goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
+  goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
     if(this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     const repairItem=this.repairFloorAction();
@@ -2046,7 +2054,7 @@ class Base extends globalThis.Phaser.Scene {
     }
     status.textContent='Выбери остановку. Следующий этаж требует ключ-карту.';
     travel.addEventListener('click',()=>{document.querySelector('#dialog').close();this.travelTo(selected);});panel.append(travel);
-    document.querySelector('#dialog-title').textContent='ПУЛЬТ ГРУЗОВОГО ЛИФТА';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+    showBuildingMenu('lift',panel);
   }
   async travelTo(target) {
     if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
@@ -2059,7 +2067,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   notifySaveFailure() {
     this.cameras.main.fadeIn(200);this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.refreshHUD();});
-    const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СОХРАНЕНИЕ НЕДОСТУПНО';const p=document.createElement('p');p.textContent='Браузер не разрешил сохранить поездку. Разреши локальное хранение данных и попробуй ещё раз.';document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
+    const p=document.createElement('p');p.textContent='Браузер не разрешил сохранить поездку. Разреши локальное хранение данных и попробуй ещё раз.';showGamePanel('СОХРАНЕНИЕ НЕДОСТУПНО',p);
   }
   makeEffects() {
     this.combatEffects=this.add.graphics().setDepth(26);
@@ -2281,16 +2289,78 @@ class Floor extends Base {
 
 
 
+const BUILDING_MENUS={
+ workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'drill-compact',hint:'Улучшение мощности · 4 секунды'},
+ armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'armory',hint:'Установка и модернизация · 4 секунды'},
+ repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'drill-compact',hint:'Восстановление прочности · 4 секунды'},
+ lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'freight-lift',hint:'Открытые этажи доступны навсегда'},
+ porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
+};
+function showGamePanel(title,content,kind='terminal',back=null){
+ const dialog=document.querySelector('#dialog');dialog.className='game-dialog';dialog.menuBack=back;
+ // Property assignment also supports the lightweight DOM used by scene tests.
+ if(dialog.dataset)dialog.dataset.menu=kind;
+ document.querySelector('#dialog-title').textContent=title;
+ document.querySelector('#dialog-body').replaceChildren(content);
+ const close=document.querySelector('.close-dialog');if(close)close.textContent=back?'← НАЗАД':kind==='pause'?'ПРОДОЛЖИТЬ':'ЗАКРЫТЬ';
+ if(!dialog.open)dialog.showModal();
+}
+function showBuildingMenu(kind,controls){
+ const spec=BUILDING_MENUS[kind],layout=document.createElement('section');layout.className='service-layout service-'+kind;
+ const staff=document.createElement('aside');staff.className='service-staff';
+ const art=document.createElement('img');art.className='service-art';art.src='./public/assets/game/'+spec.art+'.webp';art.alt='';
+ if(spec.portrait){
+  const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+'.webp';portrait.alt=spec.name;
+  const name=document.createElement('strong'),role=document.createElement('span');name.textContent=spec.name;role.textContent=spec.role;
+  staff.append(portrait,name,role);
+ }else staff.append(art);
+ const hint=document.createElement('p');hint.className='service-hint';hint.textContent=spec.hint;staff.append(hint);
+ controls.className+=' service-controls';layout.append(staff,controls);
+ if(spec.portrait){const machine=document.createElement('div');machine.className='service-machine';machine.append(art);layout.append(machine);}
+ showGamePanel(spec.title,layout,kind);
+}
+function createSettingsPanel(){
+ const settings=readSettings(),panel=document.createElement('div');panel.className='settings terminal-section';
+ const row=document.createElement('label');row.className='setting-row';
+ const caption=document.createElement('span');caption.textContent='Звуки интерфейса';
+ const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=settings.sound;
+ const status=document.createElement('p');status.className='storage-note';status.setAttribute('role','status');
+ toggle.addEventListener('change',()=>{settings.sound=toggle.checked;status.textContent=writeSettings(settings)?'':'Браузер не разрешает сохранить настройки.';});
+ row.append(caption,toggle);panel.append(row,status);return panel;
+}
+function openPauseMenu(scene){
+ const dialog=document.querySelector('#dialog');scene.dialogClosed();scene.persist();
+ scene.scene.pause();scene.input.enabled=false;
+ const resume=()=>{dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
+ const abort=()=>{dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
+ dialog.addEventListener('close',resume,{once:true});scene.events.once('shutdown',abort);
+ const render=()=>{
+  const panel=document.createElement('div');panel.className='pause-panel';
+  const badge=document.createElement('p');badge.className='pause-badge';badge.textContent=scene.floorNumber?'ШАХТА · ЭТАЖ '+scene.floorNumber:'БУНКЕР №72 · БАЗА';panel.append(badge);
+  for(const [label,action,primary] of [
+   ['ПРОДОЛЖИТЬ',()=>dialog.close(),true],
+   ['ИНВЕНТАРЬ',()=>showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(scene.snapshotCampaign()),'inventory',render)],
+   ['НАСТРОЙКИ',()=>showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings',render)],
+   ['КАК ИГРАТЬ',()=>showGamePanel('СПРАВОЧНИК БУРА',createHelpPanel(),'help',render)],
+   ['ГЛАВНОЕ МЕНЮ',()=>{dialog.close();scene.persist();scene.scene.start('Menu');}]
+  ]){const button=document.createElement('button');button.type='button';button.className=primary?'metal-button pause-primary':'floor-button';button.textContent=label;button.addEventListener('click',action);panel.append(button);}
+  showGamePanel('ПАУЗА',panel,'pause');
+ };
+ render();
+}
+
+
+
+
 
 
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
-const settings = readSettings();
 let audio;
 let game;
 function clickSound() {
-  if (!settings.sound) return;
+  if (!readSettings().sound) return;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     audio.resume().catch(() => {});
@@ -2304,30 +2374,12 @@ function clickSound() {
   } catch { /* Audio is optional. */ }
 }
 function openDialog(title, content) {
-  document.querySelector('#dialog-title').textContent = title;
-  const body = document.querySelector('#dialog-body'); body.replaceChildren();
-  if (typeof content === 'string') { const p = document.createElement('p'); p.textContent = content; body.append(p); }
-  else body.append(content);
-  dialog.showModal();
+  if(typeof content==='string'){const p=document.createElement('p');p.textContent=content;content=p;}
+  showGamePanel(title,content);
 }
-document.querySelector('.close-dialog').addEventListener('click', () => { clickSound(); dialog.close(); });
-function showSettings() {
-  const panel = document.createElement('div'); panel.className = 'settings';
-  for (const [key, label] of [['sound', 'Звуки интерфейса']]) {
-    const row = document.createElement('label'); row.className = 'setting-row';
-    const caption = document.createElement('span'); caption.textContent = label;
-    const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = settings[key];
-    toggle.addEventListener('change', () => {
-      settings[key] = toggle.checked;
-      const stored = writeSettings(settings);
-      panel.querySelector('.storage-note').textContent = stored ? '' : 'Браузер не разрешает сохранить настройки.';
-      clickSound();
-    });
-    row.append(caption, toggle); panel.append(row);
-  }
-  const status = document.createElement('p'); status.className = 'storage-note'; status.setAttribute('role','status'); panel.append(status);
-  openDialog('НАСТРОЙКИ', panel);
-}
+document.querySelector('.close-dialog').addEventListener('click',()=>{clickSound();if(dialog.menuBack)dialog.menuBack();else dialog.close();});
+dialog.addEventListener('cancel',event=>{if(dialog.menuBack){event.preventDefault();dialog.menuBack();}});
+function showSettings(){showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings');}
 function requestGameplay() {
   game.scene.stop('Menu');
   const save=readSave();game.scene.start(save?.progress?.location==='floor'?'Floor':'Base',{save});
@@ -2481,7 +2533,7 @@ function createInventoryPanel(p={}){
 }
 function createHelpPanel(){
  const panel=document.createElement('div');panel.className='help-panel';
- const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Вернуться в меню. Прогресс сохраняется.'],['На телефоне','Кнопки направлений и кнопка действия на экране.']]],
+ const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Открыть паузу. Прогресс сохраняется.'],['На телефоне','Кнопки направлений и кнопка действия на экране.']]],
  ['Добыча и база',[['Груз · 200','Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, улучшай её и восстанавливай прочность в ремонтном цехе.']]],
  ['Бои и лифт',[['Пушка','Стреляет автоматически: дальность две клетки. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
  for(const [title,rows] of sections){const section=panelSection(panel,title);for(const [label,value] of rows)infoRow(section,label,value);}

@@ -1,3 +1,4 @@
+import { showGamePanel, showBuildingMenu, openPauseMenu } from './game-menus.js';
 import { materialDefinition } from './materials.js';
 import { createInventoryPanel } from './interface-panels.js';
 import { cargoMethods } from './cargo-scene.js';
@@ -180,18 +181,18 @@ export class Base extends globalThis.Phaser.Scene {
     this.dialogClosed();this.persist();const q=this.workshopQuest;
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
-    exit.textContent='ГОТОВО · ВЫЙТИ ИЗ МАСТЕРСКОЙ';
-    const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность ${100+q.upgrades*2}%${q.upgrades<100?' → '+(102+q.upgrades*2)+'%':''} · Кредиты ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
     this.workshopPanelRender=render;
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;render();this.refreshHUD();this.persist();});
     exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();panel.append(text,buy,status,exit);
-    document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+    showBuildingMenu('workshop',panel);
   }
   makeHUD() {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
-      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">☰ МЕНЮ</button></div></header>
+      <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
       <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
@@ -264,10 +265,9 @@ export class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();document.querySelector('#dialog-title').textContent='ИНВЕНТАРЬ';
-    document.querySelector('#dialog-body').replaceChildren(createInventoryPanel(this.snapshotCampaign()));document.querySelector('#dialog').showModal();
+    this.dialogClosed();this.persist();showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(this.snapshotCampaign()),'inventory');
   }
-  goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
+  goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
     if(this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     const repairItem=this.repairFloorAction();
@@ -432,7 +432,7 @@ export class Base extends globalThis.Phaser.Scene {
     }
     status.textContent='Выбери остановку. Следующий этаж требует ключ-карту.';
     travel.addEventListener('click',()=>{document.querySelector('#dialog').close();this.travelTo(selected);});panel.append(travel);
-    document.querySelector('#dialog-title').textContent='ПУЛЬТ ГРУЗОВОГО ЛИФТА';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+    showBuildingMenu('lift',panel);
   }
   async travelTo(target) {
     if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
@@ -445,7 +445,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   notifySaveFailure() {
     this.cameras.main.fadeIn(200);this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.refreshHUD();});
-    const d=document.querySelector('#dialog');document.querySelector('#dialog-title').textContent='СОХРАНЕНИЕ НЕДОСТУПНО';const p=document.createElement('p');p.textContent='Браузер не разрешил сохранить поездку. Разреши локальное хранение данных и попробуй ещё раз.';document.querySelector('#dialog-body').replaceChildren(p);d.showModal();
+    const p=document.createElement('p');p.textContent='Браузер не разрешил сохранить поездку. Разреши локальное хранение данных и попробуй ещё раз.';showGamePanel('СОХРАНЕНИЕ НЕДОСТУПНО',p);
   }
   makeEffects() {
     this.combatEffects=this.add.graphics().setDepth(26);

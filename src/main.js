@@ -1,15 +1,15 @@
-import { readSave, readSettings, writeSettings, resetSave } from './storage.js';
+import { showGamePanel, createSettingsPanel } from './game-menus.js';
+import { readSave, readSettings, resetSave } from './storage.js';
 import { Base } from './base-scene.js';
 import { Floor } from './floor-scene.js';
 import { createHelpPanel } from './interface-panels.js';
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
-const settings = readSettings();
 let audio;
 let game;
 function clickSound() {
-  if (!settings.sound) return;
+  if (!readSettings().sound) return;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     audio.resume().catch(() => {});
@@ -23,30 +23,12 @@ function clickSound() {
   } catch { /* Audio is optional. */ }
 }
 function openDialog(title, content) {
-  document.querySelector('#dialog-title').textContent = title;
-  const body = document.querySelector('#dialog-body'); body.replaceChildren();
-  if (typeof content === 'string') { const p = document.createElement('p'); p.textContent = content; body.append(p); }
-  else body.append(content);
-  dialog.showModal();
+  if(typeof content==='string'){const p=document.createElement('p');p.textContent=content;content=p;}
+  showGamePanel(title,content);
 }
-document.querySelector('.close-dialog').addEventListener('click', () => { clickSound(); dialog.close(); });
-function showSettings() {
-  const panel = document.createElement('div'); panel.className = 'settings';
-  for (const [key, label] of [['sound', 'Звуки интерфейса']]) {
-    const row = document.createElement('label'); row.className = 'setting-row';
-    const caption = document.createElement('span'); caption.textContent = label;
-    const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = settings[key];
-    toggle.addEventListener('change', () => {
-      settings[key] = toggle.checked;
-      const stored = writeSettings(settings);
-      panel.querySelector('.storage-note').textContent = stored ? '' : 'Браузер не разрешает сохранить настройки.';
-      clickSound();
-    });
-    row.append(caption, toggle); panel.append(row);
-  }
-  const status = document.createElement('p'); status.className = 'storage-note'; status.setAttribute('role','status'); panel.append(status);
-  openDialog('НАСТРОЙКИ', panel);
-}
+document.querySelector('.close-dialog').addEventListener('click',()=>{clickSound();if(dialog.menuBack)dialog.menuBack();else dialog.close();});
+dialog.addEventListener('cancel',event=>{if(dialog.menuBack){event.preventDefault();dialog.menuBack();}});
+function showSettings(){showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings');}
 function requestGameplay() {
   game.scene.stop('Menu');
   const save=readSave();game.scene.start(save?.progress?.location==='floor'?'Floor':'Base',{save});

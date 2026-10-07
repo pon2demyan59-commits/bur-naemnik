@@ -1,3 +1,4 @@
+import { showBuildingMenu } from './game-menus.js';
 import { queueRepairBrief } from './repair-state.js';
 import { drawMountedTurret } from './mounted-weapon.js';
 import { makePerson } from './people-view.js';
@@ -42,12 +43,12 @@ export const armoryMethods={
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig))return;
   this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.textContent=`Оружейник · Первая пушка: ${q.installed?'установлена':'подарок, готова к установке'} · Мощность: ${100+q.weaponLevel*2}% · Кредиты: ${this.credits}`;
-  const blueprint=document.createElement('p');blueprint.textContent='Чертёж первой пушки сохранён.';
+  const text=document.createElement('p');text.className='service-readout';text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'} · Мощность ${100+q.weaponLevel*2}% · Кредиты ${this.credits}`;
+  const blueprint=document.createElement('p');blueprint.className='service-status';blueprint.textContent=q.installed?'Модернизация добавляет 2% мощности.':'Установка первой пушки бесплатна.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;
   button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
-  panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  panel.append(text,blueprint,button);showBuildingMenu('armory',panel);
  },
  makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
  refreshMountedWeapon(){

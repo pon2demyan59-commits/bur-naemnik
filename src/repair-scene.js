@@ -1,3 +1,4 @@
+import { showBuildingMenu } from './game-menus.js';
 import { REPAIR_BODY, REPAIR_DECK, REPAIR_KIT_SITE, REPAIRMAN_SITE, repairBlockCount, canRestoreRepair, onRepairDeck, buyRepair, repairPrice, DRILL_MAX_HP } from './repair-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
 import { WorkshopView } from './workshop-view.js';
@@ -45,14 +46,14 @@ export const repairMethods={
   if(!q.ready||q.serviceRemaining!=null||!onRepairDeck(this.rig)||q.wave==='active')return;
   this.dialogClosed();this.persist();
   const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p');text.textContent='Илья К · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
+  const text=document.createElement('p');text.className='service-readout';text.textContent='Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP+' · Кредиты: '+this.credits;
   const button=document.createElement('button');button.className='metal-button';button.textContent='ВОССТАНОВИТЬ БУР · '+repairPrice(this.hull)+' КРЕДИТОВ';
-  button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);
+  button.disabled=this.hull>=DRILL_MAX_HP||this.credits<repairPrice(this.hull);if(this.hull>=DRILL_MAX_HP)button.textContent='БУР ПОЛНОСТЬЮ ИСПРАВЕН';
   button.addEventListener('click',()=>{
    const result=buyRepair(q,this.hull,this.credits);if(!result.bought)return;
    this.hull=result.hp;this.credits=result.credits;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();
   });
-  panel.append(text,button);document.querySelector('#dialog-title').textContent='РЕМОНТНЫЙ ЦЕХ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  const meter=document.createElement('meter');meter.className='service-meter';meter.min=0;meter.max=DRILL_MAX_HP;meter.value=this.hull;meter.setAttribute('aria-label','Прочность бура');panel.append(text,meter,button);showBuildingMenu('repair',panel);
  },
  refreshRepairHUD(){
   const q=this.repairQuest;if(!q.briefed)return;

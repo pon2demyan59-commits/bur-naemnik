@@ -1,3 +1,4 @@
+import { showBuildingMenu } from './game-menus.js';
 import { MATERIALS } from './materials.js';
 import { MATERIAL_PRICES, cargoCount, quoteCargo, takeCargoSale } from './cargo-state.js';
 import { onPorodnikDeck } from './porodnik-state.js';
@@ -20,12 +21,17 @@ export const cargoMethods={
    const caption=document.createElement('span'),name=document.createElement('strong'),details=document.createElement('small');
    name.textContent=m.name;details.textContent='В буре: '+count+' · '+MATERIAL_PRICES[m.id]+' кр./шт.';caption.append(name,details);label.append(check,swatch,caption);
    const input=document.createElement('input');input.type='number';input.min='1';input.max=String(count);input.step='1';input.value=String(count);input.disabled=!check.checked;input.setAttribute('aria-label','Количество: '+m.name);
-   check.addEventListener('change',()=>{input.disabled=!check.checked;render();});input.addEventListener('input',render);
-   rows.push({id:m.id,count,check,input});row.append(label,input);list.append(row);
+   const stepper=document.createElement('div');stepper.className='cargo-stepper';
+   const minus=document.createElement('button'),plus=document.createElement('button');minus.type=plus.type='button';minus.textContent='−';plus.textContent='+';minus.setAttribute('aria-label','Уменьшить: '+m.name);plus.setAttribute('aria-label','Увеличить: '+m.name);
+   const enabled=()=>{input.disabled=minus.disabled=plus.disabled=!check.checked;};enabled();
+   const step=delta=>{input.value=String(Math.max(1,Math.min(count,(Number(input.value)||1)+delta)));render();};
+   minus.addEventListener('click',()=>step(-1));plus.addEventListener('click',()=>step(1));
+   check.addEventListener('change',()=>{enabled();render();});input.addEventListener('input',render);stepper.append(minus,input,plus);
+   rows.push({id:m.id,count,check,input});row.append(label,stepper);list.append(row);
   }
   sell.addEventListener('click',()=>{if(!this.sellCargo(selection()))return;document.querySelector('#dialog').close();this.dialogClosed();});
   panel.append(intro,list,total,sell);render();
-  document.querySelector('#dialog-title').textContent='«ПОРОДНИК» · ПРОДАЖА ПОРОДЫ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
+  showBuildingMenu('porodnik',panel);
  },
  sellCargo(selection){
   if(this.porodnikJob||!this.world.porodnikPowered||!onPorodnikDeck(this.rig))return false;
@@ -33,3 +39,4 @@ export const cargoMethods={
   this.porodnikJob=job;this.cargo=cargoCount(this.cargoHold);this.speed=0;this.refreshHUD();this.persist();return true;
  }
 };
+
