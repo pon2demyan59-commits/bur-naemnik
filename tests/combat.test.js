@@ -109,3 +109,24 @@ test('third-floor rescue, typed unsold cargo, wounds and killed spiders survive 
  assert.equal(p.cargo,0);assert.deepEqual(p.cargoHold,{});assert.deepEqual(p.carriedLoot,{fiber:0,heads:0});
  assert.equal(p.inventory.fiber,7);assert.equal(p.repairQuest.kit,true);assert.equal(p.combat.floor3[2].hp,0);
 });
+
+test('mounted cannon tracks moving enemies during reload and rig turns; range and walls still block fire',()=>{
+ const near={x:1200,y:1000,hp:3,bite:1000},far={x:1400,y:1000,hp:3,bite:1000};
+ let solid=open,shots=0;
+ const scene={floorNumber:3,repairQuest:{wave:'done'},rig:{x:1000,y:1000,rotation:0},weaponArt:{x:-5,y:-9,rotation:0},
+  spiders:[near,far],armoryQuest:{installed:true,weaponLevel:0},weaponCooldown:800,combatTime:0,
+  time:{now:0},lastSave:0,driveSolids:()=>solid,lift:{contains:()=>true},renderCombat(){},fireAt(){shots++;}};
+ const tick=()=>combatMethods.updateCombat.call(scene,50);
+ const aligned=target=>{
+  const {rig,weaponArt:m}=scene,c=Math.cos(rig.rotation),s=Math.sin(rig.rotation);
+  const angle=Math.atan2(target.y-(rig.y+m.x*s+m.y*c),target.x-(rig.x+m.x*c-m.y*s));
+  assert.ok(Math.abs(Math.sin(m.rotation+rig.rotation-angle))<1e-10);
+  assert.ok(Math.cos(m.rotation+rig.rotation-angle)>.9999);
+ };
+ tick();aligned(near);assert.equal(shots,0);
+ near.x=1000;near.y=1100;scene.rig.rotation=Math.PI/2;tick();aligned(near);assert.equal(shots,0);
+ scene.weaponCooldown=0;solid=(x,y)=>open(x,y)||(x===15&&y===16);tick();aligned(near);assert.equal(shots,0);
+ solid=open;tick();assert.equal(shots,1);assert.equal(scene.weaponCooldown,1000);
+ near.hp=0;tick();aligned(far);assert.equal(shots,1);
+ scene.weaponCooldown=0;tick();assert.equal(shots,1); // Far target is tracked but out of range.
+});

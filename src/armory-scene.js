@@ -60,7 +60,7 @@ export const armoryMethods={
  },
  animateWeaponShot(){
   if(!this.weaponBarrel)return;
-  this.tweens.killTweensOf(this.weaponBarrel);this.weaponBarrel.x=-4;
+  this.tweens.killTweensOf(this.weaponBarrel);this.weaponBarrel.x=-2;
   this.tweens.add({targets:this.weaponBarrel,x:0,duration:180,ease:'Cubic.Out'});
   this.weaponFlash.setVisible(true);this.weaponFlashTimer?.remove();
   this.weaponFlashTimer=this.time.delayedCall(75,()=>{this.weaponFlash?.setVisible(false);this.weaponFlashTimer=null;});

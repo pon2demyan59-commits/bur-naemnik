@@ -72,9 +72,19 @@ export const combatMethods={
     if(this.hull<=0){this.emergencyReturn();return;}
    }
   }
-  if(this.armoryQuest.installed&&this.weaponCooldown===0){
-   const target=nearestTarget(this.rig,this.spiders,WEAPON_RANGE,solid);
-   if(target){this.weaponCooldown=1000;if(this.weaponArt)this.weaponArt.rotation=Math.atan2(target.y-this.rig.y,target.x-this.rig.x)-this.rig.rotation;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);this.animateWeaponShot?.();}
+  if(this.armoryQuest.installed){
+   // Tracking runs every frame, including reloads and enemies behind rubble.
+   const target=nearestTarget(this.rig,this.spiders,Infinity,()=>false);
+   if(target){
+    if(this.weaponArt){
+     const mount=this.weaponArt,c=Math.cos(this.rig.rotation),s=Math.sin(this.rig.rotation);
+     const x=this.rig.x+mount.x*c-mount.y*s,y=this.rig.y+mount.x*s+mount.y*c;
+     mount.rotation=Math.atan2(target.y-y,target.x-x)-this.rig.rotation;
+    }
+    if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=WEAPON_RANGE&&clearShot(this.rig,target,solid)){
+     this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02);this.animateWeaponShot?.();
+    }
+   }
   }
   if(tutorial){
    for(const ally of this.allies){
