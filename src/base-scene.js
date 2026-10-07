@@ -1,4 +1,4 @@
-import { restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
+import { stepWorkshopService, restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
 import { WorkshopView } from './workshop-view.js';
 import { PORODNIK_CYCLE_MS, restorePorodnikJob, stepPorodnikJob, PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
@@ -160,12 +160,12 @@ export class Base extends globalThis.Phaser.Scene {
     }
   }
   openWorkshop() {
-    if(!this.workshopQuest.ready||!onWorkshopDeck(this.rig))return;
+    if(!this.workshopQuest.ready||this.workshopQuest.serviceRemaining!=null||!onWorkshopDeck(this.rig))return;
     this.dialogClosed();this.persist();const q=this.workshopQuest;
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button');buy.className='metal-button';
     const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);};
-    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;this.refreshHUD();this.persist();render();this.notify(`МОЩНОСТЬ БУРА: ${100+q.upgrades*2}%`);});render();panel.append(text,buy);
+    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});render();panel.append(text,buy);
     document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
   }
   makeHUD() {
@@ -191,7 +191,7 @@ export class Base extends globalThis.Phaser.Scene {
     const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig);
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig);
     const label=questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ВЫГРУЗИТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=false;action.disabled=this.workshopQuest.serviceRemaining!=null||this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
@@ -232,7 +232,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     const item=this.workshopFloorAction();
     if(item)this.collectWorkshopItem(item);
     else if(!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig))this.openWorkshop();
@@ -255,10 +255,17 @@ export class Base extends globalThis.Phaser.Scene {
     const m=PORODNIK_MACHINE,g=this.porodnikMotion,job=this.porodnikJob;
     g.clear();
     const working=!!job&&this.world.porodnikPowered;
-    const dx=working?Math.sin(time*.075)*.85:0,dy=working?Math.cos(time*.061)*.6:0;
+    const powered=this.world.porodnikPowered;
+    const dx=powered?Math.sin(time*(working ? .075:.012))*(working ? .85:.18):0,dy=powered?Math.cos(time*(working ? .061:.01))*(working ? .6:.12):0;
     this.porodnik.setPosition(m.x+dx,m.y+dy);g.setPosition(dx,dy);
     this.porodnikLed.setFillStyle(working?(Math.sin(time*.023)>0?0xffd065:0xff9b35):this.world.porodnikPowered?0x74ee87:0xffac46);
     this.porodnikLed.setAlpha(working?1:this.world.porodnikPowered ? .75+.25*Math.sin(time*.003) : 1);
+    if(powered&&!working) {
+      const bx=m.x+115,by=m.y+178,phase=time*.006%8;
+      g.fillStyle(0x182329,.55);g.fillRect(bx,by,91,29);
+      for(let y=by-phase;y<by+29;y+=8){const top=Math.max(by,y),h=Math.min(by+29,y+2)-top;if(h>0){g.fillStyle(0x81908c,.42);g.fillRect(bx+3,top,85,h);}}
+      const puff=time*.00018%1;g.fillStyle(0xd4c29b,(1-puff)*.055);g.fillCircle(m.x+145,m.y+151-puff*13,2+puff*4);
+    }
     if(!working)return;
     const elapsed=PORODNIK_CYCLE_MS-job.remaining,bx=m.x+115,by=m.y+178,bw=91,bh=29;
     // Moving belt bars stay inside the actual intake opening.
@@ -402,7 +409,8 @@ export class Base extends globalThis.Phaser.Scene {
     this.syncAction();this.drawLiftGlow(time);
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
-    this.workshop?.update(Math.min(delta,50));
+    this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
+    if(!this.floorNumber&&this.workshopQuest.serviceRemaining!=null){this.updateWorkshopService(time,Math.min(delta,50)/1000);return;}
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
@@ -410,6 +418,16 @@ export class Base extends globalThis.Phaser.Scene {
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);
     this.animateVehicle(time,dt);this.checkWorkshop();
+  }
+  updateWorkshopService(time,dt) {
+    const q=this.workshopQuest,next=stepWorkshopService(q,{x:this.rig.x,y:this.rig.y,angle:this.rig.angle},dt,this.driveSolids());
+    this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
+    this.rig.setPosition(next.x,next.y).setAngle(next.angle);this.speed=next.speed;this.moving=next.moving;this.cutting=false;this.drillBar.clear();
+    this.world.x=Math.floor(next.x/CELL);this.world.y=Math.floor(next.y/CELL);this.animateVehicle(time,dt);
+    if(q.serviceRemaining==null){this.dialogClosed();this.refreshHUD();this.persist();return;}
+    const status=document.querySelector('#quest-status');
+    if(status)status.textContent=q.serviceRemaining>0?`Модернизация: ${(q.serviceRemaining/1000).toFixed(1)} с`:'Модернизация завершена · Выезд с площадки';
+    if(time-this.lastSave>1000)this.persist();
   }
   drawLiftGlow(time) {
     this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;

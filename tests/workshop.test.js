@@ -51,3 +51,22 @@ test('pending quest dialogue restores its phrase across scenes and does not skip
  assert.equal(restoreWorkshop(JSON.parse(JSON.stringify(q))).dialoguePage,2);
  assert.equal(q.returnBriefed,false);assert.equal(q.ready,false);
 });
+
+test('paid upgrade runs four seconds, resumes from save and prevents a second purchase during service',async()=>{
+ const {stepWorkshopService,WORKSHOP_SERVICE_MS}=await import('../src/workshop-state.js');
+ let q=restoreWorkshop({ready:true});assert.equal(buyWorkshopUpgrade(q,1000).credits,900);assert.equal(q.serviceRemaining,WORKSHOP_SERVICE_MS);
+ assert.deepEqual(buyWorkshopUpgrade(q,900),{bought:false,credits:900});
+ const rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:-90};
+ for(let i=0;i<40;i++){const next=stepWorkshopService(q,rig,.05,()=>false);assert.equal(next.y,rig.y);}
+ q=restoreWorkshop(JSON.parse(JSON.stringify(q)));assert.equal(q.serviceRemaining,2000);assert.equal(q.upgrades,1);
+ for(let i=0;i<40;i++)stepWorkshopService(q,rig,.05,()=>false);assert.equal(q.serviceRemaining,0);
+ let next=rig;for(let i=0;i<150&&q.serviceRemaining!=null;i++)next=stepWorkshopService(q,next,.05,()=>false);
+ assert.equal(q.serviceRemaining,null);assert.equal(next.y,WORKSHOP_DECK.y+WORKSHOP_DECK.height+28);assert.equal(q.upgrades,1);
+});
+test('workshop automatic exit checks collision and releases the drill without excavating a wall',async()=>{
+ const {stepWorkshopService}=await import('../src/workshop-state.js');
+ const q=restoreWorkshop({ready:true,upgrades:1,serviceRemaining:0});const rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:90};
+ const next=stepWorkshopService(q,rig,.05,()=>true);assert.equal(next.y,rig.y);assert.equal(next.moving,false);assert.equal(q.serviceRemaining,null);
+ assert.equal(restoreWorkshop({ready:true,upgrades:1,serviceRemaining:null}).serviceRemaining,null);
+ assert.equal(restoreWorkshop({ready:false,serviceRemaining:1000}).serviceRemaining,null);
+});

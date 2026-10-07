@@ -589,6 +589,9 @@ function stepPorodnikJob(job,delta) {
 }
 
 
+
+
+const WORKSHOP_SERVICE_MS=4000;
 const TOOLS_SITE={x:18,y:20};
 const MECHANIC_SITE={x:32,y:29};
 const WORKSHOP_BLOCKS=[{x:31,y:34},{x:32,y:34},{x:33,y:34}];
@@ -599,6 +602,7 @@ function restoreWorkshop(value={}) {
  const kinds=['workshop','mechanic','workshopReturn','workshopReady'];
  return {briefed:value.briefed===true,tools:value.tools===true,mechanic:value.mechanic===true,
  returnBriefed:value.returnBriefed===true,ready:value.ready===true,
+ serviceRemaining:value.ready===true&&value.upgrades>0&&Number.isFinite(value.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,value.serviceRemaining)):null,
  upgrades:Number.isInteger(value.upgrades)?Math.max(0,Math.min(100,value.upgrades)):0,
  dialogue:kinds.includes(value.dialogue)?value.dialogue:null,
  dialoguePage:Number.isInteger(value.dialoguePage)?Math.max(0,Math.min(4,value.dialoguePage)):0};
@@ -610,13 +614,28 @@ function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefe
 function workshopPrice(q) {return Math.ceil(100*Math.pow(1.25,q.upgrades));}
 function buyWorkshopUpgrade(q,credits) {
  const price=workshopPrice(q);
- if(!q.ready||q.upgrades>=100||credits<price)return {bought:false,credits};
- q.upgrades++;return {bought:true,credits:credits-price};
+ if(!q.ready||q.serviceRemaining!=null||q.upgrades>=100||credits<price)return {bought:false,credits};
+ q.upgrades++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};
 }
 function objectiveBearing(rig,site) {
  const dx=(site.x+.5)*CELL-rig.x,dy=(site.y+.5)*CELL-rig.y;
  const arrows=['→','↘','↓','↙','←','↖','↑','↗'];
  return `${arrows[(Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8]} ${Math.round(Math.hypot(dx,dy)/CELL)} м`;
+}
+
+// The purchase is already paid and saved. This only runs its presentation and safe exit.
+function stepWorkshopService(q,rig,dt,solid) {
+ const next={...rig,speed:0,moving:false};dt=Math.max(0,Math.min(.05,dt));
+ if(q.serviceRemaining==null)return next;
+ if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);return next;}
+ next.angle=smoothHeading(rig.angle,90,dt,240,10);
+ if(Math.abs(wrapDegrees(90-next.angle))>4)return next;
+ const exitY=WORKSHOP_DECK.y+WORKSHOP_DECK.height+28;
+ const y=Math.min(exitY,rig.y+80*dt);
+ if(rig.y>=exitY||!driveFits(rig.x,y,solid)){q.serviceRemaining=null;return next;}
+ next.y=y;next.speed=80;next.moving=true;
+ if(y>=exitY)q.serviceRemaining=null;
+ return next;
 }
 
 
@@ -638,38 +657,39 @@ class WorkshopView {
   this.ready=ready;this.roof.setTint(ready?0xffffff:0x788589);this.bay.setTint(ready?0xffffff:0x788589);
   this.effects.clear();
  }
- update(delta) {
+ update(delta,intensive=false) {
   const g=this.effects;g.clear();if(!this.ready)return;
   this.elapsed+=delta;const t=this.elapsed/1000,b=WORKSHOP_BODY,d=WORKSHOP_DECK;
   // Warm light breathes behind the entrance; the green control lamp pulses.
-  g.fillStyle(0xffba50,.08+.04*Math.sin(t*3));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
+  g.fillStyle(0xffba50,(intensive ? .22:.045)+(intensive ? .1:.018)*Math.sin(t*(intensive?12:3)));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
   g.fillStyle(0x75ff82,.65+.25*Math.sin(t*4));g.fillCircle(b.x+b.width*.91,b.y+b.height*.806,3);
   // Subtle rotating roof ventilator.
   const fx=b.x+b.width*.218,fy=b.y+b.height*.455;
   for(let i=0;i<6;i++) {
-   const a=t*2+i*Math.PI/3;g.lineStyle(1.4,0xaeb7a6,.55);
+   const a=t*(intensive?9:.65)+i*Math.PI/3;g.lineStyle(1.4,0xaeb7a6,.55);
    g.lineBetween(fx+Math.cos(a)*2,fy+Math.sin(a)*2,fx+Math.cos(a+.18)*10,fy+Math.sin(a+.18)*10);
   }
   // Small welding heads move along both rails, taking turns to work.
   for(let side=0;side<2;side++) {
-   const x=d.x+(side?d.width-20:20),y=d.y+38+Math.sin(t*1.7+side*Math.PI)*14;
+   const x=d.x+(side?d.width-20:20),y=d.y+38+Math.sin(t*(intensive?5:.7)+side*Math.PI)*(intensive?22:3);
    g.lineStyle(3,0x26383a);g.lineBetween(x+(side?9:-9),y-15,x,y);
    g.fillStyle(0xc18b3d);g.fillCircle(x,y,3);
-   const phase=(t+side*.75)%2.4;
-   if(phase<.48) {
+   const period=intensive ? .65:6,burst=intensive ? .48:.09;
+   const phase=(t+side*.75)%period;
+   if(phase<burst) {
     g.fillStyle(0xb7f7ff,.5);g.fillCircle(x,y,5+Math.sin(t*65)*2);
     g.fillStyle(0xffffff,.9);g.fillCircle(x,y,1.8);
-    for(let i=0;i<8;i++) {
-     const age=(phase+i*.057)%.48,a=i*2.399+side*Math.PI;
+    for(let i=0;i<(intensive?14:3);i++) {
+     const age=(phase+i*.057)%burst,a=i*2.399+side*Math.PI;
      const sx=x+Math.cos(a)*age*45,sy=y+Math.sin(a)*age*28+age*age*28;
-     g.lineStyle(1,0xffc362,1-age/.48);g.lineBetween(sx,sy,sx+Math.cos(a)*3,sy+Math.sin(a)*2);
+     g.lineStyle(1,0xffc362,1-age/burst);g.lineBetween(sx,sy,sx+Math.cos(a)*3,sy+Math.sin(a)*2);
     }
    }
   }
   // Exhaust puffs drift and fade instead of accumulating game objects.
   for(let i=0;i<3;i++) {
-   const age=(t*.65+i/3)%1;
-   g.fillStyle(0xa9bab0,(1-age)*.13);g.fillEllipse(b.x+b.width*.83+Math.sin(age*4+i)*4,b.y+9-age*22,8+age*13,6+age*11);
+   const age=(t*(intensive?1.5:.35)+i/3)%1;
+   g.fillStyle(0xa9bab0,(1-age)*(intensive ? .25:.055));g.fillEllipse(b.x+b.width*.83+Math.sin(age*4+i)*4,b.y+9-age*22,8+age*13,6+age*11);
   }
  }
 }
@@ -836,12 +856,12 @@ class Base extends globalThis.Phaser.Scene {
     }
   }
   openWorkshop() {
-    if(!this.workshopQuest.ready||!onWorkshopDeck(this.rig))return;
+    if(!this.workshopQuest.ready||this.workshopQuest.serviceRemaining!=null||!onWorkshopDeck(this.rig))return;
     this.dialogClosed();this.persist();const q=this.workshopQuest;
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button');buy.className='metal-button';
     const render=()=>{text.textContent=`Механик: Константин Б · Мощность: ${100+q.upgrades*2}% · Кредиты: ${this.credits}`;buy.textContent=`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);};
-    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;this.refreshHUD();this.persist();render();this.notify(`МОЩНОСТЬ БУРА: ${100+q.upgrades*2}%`);});render();panel.append(text,buy);
+    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits);if(!result.bought)return;this.credits=result.credits;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});render();panel.append(text,buy);
     document.querySelector('#dialog-title').textContent='МАСТЕРСКАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
   }
   makeHUD() {
@@ -867,7 +887,7 @@ class Base extends globalThis.Phaser.Scene {
     const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig);
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig);
     const label=questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ВЫГРУЗИТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
-    action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
+    action.hidden=false;action.disabled=this.workshopQuest.serviceRemaining!=null||this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
   refreshHUD() {
     const w=this.world,ready=this.liftReady();
@@ -908,7 +928,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;this.persist();this.scene.start('Menu');}
   interact() {
-    if(this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     const item=this.workshopFloorAction();
     if(item)this.collectWorkshopItem(item);
     else if(!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig))this.openWorkshop();
@@ -931,10 +951,17 @@ class Base extends globalThis.Phaser.Scene {
     const m=PORODNIK_MACHINE,g=this.porodnikMotion,job=this.porodnikJob;
     g.clear();
     const working=!!job&&this.world.porodnikPowered;
-    const dx=working?Math.sin(time*.075)*.85:0,dy=working?Math.cos(time*.061)*.6:0;
+    const powered=this.world.porodnikPowered;
+    const dx=powered?Math.sin(time*(working ? .075:.012))*(working ? .85:.18):0,dy=powered?Math.cos(time*(working ? .061:.01))*(working ? .6:.12):0;
     this.porodnik.setPosition(m.x+dx,m.y+dy);g.setPosition(dx,dy);
     this.porodnikLed.setFillStyle(working?(Math.sin(time*.023)>0?0xffd065:0xff9b35):this.world.porodnikPowered?0x74ee87:0xffac46);
     this.porodnikLed.setAlpha(working?1:this.world.porodnikPowered ? .75+.25*Math.sin(time*.003) : 1);
+    if(powered&&!working) {
+      const bx=m.x+115,by=m.y+178,phase=time*.006%8;
+      g.fillStyle(0x182329,.55);g.fillRect(bx,by,91,29);
+      for(let y=by-phase;y<by+29;y+=8){const top=Math.max(by,y),h=Math.min(by+29,y+2)-top;if(h>0){g.fillStyle(0x81908c,.42);g.fillRect(bx+3,top,85,h);}}
+      const puff=time*.00018%1;g.fillStyle(0xd4c29b,(1-puff)*.055);g.fillCircle(m.x+145,m.y+151-puff*13,2+puff*4);
+    }
     if(!working)return;
     const elapsed=PORODNIK_CYCLE_MS-job.remaining,bx=m.x+115,by=m.y+178,bw=91,bh=29;
     // Moving belt bars stay inside the actual intake opening.
@@ -1078,7 +1105,8 @@ class Base extends globalThis.Phaser.Scene {
     this.syncAction();this.drawLiftGlow(time);
     if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
-    this.workshop?.update(Math.min(delta,50));
+    this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
+    if(!this.floorNumber&&this.workshopQuest.serviceRemaining!=null){this.updateWorkshopService(time,Math.min(delta,50)/1000);return;}
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
@@ -1086,6 +1114,16 @@ class Base extends globalThis.Phaser.Scene {
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);
     this.animateVehicle(time,dt);this.checkWorkshop();
+  }
+  updateWorkshopService(time,dt) {
+    const q=this.workshopQuest,next=stepWorkshopService(q,{x:this.rig.x,y:this.rig.y,angle:this.rig.angle},dt,this.driveSolids());
+    this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
+    this.rig.setPosition(next.x,next.y).setAngle(next.angle);this.speed=next.speed;this.moving=next.moving;this.cutting=false;this.drillBar.clear();
+    this.world.x=Math.floor(next.x/CELL);this.world.y=Math.floor(next.y/CELL);this.animateVehicle(time,dt);
+    if(q.serviceRemaining==null){this.dialogClosed();this.refreshHUD();this.persist();return;}
+    const status=document.querySelector('#quest-status');
+    if(status)status.textContent=q.serviceRemaining>0?`Модернизация: ${(q.serviceRemaining/1000).toFixed(1)} с`:'Модернизация завершена · Выезд с площадки';
+    if(time-this.lastSave>1000)this.persist();
   }
   drawLiftGlow(time) {
     this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;
