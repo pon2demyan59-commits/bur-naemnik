@@ -35,12 +35,21 @@ function passageGuide(state,direction,solid) {
 }
 export function driveStep(state,direction,dt,solid) {
   dt=Math.min(.05,Math.max(0,dt));
-  const guide=passageGuide(state,direction,solid);
-  const target=guide?.target??angles[direction];
+  const analog=direction&&typeof direction==='object';
+  const length=analog?Math.hypot(direction.x,direction.y):0;
+  if(analog&&(!Number.isFinite(length)||length<.001||!Number.isFinite(direction.strength)||direction.strength<=0))direction=null;
+  const cardinal=direction?(analog?(Math.abs(direction.x)>=Math.abs(direction.y)?(direction.x>0?'right':'left'):(direction.y>0?'down':'up')):direction):null;
+  let inputAngle=direction?(analog?Math.atan2(direction.y,direction.x)*180/Math.PI:angles[direction]):state.angle;
+  // Rock is a grid: gently face the nearest side when the stick presses into it.
+  const dx=cardinal==='right'?1:cardinal==='left'?-1:0,dy=cardinal==='down'?1:cardinal==='up'?-1:0;
+  if(analog&&direction&&solid(Math.floor(state.x/64)+dx,Math.floor(state.y/64)+dy))inputAngle=angles[cardinal];
+  const guide=Math.abs(wrapDegrees(inputAngle-angles[cardinal]))<23?passageGuide(state,cardinal,solid):null;
+  const target=guide?.target??inputAngle;
   const angle=direction?smoothHeading(state.angle,target,dt,720,18):state.angle;
-  const error=direction?Math.abs(wrapDegrees(angles[direction]-angle)):0;
-  // Turn while travelling: reduce speed in a tight bend, never wait for alignment.
-  const desired=direction?280*(1-.55*Math.min(1,error/90)):0;
+  const error=direction?Math.abs(wrapDegrees(inputAngle-angle)):0;
+  const strength=direction?(analog?Math.min(1,direction.strength):1):0;
+  // A short deflection creeps; a full deflection drives at normal speed.
+  const desired=280*strength*(1-.55*Math.min(1,error/90));
   let speed=damp(state.speed,desired,direction?12:16,dt);
   if(!direction&&speed<3)speed=0;
   let x=state.x,y=state.y,blocked=false;
@@ -63,6 +72,7 @@ export function driveStep(state,direction,dt,solid) {
     }
     x=nx;y=ny;
   }
-  return {x,y,angle,speed,blocked,moving:Math.hypot(x-state.x,y-state.y)>.001};
+  return {x,y,angle,speed,blocked,cardinal,moving:Math.hypot(x-state.x,y-state.y)>.001};
 }
+
 

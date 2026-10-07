@@ -1,3 +1,4 @@
+import { createTouchJoystick } from './touch-joystick.js';
 import { showGamePanel, showBuildingMenu, openPauseMenu } from './game-menus.js';
 import { materialDefinition } from './materials.js';
 import { createInventoryPanel } from './interface-panels.js';
@@ -44,7 +45,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:LIFT;
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
-    this.touchDirections=new Map();this.moving=false;this.hold=null;this.lastSave=0;
+    this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
   }
   create() {
@@ -71,19 +72,19 @@ export class Base extends globalThis.Phaser.Scene {
     this.input.keyboard.on('keydown-ESC',this.goMenu,this);
     this.input.keyboard.on('keydown-E',this.interact,this);
     this.input.keyboard.on('keydown-SPACE',this.interact,this);
-    this.clearInput = () => { this.hold=null; this.touchDirections.clear(); this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
+    this.clearInput = () => { this.joystick?.reset(); this.hold=null; this.touchStick=null; this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
     this.fit = size => { this.cameras.main.setSize(size.width,size.height); this.cameras.main.setZoom(size.width < 600 ? .82 : 1.12); };
     this.scale.on('resize',this.fit);
     this.events.once('shutdown',()=>{
-      if(!this.leaving)this.persist(); this.hold=null;
+      if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
       window.removeEventListener('blur',this.clearInput); document.removeEventListener('visibilitychange',this.clearInput);
       this.scale.off('resize',this.fit);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
     this.passenger=this.add.image(-7,0,'people','serega-0').setDisplaySize(16,16).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.rig.add(this.passenger);
-    this.dialogClosed=()=>{this.hold=null;this.touchDirections.clear();this.input.keyboard.resetKeys();this.speed=0;};
+    this.dialogClosed=()=>{this.joystick?.reset();this.hold=null;this.touchStick=null;this.input.keyboard.resetKeys();this.speed=0;};
     document.querySelector('#dialog').addEventListener('close',this.dialogClosed);
     this.events.once('shutdown',()=>document.querySelector('#dialog').removeEventListener('close',this.dialogClosed));
     this.refreshHUD();this.persist();this.checkLift();this.checkPorodnik();
@@ -195,16 +196,15 @@ export class Base extends globalThis.Phaser.Scene {
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
       <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
       <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
-      <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
+      <div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
     hud.querySelector('#base-menu').addEventListener('click',()=>this.goMenu());
     hud.querySelector('#base-inventory').addEventListener('click',()=>this.openInventory());
     hud.querySelector('#rescue-action').addEventListener('click',()=>this.interact());
-    for(const button of hud.querySelectorAll('[data-dir]')) {
-      button.addEventListener('pointerdown',event=> { event.preventDefault();button.setPointerCapture(event.pointerId);this.touchDirections.delete(event.pointerId);this.touchDirections.set(event.pointerId,button.dataset.dir);this.hold=button.dataset.dir; });
-      const stop=event=>{this.touchDirections.delete(event.pointerId);this.hold=[...this.touchDirections.values()].at(-1)||null;};
-      button.addEventListener('pointerup',stop);button.addEventListener('pointercancel',stop);button.addEventListener('lostpointercapture',stop);
-    }
+    this.joystick?.destroy();
+    this.joystick=createTouchJoystick(hud.querySelector('.touch-joystick'),value=>{this.touchStick=value;},
+      ()=>!this.busy&&!this.storyActive&&!document.querySelector('#dialog').open);
+
   }
   liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.world)===0;}
   syncAction() {
@@ -506,7 +506,7 @@ export class Base extends globalThis.Phaser.Scene {
     const dt=Math.min(delta,50)/1000,k=this.keys;
     // The last pressed direction wins, even when the previous key is still held.
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
-    const direction=this.hold || pressed[0]?.[0] || null;
+    const direction=this.touchStick || this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);
     this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));if(this.busy||this.leaving)return;this.checkWorkshop();this.checkArmory();this.checkRepair();
@@ -549,10 +549,11 @@ export class Base extends globalThis.Phaser.Scene {
     this.drillBar.clear();
     if(!direction)return;
     if(!this.world.heard&&!this.floorNumber){this.playRadio();return;}
-    const [dx,dy]={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[direction];
+    const digDirection=typeof direction==='string'?direction:next.cardinal;
+    const [dx,dy]={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]}[digDirection];
     const x=this.world.x+dx,y=this.world.y+dy;
     // Cut only the block directly ahead once the chassis has turned toward it.
-    if(Math.abs(wrapDegrees(heading[direction]-this.rig.angle))>20||!this.world.inside(x,y))return;
+    if(Math.abs(wrapDegrees(heading[digDirection]-this.rig.angle))>20||!this.world.inside(x,y))return;
     if(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
       this.cutting=true;

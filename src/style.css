@@ -56,13 +56,14 @@ p { line-height: 1.6; }
  .radio-card p { font-size: 12px; }
  .base-tip { display: none; }
  .base-bottom { bottom: max(20px,env(safe-area-inset-bottom)); left: auto; right: 12px; flex-direction: column; align-items: end; max-width: 45%; }
- .touch-pad { display: grid; position: absolute; left: 12px; bottom: max(20px,env(safe-area-inset-bottom)); grid-template-columns: repeat(3,48px); grid-template-rows: repeat(2,48px); gap: 5px; }
- .touch-pad button { font-size: 21px; color: #ffda80; border: 2px solid #789e8c; border-radius: 12px; background: #193f3cec; touch-action: none; }
- .touch-pad button:active { background: #b78137; }
- .touch-pad [data-dir="up"] { grid-column: 2; }
- .touch-pad [data-dir="left"] { grid-row: 2; grid-column: 1; }
- .touch-pad [data-dir="down"] { grid-row: 2; grid-column: 2; }
- .touch-pad [data-dir="right"] { grid-row: 2; grid-column: 3; }
+ .touch-pad { display:block; position:absolute; left:max(16px,env(safe-area-inset-left)); bottom:max(24px,env(safe-area-inset-bottom)); pointer-events:auto; }
+ .touch-joystick { position:relative; width:144px; height:144px; border:3px solid #739a87; border-radius:50%; background:radial-gradient(circle,#102b2bdd 35%,#28544adb 65%,#102b2bea); box-shadow:inset 0 0 0 7px #102d2a88,inset 0 3px 14px #0009,0 5px 0 #071e1dc9,0 8px 24px #0006; touch-action:none; user-select:none; -webkit-user-select:none; }
+ .joystick-knob { position:absolute; left:50%; top:50%; width:62px; height:62px; border:3px solid #799c82; border-radius:50%; background:radial-gradient(circle at 35% 25%,#ffe4a0,#d5a64c 65%,#886430); box-shadow:inset 0 2px 2px #fff0bb,0 4px 8px #0009; transform:translate(-50%,-50%); pointer-events:none; }
+ .touch-joystick.active { border-color:#e4c174; }
+ .joystick-axis { position:absolute; background:#a2c3a82e; pointer-events:none; }
+ .axis-horizontal { left:12%; right:12%; top:50%; height:1px; }
+ .axis-vertical { top:12%; bottom:12%; left:50%; width:1px; }
+
 }
 @media (max-height: 520px) {
  .radio-card { top: 80px; width: 240px; padding: 10px; }
@@ -265,4 +266,18 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
  .service-layout.service-porodnik .service-controls>.close-dialog{grid-row:auto;grid-column:2;}
  #dialog.game-dialog .service-lift .floor-button[data-floor]{padding-left:26px;}
  .service-staff>.service-readout{padding:4px 2px;}
+}
+
+@media (max-height:520px) { .touch-joystick { width:120px; height:120px; } .joystick-knob { width:54px; height:54px; } .touch-pad { bottom:max(16px,env(safe-area-inset-bottom)); } }
+@media (max-height:520px) and (pointer:coarse), (max-height:520px) and (max-width:700px) {
+ .radio-card { max-height:calc(100dvh - 228px); }
+}
+@media (pointer:coarse), (max-width:700px) {
+ .base-bottom { left:auto; right:max(12px,env(safe-area-inset-right)); width:min(260px,calc(100% - 184px)); max-width:calc(100% - 184px); }
+ .hud-button.rescue-button { width:100%; min-width:0; overflow-wrap:anywhere; padding:8px; }
+}
+
+@media (pointer:coarse), (max-width:700px) {
+ .base-bottom .combat-hud { width:100%; min-width:0; }
+ .base-bottom .combat-hud>span { min-width:0!important; max-width:100%; white-space:normal; }
 }
