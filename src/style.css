@@ -131,3 +131,24 @@ dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
 
 .credit-receipt{position:absolute;right:18px;top:78px;padding:8px 13px;border:1px solid #8fd5a880;border-radius:8px;background:#173a30ed;color:#b6f1c8;font-weight:bold;pointer-events:none;animation:credit-fade 2.8s forwards;}
 @keyframes credit-fade{0%{opacity:0;transform:translateY(8px)}12%,75%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-12px)}}
+
+.combat-hud{display:flex;flex-direction:column;gap:4px;padding:9px 12px;background:#153936ed;border:1px solid #719e85;border-radius:10px;color:#d9ecc6;font-size:13px;pointer-events:none;}
+#combat-hull{font-weight:800;transition:color .15s;}
+#combat-tip{font-size:11px;color:#ebce8c;}
+#combat-hull.low-hull{color:#ffad72;}
+#combat-hull.hull-hit{color:#ff6451;}
+@media(max-width:700px){.combat-hud{font-size:11px;padding:7px 9px;}#combat-tip{max-width:150px;font-size:10px;}}
+.cargo-console{display:flex;flex-direction:column;gap:12px;}
+.cargo-console p{margin:0;font-size:14px;line-height:1.5;}
+.cargo-list{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:7px;}
+.cargo-row{display:flex;align-items:center;gap:10px;padding:9px;background:#294c46;border:1px solid #789889;border-radius:9px;}
+.cargo-row label{display:flex;align-items:center;gap:9px;flex:1;cursor:pointer;}
+.cargo-row label>input{width:19px;height:19px;accent-color:#dcb35e;flex-shrink:0;}
+.cargo-row strong,.cargo-row small{display:block;}
+.cargo-row strong{font-size:14px;}.cargo-row small{margin-top:3px;font-size:12px;color:#c2d8b6;}
+.cargo-row>input{width:65px;min-height:38px;padding:5px;color:#163832;background:#eadbb4;border:2px solid #9aaf91;border-radius:6px;font-weight:800;}
+.cargo-row>input:disabled{opacity:.45;}
+.cargo-swatch{width:38px;height:38px;flex-shrink:0;border-radius:7px;background-image:url('../public/assets/game/material-surfaces.webp');background-size:400% 400%;border:1px solid #8b9c77;}
+.cargo-total{padding:12px;background:#153b31;border:1px solid #c8b470;border-radius:8px;color:#ffe0a0;font-weight:bold;}
+@media(max-width:600px){.cargo-row{gap:6px;padding:7px;}.cargo-row strong{font-size:12px;}.cargo-row small{font-size:11px;}.cargo-swatch{width:28px;height:28px;}.cargo-row>input{width:52px;}}
+#combat-loot{font-size:11px;color:#a8d2ae;}

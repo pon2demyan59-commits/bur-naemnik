@@ -5,15 +5,17 @@ export function preparePeopleFrames(scene) {
   PEOPLE_ROWS.forEach((name,row)=>{
     for(let pose=0;pose<4;pose++)if(!texture.has(`${name}-${pose}`))texture.add(`${name}-${pose}`,0,pose*width,row*height,width,height);
   });
+  const ilya=scene.textures.get('ilya'),image=ilya.getSourceImage();
+  for(let pose=0;pose<4;pose++)if(!ilya.has('ilya-'+pose))ilya.add('ilya-'+pose,0,pose*image.width/4,0,image.width/4,image.height);
 }
 export function makePerson(scene,x,y,name) {
   const person=scene.add.container(x,y).setDepth(10);
   const shadow=scene.add.ellipse(0,18,29,10,0x071919,.32);
-  const previous=scene.add.image(0,23,'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78).setAlpha(0);
-  const art=scene.add.image(0,23,'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78);
+  const previous=scene.add.image(0,23,name==='ilya'?'ilya':'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78).setAlpha(0);
+  const art=scene.add.image(0,23,name==='ilya'?'ilya':'people',`${name}-0`).setOrigin(.5,.85).setDisplaySize(78,78);
   person.add([shadow,previous,art]);person.workerName=name;person.workerArt=art;
   person.workerPrevious=previous;person.workerPose=0;person.workerBlend=1;
-  person.workerTime=PEOPLE_ROWS.indexOf(name)*1.37;
+  person.workerTime=(name==='ilya'?3:PEOPLE_ROWS.indexOf(name))*1.37;
   return person;
 }
 export function updatePerson(person,delta,rig) {

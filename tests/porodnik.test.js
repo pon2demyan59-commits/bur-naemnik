@@ -19,8 +19,8 @@ test('receiver obstruction survives partial clearing and reload; only the machin
   restored.porodnikPowered=true;assert.equal(new BaseWorld(restored.snapshot()).porodnikPowered,true);
 });
 test('power waits for Serёga briefing and clearing; unloading runs once inside the deck and keeps shared cargo in saves',()=>{
-  const scene=new Base();scene.floorNumber=0;scene.world=new BaseWorld();scene.cargo=15;scene.credits=7;
-  scene.refreshHUD=()=>{};scene.persist=()=>{};scene.notify=()=>{};scene.dialogClosed=()=>{};
+  const scene=new Base();scene.floorNumber=0;scene.world=new BaseWorld();scene.cargo=15;scene.cargoHold={earth:15};scene.credits=7;
+  scene.refreshHUD=()=>{};scene.persist=()=>{};scene.notify=()=>{};scene.dialogClosed=()=>{};scene.openPorodnik=()=>scene.sellCargo({earth:15});
   scene.checkPorodnik();assert.equal(scene.world.porodnikPowered,false);
   for(const p of PORODNIK_BLOCKS)scene.world.drill(p.x,p.y,1);
   scene.checkPorodnik();assert.equal(scene.world.porodnikPowered,false);
@@ -30,9 +30,9 @@ test('power waits for Serёga briefing and clearing; unloading runs once inside 
   assert.equal(scene.porodnikJob.amount,15);
   scene.cargo=4;scene.unloadPorodnik();assert.equal(scene.cargo,4);
   scene.updatePorodnikCycle(9999);assert.equal(scene.credits,7);
-  scene.updatePorodnikCycle(1);assert.equal(scene.credits,22);assert.equal(scene.porodnikJob,null);
-  scene.updatePorodnikCycle(10000);assert.equal(scene.credits,22);scene.cargo=0;
-  scene.campaign={};const save=scene.snapshotCampaign();assert.equal(save.cargo,0);assert.equal(save.credits,22);
+  scene.updatePorodnikCycle(1);assert.equal(scene.credits,37);assert.equal(scene.porodnikJob,null);
+  scene.updatePorodnikCycle(10000);assert.equal(scene.credits,37);scene.cargo=0;
+  scene.campaign={};const save=scene.snapshotCampaign();assert.equal(save.cargo,0);assert.equal(save.credits,37);
   assert.equal(save.base.porodnikPowered,true);
   scene.floorNumber=1;scene.world=new BaseWorld();scene.campaign=save;scene.cargo=12;
   const floorSave=scene.snapshotCampaign();assert.equal(floorSave.cargo,12);assert.equal(floorSave.base.porodnikPowered,true);

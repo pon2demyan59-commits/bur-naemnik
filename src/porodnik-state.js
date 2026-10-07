@@ -1,3 +1,4 @@
+import { restoreCargo, cargoCount, quoteCargo } from './cargo-state.js';
 import { CELL } from './base-state.js';
 export const PORODNIK = { x:16, y:29, width:5, machineRows:4, deckRows:3 };
 export const PORODNIK_BLOCKS = Array.from({length:5},(_,i)=>({x:16+i,y:33}));
@@ -16,10 +17,16 @@ export function onPorodnikDeck(rig) {
 export const PORODNIK_CYCLE_MS=10000;
 export function restorePorodnikJob(value) {
   if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>200||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
+  if(value.sale){
+    const sale=restoreCargo(value.sale),amount=cargoCount(sale);
+    if(amount!==value.amount)return null;
+    return {...quoteCargo(sale,sale),remaining:value.remaining};
+  }
+  // A cycle started before typed cargo keeps its already-promised old payout.
   return {amount:value.amount,remaining:value.remaining};
 }
 export function stepPorodnikJob(job,delta) {
   if(!job)return 0;
   job.remaining=Math.max(0,job.remaining-Math.max(0,delta));
-  return job.remaining===0?job.amount:0;
+  return job.remaining===0?(job.payout??job.amount):0;
 }

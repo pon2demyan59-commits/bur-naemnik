@@ -6,7 +6,7 @@ test('worker sheet has separate four-pose rows, reused on scene changes',()=>{
   const texture={getSourceImage:()=>({width:1024,height:768}),has:key=>frames.has(key),add:(key,...rect)=>frames.set(key,rect)};
   preparePeopleFrames({textures:{get:()=>texture}});
   preparePeopleFrames({textures:{get:()=>texture}});
-  assert.equal(frames.size,12);
+  assert.equal(frames.size,16);
   assert.deepEqual(frames.get('armorer-3'),[0,768,512,256,256]);
 });
 test('rescued people stop animating; visible workers wave and rest without moving their position',()=>{

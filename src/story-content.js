@@ -53,6 +53,37 @@ export const STORY_LINES = {
     {speaker:'Оружейник',text:'Заезжай на площадку. Подаренную пушку поставлю бесплатно.'},
     {speaker:'Оружейник',text:'И улучшать её здесь будем. Чертёж сохрани — ещё пригодится.'}
   ],
+  // New dialogue drafts for the approved third-floor and defense story.
+  repairBrief:[
+    {speaker:'Константин Б',text:'Пушка стоит. Теперь нужен ремонтный цех — одним улучшением бур не спасти.'},
+    {speaker:'Герой',text:'Где взять оборудование?'},
+    {speaker:'Константин Б',text:'На третьем этаже остался Илья, наш ремонтник. Там же ящик с ремонтным комплектом. Держи карту.'},
+    {speaker:'Оружейник',text:'И смотри по сторонам. Пауки там размером с бур. Подпустишь ближе — пушка сама откроет огонь.'}
+  ],
+  repairman:[
+    {speaker:'Илья К',text:'Илья. Ремонтник. Эти восьминогие уже весь проход заняли.'},
+    {speaker:'Герой',text:'На базе есть место для ремонтного цеха. Выбираемся.'},
+    {speaker:'Илья К',text:'Забери ящик с комплектом. Без него чинить твой бур нечем. На базе займусь оборудованием.'}
+  ],
+  repairReturn:[
+    {speaker:'Серёга Т',text:'Илью спас, комплект привёз. Теперь расчистим ремонтный цех.'},
+    {speaker:'Герой',text:'Где он?'},
+    {speaker:'Серёга Т',text:'Слева от «Породника». Три блока у ворот — твои. Остальное сделаю я.'}
+  ],
+  repairReady:[
+    {speaker:'Серёга Т',text:'Помещение готово. Илья, принимай.'},
+    {speaker:'Илья К',text:'Оборудование запустил. Заезжай на площадку — восстановлю прочность за кредиты.'}
+  ],
+  waveBrief:[
+    {speaker:'Оружейник',text:'Слышите? Из проходов лезут пауки. Прямо на базу!'},
+    {speaker:'Серёга Т',text:'Все к оружию. Один он их не удержит.'},
+    {speaker:'Константин Б',text:'Мы прикроем. Держись рядом и не давай им окружить бур.'}
+  ],
+  waveComplete:[
+    {speaker:'Оружейник',text:'Последний. База чиста.'},
+    {speaker:'Серёга Т',text:'Сегодня отбились вместе. Но в следующий раз их может быть больше.'},
+    {speaker:'Константин Б',text:'Нужно укреплять периметр. Без башен и преград далеко не уедем.'}
+  ],
   porodnik:[
     {speaker:'Серёга Т',text:'Вон «Породник». Автомат приёма породы. Давай починим.'},
     {speaker:'Герой',text:'Зачем нам он?'},
@@ -68,6 +99,6 @@ export function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
-    role:speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
-    portrait:speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    role:speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
+    portrait:speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }
