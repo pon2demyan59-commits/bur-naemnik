@@ -152,3 +152,8 @@ dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
 .cargo-total{padding:12px;background:#153b31;border:1px solid #c8b470;border-radius:8px;color:#ffe0a0;font-weight:bold;}
 @media(max-width:600px){.cargo-row{gap:6px;padding:7px;}.cargo-row strong{font-size:12px;}.cargo-row small{font-size:11px;}.cargo-swatch{width:28px;height:28px;}.cargo-row>input{width:52px;}}
 #combat-loot{font-size:11px;color:#a8d2ae;}
+.keycard-info{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:11px;padding-top:10px;border-top:1px solid #668b7055;}
+.keycard-info[hidden]{display:none;}
+.keycard-caption{font-size:10px;letter-spacing:.07em;color:#acc8ad;}
+.keycard-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #d6ba6c;border-radius:5px;background:#283f31;color:#ffe5a2;font-size:11px;font-weight:800;}
+.keycard-chip::before{content:'';width:13px;height:9px;border:1px solid #d6ba6c;border-radius:2px;background:linear-gradient(#e4c678 0 35%,#405e4d 35% 60%,#e4c678 60%);}

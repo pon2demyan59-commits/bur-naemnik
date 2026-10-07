@@ -15,7 +15,7 @@ import { BaseWorld, BASE_SIZE, CELL, RESCUE } from './base-state.js';
 import { STORY_LINES } from './story-content.js';
 import { showStoryDialogue } from './story-dialogue.js';
 import { LiftView } from './lift-view.js';
-import { LIFT, LIFT_BLOCKS, FLOOR_LIFT, liftBlockCount, liftFrameCell, liftDestinations, FloorWorld } from './lift-state.js';
+import { LIFT, LIFT_BLOCKS, FLOOR_LIFT, liftBlockCount, liftFrameCell, liftDestinations, ownedKeycards, FloorWorld } from './lift-state.js';
 import { writeSave } from './storage.js';
 import { driveStep, driveFits, circleHitsRect } from './drive-controller.js';
 import { wrapDegrees, updateHeat } from './drill-motion.js';
@@ -187,7 +187,7 @@ export class Base extends globalThis.Phaser.Scene {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База · 50 × 50</span></div><button class="hud-button" id="base-menu">☰ МЕНЮ</button></header>
-      <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div></aside>
+      <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
       <footer class="base-bottom"><div class="base-tip">WASD / стрелки — движение и бурение<br>E / пробел — взаимодействовать · пушка стреляет автоматически</div><div class="combat-hud"><span id="combat-hull"></span><span id="combat-tip"></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status"></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
     ui.append(hud);
@@ -233,13 +233,23 @@ export class Base extends globalThis.Phaser.Scene {
       }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,LIFT)}`;}
     }
-    this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
+    this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshKeycards();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
+  }
+  refreshKeycards() {
+    const info=document.querySelector('#keycard-info');if(!info)return;
+    const cards=ownedKeycards({...this.campaign,base:this.floorNumber?this.campaign.base:this.world,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
+    const signature=cards.join(',');if(info.dataset.cards===signature)return;
+    info.dataset.cards=signature;info.hidden=!cards.length;info.replaceChildren();
+    const title=document.createElement('span');title.className='keycard-caption';title.textContent='КАРТЫ ЛИФТА';info.append(title);
+    for(const floor of cards){
+      const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
+    }
   }
   snapshotCampaign() {
     const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
-    const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[]),...(this.armoryQuest?.briefed?[2]:[]),...(this.repairQuest?.briefed?[3]:[])])];
+    const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
     return {...base,repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {

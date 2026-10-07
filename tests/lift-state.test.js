@@ -54,3 +54,8 @@ test('an owned third-floor card remains visible even if an old save has a lower 
  const stops=liftDestinations({highestFloor:1,keycards:[1,2,3,NaN,-2,101,'99']});
  assert.equal(stops.length,4);assert.equal(stops.find(s=>s.floor===3).enabled,true);
 });
+test('keycard information derives from finished dialogues and keeps saved cards in floor order',async()=>{
+ const {ownedKeycards}=await import('../src/lift-state.js');
+ assert.deepEqual(ownedKeycards({base:{rescued:true},armoryQuest:{briefed:true},repairQuest:{dialogue:'repairBrief',briefed:false}}),[1,2]);
+ assert.deepEqual(ownedKeycards({base:{rescued:true},armoryQuest:{briefed:true},repairQuest:{briefed:true},keycards:[3,2,3,1,'4']}),[1,2,3]);
+});

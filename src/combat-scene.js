@@ -1,6 +1,6 @@
 import { CELL } from './base-state.js';
 import { driveFits } from './drive-controller.js';
-import { createFloorSpiders, restoreSpider, spiderSnapshot, nearestTarget, clearShot, findPath, moveEnemy, stepSpider, hitSpider, WEAPON_RANGE } from './combat-state.js';
+import { createFloorSpiders, restoreSpider, spiderSnapshot, nearestTarget, clearShot, clearWalk, findPath, moveEnemy, stepSpider, hitSpider, WEAPON_RANGE } from './combat-state.js';
 import { DRILL_MAX_HP } from './repair-state.js';
 import { makePerson } from './people-view.js';
 export const combatMethods={
@@ -63,7 +63,7 @@ export const combatMethods={
   this.combatTime+=ms;this.weaponCooldown=Math.max(0,this.weaponCooldown-ms);
   const safe=this.lift.contains(this.rig);
   for(const s of this.spiders){
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage);
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));
@@ -87,7 +87,7 @@ export const combatMethods={
       ally.pathTime-=ms;
       if(ally.pathTime<=0){ally.path=findPath(ally,target,solid);ally.pathTime=500;}
       while(ally.path.length&&Math.hypot(ally.path[0].x-ally.x,ally.path[0].y-ally.y)<5)ally.path.shift();
-      if(clearShot(ally,target,solid))moveEnemy(ally,target,dt,solid,100);
+      if(clearWalk(ally,target,solid))moveEnemy(ally,target,dt,solid,100);
       else if(ally.path.length)moveEnemy(ally,ally.path[0],dt,solid,100);
       ally.root.setPosition(ally.x,ally.y);
      }
@@ -100,6 +100,12 @@ export const combatMethods={
   }
   this.renderCombat(ms);
   if(ms&&this.time.now-this.lastSave>1000)this.persist();
+ },
+ showMonsterDig(x,y,broken,spider){
+  this.terrain.paintCell(x,y);
+  if(broken){this.terrain.refreshAround(x,y);this.chipEmitter.emitParticleAt((x+.5)*CELL,(y+.5)*CELL,8);this.persist();}
+  const cx=(x+.5)*CELL,cy=(y+.5)*CELL,dx=spider.x-cx,dy=spider.y-cy,distance=Math.max(1,Math.hypot(dx,dy));
+  this.dustEmitter.emitParticleAt(cx+dx/distance*CELL/2,cy+dy/distance*CELL/2,broken?10:3);
  },
  fireAt(from,target,damage){
   this.combatShots.push({x:from.x,y:from.y,tx:target.x,ty:target.y,remaining:150});
@@ -121,7 +127,7 @@ export const combatMethods={
    const view=this.spiderViews[i];if(!view)return;view.root.setVisible(s.hp>0).setPosition(s.x,s.y);
    const moving=Math.hypot(s.x-(s.lastX??s.x),s.y-(s.lastY??s.y))>.05;
    s.lastX=s.x;s.lastY=s.y;
-   view.art.setFrame('walk-'+(moving?Math.floor(this.combatTime/110+i)%4:0)).setAngle(s.angle);
+   view.art.setFrame('walk-'+(moving||s.digging?Math.floor(this.combatTime/(s.digging?80:110)+i)%4:0)).setAngle(s.angle);
    s.flash=Math.max(0,(s.flash||0)-ms);view.art.setTint(s.flash?0xffca86:0xffffff);
    view.bar.clear();
    if(s.hp<3){view.bar.fillStyle(0x112523,.85);view.bar.fillRoundedRect(-20,-39,40,5,2);view.bar.fillStyle(0xf2b35d);view.bar.fillRoundedRect(-20,-39,40*s.hp/3,5,2);}

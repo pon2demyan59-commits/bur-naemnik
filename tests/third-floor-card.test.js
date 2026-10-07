@@ -36,3 +36,9 @@ test('the final armory exit directly launches the pending briefing instead of wa
  s.updateWorkshopService(1000,.016,s.armoryQuest,ARMORY_DECK);
  assert.equal(s.armoryQuest.serviceRemaining,null);assert.equal(kind,'repairBrief');
 });
+test('the gunsmith explicitly hands over the third-floor card in the briefing',async()=>{
+ const { STORY_LINES,storyPresentation }=await import('../src/story-content.js');
+ const entry=STORY_LINES.repairBrief.findIndex(line=>line.speaker==='Оружейник'&&line.text.includes('Держи карту'));
+ assert.ok(entry>=0);assert.ok(STORY_LINES.repairBrief[entry].text.includes('третий этаж'));
+ assert.equal(storyPresentation('repairBrief',entry).portrait,'armorer-portrait.webp');
+});

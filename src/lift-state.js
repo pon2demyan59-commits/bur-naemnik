@@ -18,12 +18,18 @@ export function liftGeometry(center=LIFT) {
     rect(127,885,291,160),rect(915,885,289,160)
   ]};
 }
+export function ownedKeycards(progress) {
+  const base=progress.base||progress;
+  return [...new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),
+    ...(base.rescued?[1]:[]),...(progress.armoryQuest?.briefed?[2]:[]),...(progress.repairQuest?.briefed?[3]:[])
+  ].filter(n=>Number.isInteger(n)&&n>=1&&n<=100))].sort((a,b)=>a-b);
+}
 export function liftDestinations(progress) {
-  const base=progress.base||progress,highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0)));
-  const cards=new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),...(base.rescued?[1]:[])].filter(n=>Number.isInteger(n)&&n>=1&&n<=100));
+  const highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0))),cards=new Set(ownedKeycards(progress));
   const last=Math.min(100,Math.max(highest+1,...cards));
   return [{floor:0,enabled:true},...Array.from({length:last},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
 }
+
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 export class FloorWorld {
   constructor(progress={},floor=1) {

@@ -1,3 +1,4 @@
+import { findTunnelPath, spiderHardSolids, SPIDER_DIG_POWER } from './tunnel-path.js';
 import { CELL, BASE_SIZE } from './base-state.js';
 import { driveFits } from './drive-controller.js';
 export const SPIDER_HP=3,SPIDER_AGGRO=4*CELL,WEAPON_RANGE=2*CELL;
@@ -14,11 +15,13 @@ export function restoreSpider(saved,site,id) {
  angle:Number.isFinite(v.angle)?v.angle:0};
 }
 export function createFloorSpiders(saved=[]) {return SPIDER_SITES.map((site,i)=>restoreSpider(Array.isArray(saved)?saved.find(s=>s?.id===i):null,site,i));}
-export function clearShot(from,to,solid) {
+function traceClear(from,to,solid,radius) {
  const distance=Math.hypot(to.x-from.x,to.y-from.y),steps=Math.max(1,Math.ceil(distance/8));
- for(let i=1;i<=steps;i++)if(!driveFits(from.x+(to.x-from.x)*i/steps,from.y+(to.y-from.y)*i/steps,solid,2))return false;
+ for(let i=1;i<=steps;i++)if(!driveFits(from.x+(to.x-from.x)*i/steps,from.y+(to.y-from.y)*i/steps,solid,radius))return false;
  return true;
 }
+export function clearShot(from,to,solid){return traceClear(from,to,solid,2);}
+export function clearWalk(from,to,solid){return traceClear(from,to,solid,12);}
 export function nearestTarget(from,spiders,range,solid) {
  return spiders.filter(s=>s.hp>0&&Math.hypot(s.x-from.x,s.y-from.y)<=range&&clearShot(from,s,solid))
  .sort((a,b)=>Math.hypot(a.x-from.x,a.y-from.y)-Math.hypot(b.x-from.x,b.y-from.y))[0]||null;
@@ -55,8 +58,8 @@ export function moveEnemy(spider,target,dt,solid,speed=75) {
  }
  spider.angle=Math.atan2(dy,dx)*180/Math.PI+90;
 }
-export function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false}={}) {
- const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;
+export function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false,world=null,onDig=null}={}) {
+ const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;spider.digging=false;
  if(spider.hp<=0){
   if(tutorial)return 0;
   spider.respawn=Math.max(0,spider.respawn-ms);
@@ -73,12 +76,21 @@ export function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false}={}
   if(spider.bite===0){spider.bite=1000;return 1;}
   return 0;
  }
- if(clearShot(spider,rig,solid))moveEnemy(spider,rig,dt,solid);
+ if(clearWalk(spider,rig,solid))moveEnemy(spider,rig,dt,solid);
  else{
   spider.pathTime=(spider.pathTime||0)-ms;
-  if(spider.pathTime<=0){spider.path=findPath(spider,rig,solid);spider.pathTime=600;}
+  if(spider.pathTime<=0){spider.path=world?findTunnelPath(spider,rig,world,solid):findPath(spider,rig,solid);spider.pathTime=600;}
   while(spider.path?.length&&Math.hypot(spider.path[0].x-spider.x,spider.path[0].y-spider.y)<5)spider.path.shift();
-  if(spider.path?.length)moveEnemy(spider,spider.path[0],dt,solid);
+  if(spider.path?.length){
+   const next=spider.path[0],x=Math.floor(next.x/CELL),y=Math.floor(next.y/CELL);
+   if(world?.blocked(x,y)&&driveFits(next.x,next.y,spiderHardSolids(world,solid),12)&&Math.hypot(next.x-spider.x,next.y-spider.y)<=CELL/2+24){
+    spider.digging=true;spider.angle=Math.atan2(next.y-spider.y,next.x-spider.x)*180/Math.PI+90;
+    const broken=world.drill(x,y,SPIDER_DIG_POWER*dt);
+    spider.digEffect=(spider.digEffect||0)-ms;
+    if(broken||spider.digEffect<=0){onDig?.(x,y,broken,spider);spider.digEffect=250;}
+    if(broken){spider.path=[];spider.pathTime=0;}
+   }else moveEnemy(spider,next,dt,solid);
+  }
  }
  return 0;
 }

@@ -560,12 +560,18 @@ function liftGeometry(center=LIFT) {
     rect(127,885,291,160),rect(915,885,289,160)
   ]};
 }
+function ownedKeycards(progress) {
+  const base=progress.base||progress;
+  return [...new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),
+    ...(base.rescued?[1]:[]),...(progress.armoryQuest?.briefed?[2]:[]),...(progress.repairQuest?.briefed?[3]:[])
+  ].filter(n=>Number.isInteger(n)&&n>=1&&n<=100))].sort((a,b)=>a-b);
+}
 function liftDestinations(progress) {
-  const base=progress.base||progress,highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0)));
-  const cards=new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),...(base.rescued?[1]:[])].filter(n=>Number.isInteger(n)&&n>=1&&n<=100));
+  const highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0))),cards=new Set(ownedKeycards(progress));
   const last=Math.min(100,Math.max(highest+1,...cards));
   return [{floor:0,enabled:true},...Array.from({length:last},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
 }
+
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 class FloorWorld {
   constructor(progress={},floor=1) {
@@ -731,8 +737,8 @@ const STORY_LINES = {
   repairBrief:[
     {speaker:'Константин Б',text:'Пушка стоит. Теперь нужен ремонтный цех — одним улучшением бур не спасти.'},
     {speaker:'Герой',text:'Где взять оборудование?'},
-    {speaker:'Константин Б',text:'На третьем этаже остался Илья, наш ремонтник. Там же ящик с ремонтным комплектом. Держи карту.'},
-    {speaker:'Оружейник',text:'И смотри по сторонам. Пауки там размером с бур. Подпустишь ближе — пушка сама откроет огонь.'}
+    {speaker:'Константин Б',text:'На третьем этаже остался Илья, наш ремонтник. Там же ящик с ремонтным комплектом.'},
+    {speaker:'Оружейник',text:'Держи карту от лифта — она откроет третий этаж. И смотри по сторонам: пауки там размером с бур. Подпустишь ближе — пушка сама откроет огонь.'}
   ],
   repairman:[
     {speaker:'Илья К',text:'Илья. Ремонтник. Эти восьминогие уже весь проход заняли.'},
@@ -996,6 +1002,67 @@ function queueRepairBrief(q,armory){
 
 
 
+const SPIDER_DIG_POWER=.5; // Temporary digging balance: soil takes two seconds.
+const SPIDER_WALK_COST=CELL/75;
+function spiderHardSolids(world,solid) {
+ const hard=(x,y)=>solid(x,y)&&!world.blocked(x,y);
+ hard.rectangles=solid.rectangles||[];return hard;
+}
+class TunnelHeap {
+ constructor(){this.items=[];}
+ push(value){
+  const items=this.items;items.push(value);let at=items.length-1;
+  while(at>0){const parent=(at-1)>>1;if(items[parent].rank<=value.rank)break;items[at]=items[parent];at=parent;}
+  items[at]=value;
+ }
+ pop(){
+  const items=this.items,first=items[0],last=items.pop();if(!items.length)return first;
+  let at=0;
+  while(at*2+1<items.length){
+   let next=at*2+1;if(next+1<items.length&&items[next+1].rank<items[next].rank)next++;
+   if(items[next].rank>=last.rank)break;items[at]=items[next];at=next;
+  }
+  items[at]=last;return first;
+ }
+}
+// Minimize travel plus the time required to break the remaining block, not just cell count.
+function findTunnelPath(from,to,world,solid) {
+ const sx=Math.floor(from.x/CELL),sy=Math.floor(from.y/CELL),tx=Math.floor(to.x/CELL),ty=Math.floor(to.y/CELL);
+ const start=sy*BASE_SIZE+sx,goal=ty*BASE_SIZE+tx;
+ if(start===goal)return [];
+ const hard=spiderHardSolids(world,solid),costs=new Float64Array(BASE_SIZE*BASE_SIZE);costs.fill(Infinity);
+ const previous=new Int32Array(BASE_SIZE*BASE_SIZE);previous.fill(-1);
+ const heap=new TunnelHeap();costs[start]=0;heap.push({key:start,cost:0,rank:0});
+ while(heap.items.length){
+  const node=heap.pop();if(node.cost!==costs[node.key])continue;
+  if(node.key===goal){
+   const path=[];let key=goal;
+   while(key!==start){const x=key%BASE_SIZE,y=Math.floor(key/BASE_SIZE);path.push(key===goal?{x:to.x,y:to.y}:{x:(x+.5)*CELL,y:(y+.5)*CELL});key=previous[key];}
+   return path.reverse();
+  }
+  const x=node.key%BASE_SIZE,y=Math.floor(node.key/BASE_SIZE);
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+   const cx=x+dx,cy=y+dy,key=cy*BASE_SIZE+cx;
+   if(cx<2||cy<2||cx>=BASE_SIZE-2||cy>=BASE_SIZE-2)continue;
+   const point=key===goal?to:{x:(cx+.5)*CELL,y:(cy+.5)*CELL};
+   if(!driveFits(point.x,point.y,hard,12))continue;
+   let cost=SPIDER_WALK_COST;
+   if(world.blocked(cx,cy)){
+    const strength=world.hardness?.(cx,cy)??1;if(!Number.isFinite(strength)||strength<=0)continue;
+    const damage=Math.max(0,Math.min(1,world.damage?.get(key)||0));
+    cost+=strength*(1-damage)/SPIDER_DIG_POWER;
+   }
+   const total=node.cost+cost;if(total>=costs[key])continue;
+   costs[key]=total;previous[key]=node.key;
+   heap.push({key,cost:total,rank:total+(Math.abs(tx-cx)+Math.abs(ty-cy))*SPIDER_WALK_COST});
+  }
+ }
+ return [];
+}
+
+
+
+
 const SPIDER_HP=3,SPIDER_AGGRO=4*CELL,WEAPON_RANGE=2*CELL;
 const SPIDER_SITES=[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}];
 const center=site=>({x:(site.x+.5)*CELL,y:(site.y+.5)*CELL});
@@ -1010,11 +1077,13 @@ function restoreSpider(saved,site,id) {
  angle:Number.isFinite(v.angle)?v.angle:0};
 }
 function createFloorSpiders(saved=[]) {return SPIDER_SITES.map((site,i)=>restoreSpider(Array.isArray(saved)?saved.find(s=>s?.id===i):null,site,i));}
-function clearShot(from,to,solid) {
+function traceClear(from,to,solid,radius) {
  const distance=Math.hypot(to.x-from.x,to.y-from.y),steps=Math.max(1,Math.ceil(distance/8));
- for(let i=1;i<=steps;i++)if(!driveFits(from.x+(to.x-from.x)*i/steps,from.y+(to.y-from.y)*i/steps,solid,2))return false;
+ for(let i=1;i<=steps;i++)if(!driveFits(from.x+(to.x-from.x)*i/steps,from.y+(to.y-from.y)*i/steps,solid,radius))return false;
  return true;
 }
+function clearShot(from,to,solid){return traceClear(from,to,solid,2);}
+function clearWalk(from,to,solid){return traceClear(from,to,solid,12);}
 function nearestTarget(from,spiders,range,solid) {
  return spiders.filter(s=>s.hp>0&&Math.hypot(s.x-from.x,s.y-from.y)<=range&&clearShot(from,s,solid))
  .sort((a,b)=>Math.hypot(a.x-from.x,a.y-from.y)-Math.hypot(b.x-from.x,b.y-from.y))[0]||null;
@@ -1051,8 +1120,8 @@ function moveEnemy(spider,target,dt,solid,speed=75) {
  }
  spider.angle=Math.atan2(dy,dx)*180/Math.PI+90;
 }
-function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false}={}) {
- const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;
+function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false,world=null,onDig=null}={}) {
+ const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;spider.digging=false;
  if(spider.hp<=0){
   if(tutorial)return 0;
   spider.respawn=Math.max(0,spider.respawn-ms);
@@ -1069,12 +1138,21 @@ function stepSpider(spider,rig,delta,solid,{tutorial=false,safe=false}={}) {
   if(spider.bite===0){spider.bite=1000;return 1;}
   return 0;
  }
- if(clearShot(spider,rig,solid))moveEnemy(spider,rig,dt,solid);
+ if(clearWalk(spider,rig,solid))moveEnemy(spider,rig,dt,solid);
  else{
   spider.pathTime=(spider.pathTime||0)-ms;
-  if(spider.pathTime<=0){spider.path=findPath(spider,rig,solid);spider.pathTime=600;}
+  if(spider.pathTime<=0){spider.path=world?findTunnelPath(spider,rig,world,solid):findPath(spider,rig,solid);spider.pathTime=600;}
   while(spider.path?.length&&Math.hypot(spider.path[0].x-spider.x,spider.path[0].y-spider.y)<5)spider.path.shift();
-  if(spider.path?.length)moveEnemy(spider,spider.path[0],dt,solid);
+  if(spider.path?.length){
+   const next=spider.path[0],x=Math.floor(next.x/CELL),y=Math.floor(next.y/CELL);
+   if(world?.blocked(x,y)&&driveFits(next.x,next.y,spiderHardSolids(world,solid),12)&&Math.hypot(next.x-spider.x,next.y-spider.y)<=CELL/2+24){
+    spider.digging=true;spider.angle=Math.atan2(next.y-spider.y,next.x-spider.x)*180/Math.PI+90;
+    const broken=world.drill(x,y,SPIDER_DIG_POWER*dt);
+    spider.digEffect=(spider.digEffect||0)-ms;
+    if(broken||spider.digEffect<=0){onDig?.(x,y,broken,spider);spider.digEffect=250;}
+    if(broken){spider.path=[];spider.pathTime=0;}
+   }else moveEnemy(spider,next,dt,solid);
+  }
  }
  return 0;
 }
@@ -1134,7 +1212,12 @@ function updatePerson(person,delta,rig) {
 const repairMethods={
  makeRepairObjects(){
   const q=this.repairQuest;
-  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);}
+  if(!this.floorNumber){this.repairShop=new WorkshopView(this,{body:REPAIR_BODY,deck:REPAIR_DECK,key:'repair-shop'});this.repairShop.powered(q.ready);
+   this.repairSign=this.add.text(REPAIR_BODY.x+REPAIR_BODY.width*.60,REPAIR_BODY.y+REPAIR_BODY.height*.36,'РЕМОНТНЫЙ\nЦЕХ',{
+    fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',align:'center',color:'#efda9e',
+    backgroundColor:'#243834ed',stroke:'#182d29',strokeThickness:1,padding:{x:8,y:4}
+   }).setOrigin(.5).setDepth(5);
+  }
   if(this.floorNumber!==3)return;
   this.repairman=makePerson(this,(REPAIRMAN_SITE.x+.5)*CELL,(REPAIRMAN_SITE.y+.5)*CELL,'ilya').setVisible(!q.rescued);
   this.repairKitArt=this.add.container((REPAIR_KIT_SITE.x+.5)*CELL,(REPAIR_KIT_SITE.y+.5)*CELL).setDepth(10).setVisible(!q.kit);
@@ -1263,7 +1346,7 @@ const combatMethods={
   this.combatTime+=ms;this.weaponCooldown=Math.max(0,this.weaponCooldown-ms);
   const safe=this.lift.contains(this.rig);
   for(const s of this.spiders){
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage);
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));
@@ -1287,7 +1370,7 @@ const combatMethods={
       ally.pathTime-=ms;
       if(ally.pathTime<=0){ally.path=findPath(ally,target,solid);ally.pathTime=500;}
       while(ally.path.length&&Math.hypot(ally.path[0].x-ally.x,ally.path[0].y-ally.y)<5)ally.path.shift();
-      if(clearShot(ally,target,solid))moveEnemy(ally,target,dt,solid,100);
+      if(clearWalk(ally,target,solid))moveEnemy(ally,target,dt,solid,100);
       else if(ally.path.length)moveEnemy(ally,ally.path[0],dt,solid,100);
       ally.root.setPosition(ally.x,ally.y);
      }
@@ -1300,6 +1383,12 @@ const combatMethods={
   }
   this.renderCombat(ms);
   if(ms&&this.time.now-this.lastSave>1000)this.persist();
+ },
+ showMonsterDig(x,y,broken,spider){
+  this.terrain.paintCell(x,y);
+  if(broken){this.terrain.refreshAround(x,y);this.chipEmitter.emitParticleAt((x+.5)*CELL,(y+.5)*CELL,8);this.persist();}
+  const cx=(x+.5)*CELL,cy=(y+.5)*CELL,dx=spider.x-cx,dy=spider.y-cy,distance=Math.max(1,Math.hypot(dx,dy));
+  this.dustEmitter.emitParticleAt(cx+dx/distance*CELL/2,cy+dy/distance*CELL/2,broken?10:3);
  },
  fireAt(from,target,damage){
   this.combatShots.push({x:from.x,y:from.y,tx:target.x,ty:target.y,remaining:150});
@@ -1321,7 +1410,7 @@ const combatMethods={
    const view=this.spiderViews[i];if(!view)return;view.root.setVisible(s.hp>0).setPosition(s.x,s.y);
    const moving=Math.hypot(s.x-(s.lastX??s.x),s.y-(s.lastY??s.y))>.05;
    s.lastX=s.x;s.lastY=s.y;
-   view.art.setFrame('walk-'+(moving?Math.floor(this.combatTime/110+i)%4:0)).setAngle(s.angle);
+   view.art.setFrame('walk-'+(moving||s.digging?Math.floor(this.combatTime/(s.digging?80:110)+i)%4:0)).setAngle(s.angle);
    s.flash=Math.max(0,(s.flash||0)-ms);view.art.setTint(s.flash?0xffca86:0xffffff);
    view.bar.clear();
    if(s.hp<3){view.bar.fillStyle(0x112523,.85);view.bar.fillRoundedRect(-20,-39,40,5,2);view.bar.fillStyle(0xf2b35d);view.bar.fillRoundedRect(-20,-39,40*s.hp/3,5,2);}
@@ -1603,7 +1692,7 @@ class Base extends globalThis.Phaser.Scene {
     const ui=document.querySelector('#ui');ui.replaceChildren();ui.dataset.screen='base';
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База · 50 × 50</span></div><button class="hud-button" id="base-menu">☰ МЕНЮ</button></header>
-      <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div></aside>
+      <aside class="radio-card"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></aside>
       <footer class="base-bottom"><div class="base-tip">WASD / стрелки — движение и бурение<br>E / пробел — взаимодействовать · пушка стреляет автоматически</div><div class="combat-hud"><span id="combat-hull"></span><span id="combat-tip"></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status"></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <div class="touch-pad" aria-label="Управление буром"><button data-dir="up" aria-label="Вверх">▲</button><button data-dir="left" aria-label="Влево">◀</button><button data-dir="down" aria-label="Вниз">▼</button><button data-dir="right" aria-label="Вправо">▶</button></div>`;
     ui.append(hud);
@@ -1649,13 +1738,23 @@ class Base extends globalThis.Phaser.Scene {
       }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,LIFT)}`;}
     }
-    this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
+    this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshKeycards();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
+  }
+  refreshKeycards() {
+    const info=document.querySelector('#keycard-info');if(!info)return;
+    const cards=ownedKeycards({...this.campaign,base:this.floorNumber?this.campaign.base:this.world,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
+    const signature=cards.join(',');if(info.dataset.cards===signature)return;
+    info.dataset.cards=signature;info.hidden=!cards.length;info.replaceChildren();
+    const title=document.createElement('span');title.className='keycard-caption';title.textContent='КАРТЫ ЛИФТА';info.append(title);
+    for(const floor of cards){
+      const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
+    }
   }
   snapshotCampaign() {
     const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
-    const keycards=[...new Set([...(Array.isArray(this.campaign.keycards)?this.campaign.keycards:[]),...(base.rescued?[1]:[]),...(this.armoryQuest?.briefed?[2]:[]),...(this.repairQuest?.briefed?[3]:[])])];
+    const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest});
     return {...base,repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
