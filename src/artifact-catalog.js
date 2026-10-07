@@ -1,4 +1,5 @@
-// Exact approved names and floor assignments from docs/canon-miro.txt. Effects are undecided.
+// Approved 200 names. Legacy floor fields identify the original catalog order,
+// not drop restrictions. Every 20 entries form one rarity; all can drop on any floor.
 export const ARTIFACTS=[
  {
   "id": "artifact-1-1",
