@@ -2444,12 +2444,22 @@ class ArtworkScene extends Phaser.Scene {
     const fit = ({ width, height }) => {
       const texture = this.textures.get(key).getSourceImage();
       // Art and HTML hit areas share one proportional rectangle at every size.
-      const scale = Math.min(width / texture.width, height / texture.height);
+      let scale = Math.min(width / texture.width, height / texture.height);
+      const portrait = width < height;
+      if (portrait) {
+        scale = key === 'console'
+          ? Math.min(width / (texture.width * .5), height / (texture.height * .78))
+          : Math.min(Math.max(width / texture.width, height / texture.height), width / (texture.width * .30));
+      } else if (width < 1100 && height < 520 && key === 'console') {
+        scale = Math.min(width / (texture.width * .75), height / (texture.height * .72));
+      }
       this.art.setPosition(width / 2, height / 2).setScale(scale).setAlpha(1);
       const stage = ui.querySelector('.stage');
       if (stage) {
         stage.style.width = `${texture.width * scale}px`;
         stage.style.height = `${texture.height * scale}px`;
+        stage.style.setProperty('--viewport-width', `${width}px`);
+        stage.style.setProperty('--viewport-height', `${height}px`);
       }
     };
     this.scale.on('resize', fit);

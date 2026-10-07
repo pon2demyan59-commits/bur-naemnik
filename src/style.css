@@ -6,7 +6,7 @@ body { overflow: hidden; }
 #canvas-host, #ui { position: absolute; inset: 0; }
 canvas { display: block; }
 #ui { display: grid; place-items: center; pointer-events: none; }
-.stage { position: relative; container-type: inline-size; }
+.stage { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); container-type:inline-size; }
 button { font: inherit; cursor: pointer; touch-action: manipulation; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
 button:focus-visible { outline: 4px solid #fff2bb; outline-offset: 5px; }
 .art-button, .menu-button { position: absolute; border: 0; background: transparent; color: #22241b; font-weight: 900; letter-spacing: .015em; transition: filter .12s, background .12s; border-radius: 14px; }
@@ -82,9 +82,7 @@ p { line-height: 1.6; }
 
 .reset-button { position:absolute; top:2%; right:2%; min-height:48px; max-width:calc(100% - 40px); padding:10px 16px; border:3px solid #916950; border-radius:10px; background:linear-gradient(#965c42,#643d32); color:#ffe5b0; box-shadow:inset 0 2px #c58b5a,0 4px #26342d; font-size:14px; font-weight:900; }
 .reset-button:active { transform:translateY(2px); }
-@media(max-aspect-ratio:1/1){
- .menu .back-button, .menu .reset-button { min-height:0; padding:1.2cqw 2cqw; border-width:2px; font-size:2.2cqw; border-radius:7px; }
-}
+
 .story-open .base-hud { visibility:hidden; }
 dialog.story-dialogue { width:100%; max-width:none; height:100%; max-height:none; margin:0; border:0; padding:0; border-radius:0; background:transparent; box-shadow:none; overflow:hidden; color:#173d3c; pointer-events:none; }
 dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
@@ -281,3 +279,17 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
  .base-bottom .combat-hud { width:100%; min-width:0; }
  .base-bottom .combat-hud>span { min-width:0!important; max-width:100%; white-space:normal; }
 }
+
+/* Crop the art on phones, while keeping the original painted controls clickable. */
+@media (max-aspect-ratio:1/1) {
+ .title .mobile-title { display:flex; position:absolute; left:50%; top:0; transform:translateX(-50%); width:100vw; height:31%; margin:0; padding-top:5%; flex-direction:column; align-items:center; justify-content:flex-start; background:linear-gradient(#0c1a1b 92%,transparent); color:#ffce68; font-size:clamp(54px,17vw,90px); line-height:1.1; text-shadow:0 3px #284943,0 7px 18px #000; }
+ .title .mobile-title span { font-size:clamp(19px,5.5vw,30px); color:#f7e8b8; margin-top:7px; }
+ .menu .menu-button { min-height:44px; font-size:clamp(17px,2.9cqw,30px); }
+}
+@media (max-aspect-ratio:1/1), (max-width:1099px) and (max-height:519px) {
+ .menu .back-button,.menu .reset-button { top:calc((100% - var(--viewport-height)) / 2 + max(12px,env(safe-area-inset-top))); min-height:44px; padding:8px 12px; font-size:12px; border-radius:9px; }
+ .menu .back-button { left:calc((100% - var(--viewport-width)) / 2 + max(12px,env(safe-area-inset-left))); }
+ .menu .reset-button { right:calc((100% - var(--viewport-width)) / 2 + max(12px,env(safe-area-inset-right))); max-width:55vw; }
+ .menu .menu-button { min-height:44px; }
+}
+@media (pointer:coarse), (max-width:700px) { .entry { min-height:44px; } }
