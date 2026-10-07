@@ -50,3 +50,7 @@ test('a saved off-center drill beside the visible lift keeps its position on rel
  const floor=new FloorWorld({x:22,y:7,drive:{x:22.1*64,y:7.5*64,angle:90}});
  assert.equal(floor.x,22);assert.equal(floor.y,7);
 });
+test('an owned third-floor card remains visible even if an old save has a lower highest-floor counter',()=>{
+ const stops=liftDestinations({highestFloor:1,keycards:[1,2,3,NaN,-2,101,'99']});
+ assert.equal(stops.length,4);assert.equal(stops.find(s=>s.floor===3).enabled,true);
+});

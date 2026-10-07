@@ -25,3 +25,9 @@ export function buyRepair(q,hp,credits){
  q.serviceRemaining=4000;
  return {bought:true,hp:DRILL_MAX_HP,credits:credits-price};
 }
+
+// Queue before the service animation so a reload cannot lose the next story beat.
+export function queueRepairBrief(q,armory){
+ if(q.briefed||q.dialogue||!armory.installed)return false;
+ q.dialogue='repairBrief';q.dialoguePage=0;return true;
+}

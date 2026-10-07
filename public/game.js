@@ -562,8 +562,9 @@ function liftGeometry(center=LIFT) {
 }
 function liftDestinations(progress) {
   const base=progress.base||progress,highest=Math.min(100,Math.max(0,Math.floor(progress.highestFloor||0)));
-  const cards=new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),...(base.rescued?[1]:[])]);
-  return [{floor:0,enabled:true},...Array.from({length:Math.min(100,highest+1)},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
+  const cards=new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),...(base.rescued?[1]:[])].filter(n=>Number.isInteger(n)&&n>=1&&n<=100));
+  const last=Math.min(100,Math.max(highest+1,...cards));
+  return [{floor:0,enabled:true},...Array.from({length:last},(_,i)=>({floor:i+1,enabled:i+1<=highest||cards.has(i+1)}))];
 }
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 class FloorWorld {
@@ -987,6 +988,12 @@ function buyRepair(q,hp,credits){
  return {bought:true,hp:DRILL_MAX_HP,credits:credits-price};
 }
 
+// Queue before the service animation so a reload cannot lose the next story beat.
+function queueRepairBrief(q,armory){
+ if(q.briefed||q.dialogue||!armory.installed)return false;
+ q.dialogue='repairBrief';q.dialoguePage=0;return true;
+}
+
 
 
 const SPIDER_HP=3,SPIDER_AGGRO=4*CELL,WEAPON_RANGE=2*CELL;
@@ -1150,7 +1157,7 @@ const repairMethods={
  checkRepair(){
   const q=this.repairQuest;
   if(this.busy||this.storyActive||document.querySelector('#dialog').open||this.world.dialogue||this.workshopQuest.dialogue||this.armoryQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||q.serviceRemaining!=null)return;
-  if(q.dialogue){this.startStory(q.dialogue);return;}
+  if(q.dialogue){if(q.dialogue==='repairBrief'&&this.floorNumber)return;this.startStory(q.dialogue);return;}
   if(this.floorNumber)return;
   if(!q.briefed&&this.armoryQuest.installed){this.startStory('repairBrief');return;}
   if(q.kit&&q.rescued&&!q.returnBriefed){this.startStory('repairReturn');return;}
@@ -1351,6 +1358,7 @@ const combatMethods={
 
 
 
+
 const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
@@ -1391,7 +1399,7 @@ const armoryMethods={
   const blueprint=document.createElement('p');blueprint.textContent='Чертёж первой пушки сохранён.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;
-  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
+  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
   panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
  },
  makeMountedWeapon(){this.weaponArt=this.add.graphics();this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
@@ -1435,6 +1443,7 @@ class Base extends globalThis.Phaser.Scene {
     const p=save?.progress||{};this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo);this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3].includes(p.floor)?p.floor:1):0;
+    if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);
     // Old saves may park inside the newly installed machine.
@@ -1499,10 +1508,10 @@ class Base extends globalThis.Phaser.Scene {
     this.cameras.main.fadeIn(300,12,26,27);
     if(!this.arrival)this.time.delayedCall(350,()=>{
       if(this.emergency)this.notify('БУР ПОВРЕЖДЁН · ЭВАКУАЦИЯ НА БАЗУ\nГруз потерян. Бур снова готов к работе.');
-      if(this.repairQuest.dialogue)this.startStory(this.repairQuest.dialogue);
-      else if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
+      if(this.world.dialogue)this.startStory(this.world.dialogue);
       else if(this.workshopQuest.dialogue)this.startStory(this.workshopQuest.dialogue);
-      else if(this.world.dialogue)this.startStory(this.world.dialogue);
+      else if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
+      else if(this.repairQuest.dialogue)this.checkRepair();
       else if(!this.world.heard)this.playRadio();
       else {this.checkWorkshop();this.checkArmory();this.checkRepair();}
     });
@@ -1780,6 +1789,7 @@ class Base extends globalThis.Phaser.Scene {
         if(kind==='repairReturn')this.repairQuest.returnBriefed=true;
         if(kind==='waveBrief'){this.repairQuest.wave='active';this.beginDefense();}
         if(kind==='armoryBrief')this.armoryQuest.briefed=true;if(kind==='armoryReturn')this.armoryQuest.returnBriefed=true;if(kind==='workshop')this.workshopQuest.briefed=true;if(kind==='workshopReturn')this.workshopQuest.returnBriefed=true;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='repairBrief')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 3\nНОВОЕ ЗАДАНИЕ · РЕМОНТНЫЙ КОМПЛЕКТ');
         if(kind==='workshop')this.notify('НОВОЕ ЗАДАНИЕ · ИНСТРУМЕНТЫ ДЛЯ МАСТЕРСКОЙ');
         if(kind==='workshopReady')this.notify('МАСТЕРСКАЯ ВОССТАНОВЛЕНА · МЕХАНИК КОНСТАНТИН Б');
         if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
@@ -1894,7 +1904,7 @@ class Base extends globalThis.Phaser.Scene {
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);this.speed=next.speed;this.moving=next.moving;this.cutting=false;this.drillBar.clear();
     this.world.x=Math.floor(next.x/CELL);this.world.y=Math.floor(next.y/CELL);this.animateVehicle(time,dt);
-    if(q.serviceRemaining==null){this.dialogClosed();this.refreshMountedWeapon();this.refreshHUD();this.persist();return;}
+    if(q.serviceRemaining==null){this.dialogClosed();this.refreshMountedWeapon();this.refreshHUD();this.persist();if(q===this.armoryQuest)this.checkRepair();return;}
     const status=document.querySelector('#quest-status');
     if(status)status.textContent=q.serviceRemaining>0?`Модернизация: ${(q.serviceRemaining/1000).toFixed(1)} с`:'Модернизация завершена · Выезд с площадки';
     if(time-this.lastSave>1000)this.persist();

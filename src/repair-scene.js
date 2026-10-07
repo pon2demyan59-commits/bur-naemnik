@@ -30,7 +30,7 @@ export const repairMethods={
  checkRepair(){
   const q=this.repairQuest;
   if(this.busy||this.storyActive||document.querySelector('#dialog').open||this.world.dialogue||this.workshopQuest.dialogue||this.armoryQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||q.serviceRemaining!=null)return;
-  if(q.dialogue){this.startStory(q.dialogue);return;}
+  if(q.dialogue){if(q.dialogue==='repairBrief'&&this.floorNumber)return;this.startStory(q.dialogue);return;}
   if(this.floorNumber)return;
   if(!q.briefed&&this.armoryQuest.installed){this.startStory('repairBrief');return;}
   if(q.kit&&q.rescued&&!q.returnBriefed){this.startStory('repairReturn');return;}

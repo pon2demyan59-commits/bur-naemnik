@@ -3,7 +3,7 @@ import { cargoMethods } from './cargo-scene.js';
 import { restoreCargo, cargoCount, addCargo } from './cargo-state.js';
 import { repairMethods } from './repair-scene.js';
 import { combatMethods } from './combat-scene.js';
-import { restoreRepair, restoreHull, REPAIR_BODY, REPAIR_DECK, REPAIR_BLOCKS, REPAIRMAN_SITE, REPAIR_STORIES } from './repair-state.js';
+import { queueRepairBrief, restoreRepair, restoreHull, REPAIR_BODY, REPAIR_DECK, REPAIR_BLOCKS, REPAIRMAN_SITE, REPAIR_STORIES } from './repair-state.js';
 import { preparePeopleFrames, makePerson, updatePerson } from './people-view.js';
 import { armoryMethods } from './armory-scene.js';
 import { restoreArmory, ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, ARMORY_STORIES, onArmoryDeck } from './armory-state.js';
@@ -27,6 +27,7 @@ export class Base extends globalThis.Phaser.Scene {
     const p=save?.progress||{};this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(200,p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo);this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3].includes(p.floor)?p.floor:1):0;
+    if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);
     // Old saves may park inside the newly installed machine.
@@ -91,10 +92,10 @@ export class Base extends globalThis.Phaser.Scene {
     this.cameras.main.fadeIn(300,12,26,27);
     if(!this.arrival)this.time.delayedCall(350,()=>{
       if(this.emergency)this.notify('БУР ПОВРЕЖДЁН · ЭВАКУАЦИЯ НА БАЗУ\nГруз потерян. Бур снова готов к работе.');
-      if(this.repairQuest.dialogue)this.startStory(this.repairQuest.dialogue);
-      else if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
+      if(this.world.dialogue)this.startStory(this.world.dialogue);
       else if(this.workshopQuest.dialogue)this.startStory(this.workshopQuest.dialogue);
-      else if(this.world.dialogue)this.startStory(this.world.dialogue);
+      else if(this.armoryQuest.dialogue)this.startStory(this.armoryQuest.dialogue);
+      else if(this.repairQuest.dialogue)this.checkRepair();
       else if(!this.world.heard)this.playRadio();
       else {this.checkWorkshop();this.checkArmory();this.checkRepair();}
     });
@@ -372,6 +373,7 @@ export class Base extends globalThis.Phaser.Scene {
         if(kind==='repairReturn')this.repairQuest.returnBriefed=true;
         if(kind==='waveBrief'){this.repairQuest.wave='active';this.beginDefense();}
         if(kind==='armoryBrief')this.armoryQuest.briefed=true;if(kind==='armoryReturn')this.armoryQuest.returnBriefed=true;if(kind==='workshop')this.workshopQuest.briefed=true;if(kind==='workshopReturn')this.workshopQuest.returnBriefed=true;if(kind==='porodnik')this.world.porodnikBriefed=true;this.storyActive=false;this.dialogClosed();this.refreshHUD();this.persist();
+        if(kind==='repairBrief')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 3\nНОВОЕ ЗАДАНИЕ · РЕМОНТНЫЙ КОМПЛЕКТ');
         if(kind==='workshop')this.notify('НОВОЕ ЗАДАНИЕ · ИНСТРУМЕНТЫ ДЛЯ МАСТЕРСКОЙ');
         if(kind==='workshopReady')this.notify('МАСТЕРСКАЯ ВОССТАНОВЛЕНА · МЕХАНИК КОНСТАНТИН Б');
         if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
@@ -486,7 +488,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.turnVelocity=wrapDegrees(next.angle-this.rig.angle)/Math.max(dt,.001);
     this.rig.setPosition(next.x,next.y).setAngle(next.angle);this.speed=next.speed;this.moving=next.moving;this.cutting=false;this.drillBar.clear();
     this.world.x=Math.floor(next.x/CELL);this.world.y=Math.floor(next.y/CELL);this.animateVehicle(time,dt);
-    if(q.serviceRemaining==null){this.dialogClosed();this.refreshMountedWeapon();this.refreshHUD();this.persist();return;}
+    if(q.serviceRemaining==null){this.dialogClosed();this.refreshMountedWeapon();this.refreshHUD();this.persist();if(q===this.armoryQuest)this.checkRepair();return;}
     const status=document.querySelector('#quest-status');
     if(status)status.textContent=q.serviceRemaining>0?`Модернизация: ${(q.serviceRemaining/1000).toFixed(1)} с`:'Модернизация завершена · Выезд с площадки';
     if(time-this.lastSave>1000)this.persist();

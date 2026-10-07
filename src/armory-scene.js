@@ -1,3 +1,4 @@
+import { queueRepairBrief } from './repair-state.js';
 import { makePerson } from './people-view.js';
 import { ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, BLUEPRINT_SITE, armoryBlockCount, canRestoreArmory, onArmoryDeck, installWeapon, buyWeaponUpgrade, weaponUpgradePrice } from './armory-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
@@ -44,7 +45,7 @@ export const armoryMethods={
   const blueprint=document.createElement('p');blueprint.textContent='Чертёж первой пушки сохранён.';
   const button=document.createElement('button');button.className='metal-button';
   button.textContent=q.installed?`МОДЕРНИЗИРОВАТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`:'УСТАНОВИТЬ ПОДАРЕННУЮ ПУШКУ · БЕСПЛАТНО';button.disabled=q.installed?(q.weaponLevel>=100||this.credits<weaponUpgradePrice(q)):!q.gifted;
-  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
+  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits);changed=result.bought;if(changed)this.credits=result.credits;}else changed=installWeapon(q);if(!changed)return;queueRepairBrief(this.repairQuest,q);document.querySelector('#dialog').close();this.dialogClosed();this.refreshHUD();this.persist();});
   panel.append(text,blueprint,button);document.querySelector('#dialog-title').textContent='ОРУЖЕЙНАЯ';document.querySelector('#dialog-body').replaceChildren(panel);document.querySelector('#dialog').showModal();
  },
  makeMountedWeapon(){this.weaponArt=this.add.graphics();this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
