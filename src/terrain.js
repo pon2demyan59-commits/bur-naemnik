@@ -175,7 +175,7 @@ export class WorldTerrain {
     });
     const fixture=floorFixtureIndex(this.world,x,y);
     if(fixture<0)this.fixtures.removeTileAt(x,y);else this.fixtures.putTileAt(fixture,x,y);
-    tile.tint=this.world.damage.has(y*BASE_SIZE+x)?0xf4d6aa:0xffffff;
+    tile.tint=this.world.blocked(x,y)&&this.world.material?.(x,y)==='stone'?(this.world.damage.has(y*BASE_SIZE+x)?0xc0d0d9:0x849ba9):this.world.damage.has(y*BASE_SIZE+x)?0xf4d6aa:0xffffff;
     for(const layer of this.corners){const corner=layer.getTileAt(x,y);if(corner)corner.tint=tile.tint;}
   }
   refreshAround(x,y) {
@@ -195,3 +195,4 @@ export function bunkerFloorTexture(scene) {
   }
   texture.refresh();return key;
 }
+

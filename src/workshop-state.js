@@ -34,13 +34,13 @@ export function objectiveBearing(rig,site) {
 }
 
 // The purchase is already paid and saved. This only runs its presentation and safe exit.
-export function stepWorkshopService(q,rig,dt,solid) {
+export function stepWorkshopService(q,rig,dt,solid,deck=WORKSHOP_DECK) {
  const next={...rig,speed:0,moving:false};dt=Math.max(0,Math.min(.05,dt));
  if(q.serviceRemaining==null)return next;
  if(q.serviceRemaining>0){q.serviceRemaining=Math.max(0,q.serviceRemaining-dt*1000);return next;}
  next.angle=smoothHeading(rig.angle,90,dt,240,10);
  if(Math.abs(wrapDegrees(90-next.angle))>4)return next;
- const exitY=WORKSHOP_DECK.y+WORKSHOP_DECK.height+28;
+ const exitY=deck.y+deck.height+28;
  const y=Math.min(exitY,rig.y+80*dt);
  if(rig.y>=exitY||!driveFits(rig.x,y,solid)){q.serviceRemaining=null;return next;}
  next.y=y;next.speed=80;next.moving=true;

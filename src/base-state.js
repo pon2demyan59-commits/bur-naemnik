@@ -13,6 +13,8 @@ export function initialRubble(x, y) {
   if(x>=15&&x<=21&&y>=28&&y<=36)return y===33&&x>=16&&x<=20;
   // Workshop entrance remains obstructed until the player clears it.
   if(x>=29&&x<=35&&y>=29&&y<=36)return y===34&&x>=31&&x<=33;
+  // Armory service bay has its own three-block obstruction.
+  if(x>=38&&x<=45&&y>=28&&y<=35)return y===33&&x>=40&&x<=42;
   // A fixed, reproducible starting base, not a regenerated level.
   if (x >= 24 && x <= 26 && y >= 24 && y <= 28) return true;
   if (y >= 6 && y <= 10 && x >= 18 && x <= 32) return false;

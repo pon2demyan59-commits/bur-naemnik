@@ -88,11 +88,12 @@ class Boot extends Phaser.Scene {
   preload() {
     this.load.image('title', './public/assets/ui/title.webp');
     this.load.image('console', './public/assets/ui/console.webp');
-    for(const name of ['serega-neutral','serega-portrait','konstantin-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
+    for(const name of ['serega-neutral','serega-portrait','konstantin-portrait','armorer-portrait'])this.load.image(name,'./public/assets/ui/'+name+'.webp');
     for(const name of ['pipe','cap','vent','drain','cable'])this.load.image('prop-'+name,'./public/assets/game/prop-'+name+'.webp');
     this.load.image('soil-cut', './public/assets/game/soil-cut.webp');
     this.load.image('soil-surface', './public/assets/game/soil-surface.webp');
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
+    this.load.image('armory', './public/assets/game/armory.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
@@ -104,7 +105,7 @@ class Boot extends Phaser.Scene {
     });
   }
   create() {
-    if(!['workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
+    if(!['armory','workshop','title','console','serega-neutral','serega-portrait','freight-lift','bunker-door','drill','soil-cut','soil-surface','bunker-floor','prop-pipe','prop-cap','prop-vent','prop-drain','prop-cable'].every(key=>this.textures.exists(key)))return;
     document.querySelector('#loading').hidden = true; this.scene.start('Title');
   }
 }

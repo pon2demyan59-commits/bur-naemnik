@@ -127,3 +127,7 @@ dialog.story-dialogue::backdrop { background:#07171570; backdrop-filter:none; }
 .story-dialogue.player-turn .story-speech { left:8%; }
 .story-dialogue.player-turn .story-speech::before { display:none; }
 @media(max-width:600px) { .story-dialogue.player-turn .story-speech { left:4%; } }
+
+
+.credit-receipt{position:absolute;right:18px;top:78px;padding:8px 13px;border:1px solid #8fd5a880;border-radius:8px;background:#173a30ed;color:#b6f1c8;font-weight:bold;pointer-events:none;animation:credit-fade 2.8s forwards;}
+@keyframes credit-fade{0%{opacity:0;transform:translateY(8px)}12%,75%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-12px)}}

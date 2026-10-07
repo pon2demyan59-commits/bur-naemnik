@@ -1,4 +1,4 @@
-// Verbatim approved copy from docs/canon-miro.txt. Rewards remain separate UI notices.
+// Approved original dialogue and later scenes based on docs/canon-miro.txt. Rewards stay in UI.
 export const STORY_LINES = {
   radio:['Кто-нибудь… слышит? Я за завалом. Воздуха почти не осталось…'],
   rescue:[
@@ -29,6 +29,30 @@ export const STORY_LINES = {
     {speaker:'Константин Б',text:'Заезжай. Мощность бура теперь можно повышать за кредиты.'},
     {speaker:'Герой',text:'Начнём с первого улучшения.'}
   ],
+  armoryBrief:[
+    {speaker:'Константин Б',text:'Бур готов. Но на втором этаже остался мой товарищ — оружейник.'},
+    {speaker:'Герой',text:'Связь с ним есть?'},
+    {speaker:'Константин Б',text:'Перед обвалом сказал, что выход завален. Потом рация замолчала.'},
+    {speaker:'Константин Б',text:'Держи карту второго этажа. Там камень крепче — улучшение пригодится.'},
+    {speaker:'Герой',text:'Спущусь. Попробую его найти.'}
+  ],
+  armorer:[
+    {speaker:'Оружейник',text:'Наконец-то… Константин тебя прислал?'},
+    {speaker:'Герой',text:'Он на базе. Выбираемся.'},
+    {speaker:'Оружейник',text:'Возьми эту пушку. Сам собрал — теперь она твоя.'},
+    {speaker:'Оружейник',text:'И забери чертёж из оружейного шкафа, дальше справа. Подскажу дорогу.'},
+    {speaker:'Оружейник',text:'Ниже видел пауков. Здоровенных. Без оружия туда лучше не соваться.'}
+  ],
+  armoryReturn:[
+    {speaker:'Серёга Т',text:'Оружейника спас, чертёж привёз. Теперь ему нужно рабочее место.'},
+    {speaker:'Герой',text:'Оружейную восстановим?'},
+    {speaker:'Серёга Т',text:'Расчисти три блока у ворот справа от мастерской. Помещение я подготовлю.'}
+  ],
+  armoryReady:[
+    {speaker:'Серёга Т',text:'Оружейная снова работает.'},
+    {speaker:'Оружейник',text:'Заезжай на площадку. Подаренную пушку поставлю бесплатно.'},
+    {speaker:'Оружейник',text:'И улучшать её здесь будем. Чертёж сохрани — ещё пригодится.'}
+  ],
   porodnik:[
     {speaker:'Серёга Т',text:'Вон «Породник». Автомат приёма породы. Давай починим.'},
     {speaker:'Герой',text:'Зачем нам он?'},
@@ -44,6 +68,6 @@ export function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
   return {text:typeof entry==='string'?entry:entry.text,speaker,
-    role:speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
-    portrait:speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
+    role:speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
+    portrait:speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
 }

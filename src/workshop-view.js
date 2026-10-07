@@ -1,25 +1,26 @@
 import { WORKSHOP_BODY, WORKSHOP_DECK } from './workshop-state.js';
 export class WorkshopView {
- constructor(scene) {
-  this.scene=scene;this.elapsed=0;
-  const b=WORKSHOP_BODY,d=WORKSHOP_DECK,texture=scene.textures.get('workshop');
+ constructor(scene,{body=WORKSHOP_BODY,deck=WORKSHOP_DECK,key='workshop'}={}) {
+  this.scene=scene;this.elapsed=0;this.body=body;this.deck=deck;
+  const b=body,d=deck,texture=scene.textures.get(key);
   // Frames follow the roof and narrower attached bay in the painted sprite.
   if(!texture.has('roof')) {
    texture.add('roof',0,0,0,640,292);
    texture.add('bay',0,90,292,460,640-292);
   }
-  this.roof=scene.add.image(b.x,b.y,'workshop','roof').setOrigin(0).setDisplaySize(b.width,b.height).setDepth(2.4);
-  this.bay=scene.add.image(d.x,d.y,'workshop','bay').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.3);
+  this.roof=scene.add.image(b.x,b.y,key,'roof').setOrigin(0).setDisplaySize(b.width,b.height).setDepth(2.4);
+  this.bay=scene.add.image(d.x,d.y,key,'bay').setOrigin(0).setDisplaySize(d.width,d.height).setDepth(2.3);
   this.effects=scene.add.graphics().setDepth(5);
   this.powered(false);
  }
  powered(ready) {
   this.ready=ready;this.roof.setTint(ready?0xffffff:0x788589);this.bay.setTint(ready?0xffffff:0x788589);
-  this.effects.clear();
+  this.effects.clear();this.roof.setPosition(this.body.x,this.body.y);
  }
  update(delta,intensive=false) {
   const g=this.effects;g.clear();if(!this.ready)return;
-  this.elapsed+=delta;const t=this.elapsed/1000,b=WORKSHOP_BODY,d=WORKSHOP_DECK;
+  this.elapsed+=delta;
+  this.roof.setPosition(this.body.x+Math.sin(this.elapsed*(intensive ? .085:.009))*(intensive?1:.12),this.body.y+Math.cos(this.elapsed*(intensive ? .063:.008))*(intensive ? .7:.08));const t=this.elapsed/1000,b=this.body,d=this.deck;
   // Warm light breathes behind the entrance; the green control lamp pulses.
   g.fillStyle(0xffba50,(intensive ? .22:.045)+(intensive ? .1:.018)*Math.sin(t*(intensive?12:3)));g.fillEllipse(d.x+d.width/2,d.y+13,110,30);
   g.fillStyle(0x75ff82,.65+.25*Math.sin(t*4));g.fillCircle(b.x+b.width*.91,b.y+b.height*.806,3);
