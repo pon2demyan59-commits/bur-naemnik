@@ -26,7 +26,7 @@ export function restoreWorkshop(value={}) {
  dialoguePage:Number.isInteger(value.dialoguePage)?Math.max(0,Math.min(4,value.dialoguePage)):0};
 }
 export function nearWorkshopItem(rig,site) {return Math.hypot(rig.x-(site.x+.5)*CELL,rig.y-(site.y+.5)*CELL)<=58;}
-export function onWorkshopDeck(rig) {const d=WORKSHOP_DECK;return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
+export function onWorkshopDeck(rig,d=WORKSHOP_DECK) {return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
 export function workshopBlockCount(world) {return WORKSHOP_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 export function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefed&&workshopBlockCount(world)===0;}
 export function workshopPrice(q) {return DRILL_UPGRADE_PRICE_STEP*(q.upgrades+1);}
