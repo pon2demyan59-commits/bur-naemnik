@@ -2,7 +2,7 @@ import { bonusCacheMethods } from './bonus-cache-scene.js';
 import { restoreBonusCaches } from './bonus-cache-state.js';
 import { discoveryMethods } from './discovery-banner.js';
 import { demyanMethods } from './demyan-scene.js';
-import { restoreDemyan, DEMYAN_STORIES, demyanGeometry } from './demyan-state.js';
+import { restoreDemyan, DEMYAN_ENTRANCE, DEMYAN_STORIES, demyanGeometry } from './demyan-state.js';
 import { collectionMethods } from './collection-page.js';
 import { restoreClosedCollections, collectionBuffTotals } from './collection-state.js';
 import { artifactSceneMethods } from './artifact-scene.js';
@@ -568,7 +568,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(time-this.lastSave>1000)this.persist();
   }
   drawLiftGlow(time) {
-    this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;
+    this.blockGlow.clear();if(this.floorNumber===5&&!this.demyanQuest.rescued){const pulse=.55+.25*Math.sin(time*.004);for(const p of DEMYAN_ENTRANCE)if(this.world.blocked(p.x,p.y)){this.blockGlow.fillStyle(0xffd66c,.18);this.blockGlow.fillRect(p.x*CELL,p.y*CELL,CELL,CELL);this.blockGlow.lineStyle(4,0xffe28b,pulse);this.blockGlow.strokeRect(p.x*CELL+3,p.y*CELL+3,CELL-6,CELL-6);}return;}if(this.floorNumber||!this.world.rescued)return;
     const blocks=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?REPAIR_BLOCKS:this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?ARMORY_BLOCKS:this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?WORKSHOP_BLOCKS:this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
     const pulse=.35+.15*Math.sin(time*.0035);
     for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
@@ -603,6 +603,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
       this.cutting=true;
+      if(!Number.isFinite(this.world.hardness?.(x,y)??1)){this.sparkEmitter.emitParticleAt(middle(x),middle(y),2);return;}
       const key=y*BASE_SIZE+x;
       const material=this.world.material?.(x,y)||'earth';
       const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02+(this.collectionBuffs?.drill||0)));

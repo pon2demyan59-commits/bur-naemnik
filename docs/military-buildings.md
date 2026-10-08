@@ -10,7 +10,9 @@
 Новые растровые ассеты созданы встроенным ImageGen с запросом прозрачного фона. После генерации выполнены обрезка прозрачных полей, уменьшение и WebP-конвертация:
 - `public/assets/ui/demyan-portrait.webp`: stern serious senior military commander, black beret, olive officer uniform, radio, no smile, transparent bust portrait.
 - `public/assets/game/warehouse-house.webp`: compact teal industrial warehouse, loading shutter, ore crates, amber lamps, sign СКЛАД, transparent frontal sprite.
-- `public/assets/game/headquarters.webp`: monumental military headquarters with command tower, shield emblem, armored wings, antennae, sign ШТАБ, transparent frontal sprite; architect asset used as style reference.
+- `public/assets/game/headquarters.webp`: original asymmetrical brutalist concrete military fortress, olive armor, left control tower, right radar dish, red horizontal windows, blast gate, sign ШТАБ, transparent frontal sprite; generated from scratch without architect reference.
 - `public/assets/game/military-guard.webp`: full body armed sentry, black beret, olive tactical uniform, rifle, transparent sprite.
 
-Проверка: 150 автоматических тестов, сборка, браузер на 1440×900 / 390×844 / 844×390; восемь часовых за пределами тела здания, работающий вход, загрузка портрета, сохранность складских запасов и уровня.
+Проверка: 152 автоматических теста, сборка, браузер на 1440×900 / 390×844 / 844×390; восемь часовых за пределами тела здания, работающий вход, загрузка портрета, сохранность складских запасов и уровня.
+
+Спасение на пятом этаже: нерушимый прямоугольный периметр x32…38/y27…34, три разрушаемых блока на западной стороне x32/y29…31 с пульсирующей подсветкой. Внутри Демьян и трое людей. Внешний проход x30…40/y25…36 расчищен для десяти патрулирующих пауков; при приближении к буру они атакуют. Все десять конечные, без респауна; погибшие сохраняются. Нерушимые стены учитываются при навигации и копании пауков, даже если были расчищены в старом сохранении. Условия спасения явно прописаны в двух диалогах и HUD.

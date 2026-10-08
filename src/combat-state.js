@@ -58,7 +58,7 @@ export function moveEnemy(spider,target,dt,solid,speed=75) {
  }
  spider.angle=Math.atan2(dy,dx)*180/Math.PI+90;
 }
-export function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=false,world=null,onDig=null}={}) {
+export function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=false,world=null,onDig=null,patrol=null}={}) {
  const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;spider.digging=false;
  if(spider.hp<=0){
   if(tutorial||finite)return 0;
@@ -70,7 +70,16 @@ export function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,s
  }
  spider.bite=Math.max(0,spider.bite-ms);
  const distance=Math.hypot(rig.x-spider.x,rig.y-spider.y);
- if(!tutorial&&distance>SPIDER_AGGRO)return 0;
+ if(!tutorial&&distance>SPIDER_AGGRO){
+  if(patrol?.length){
+   if(!spider.patrolling){spider.path=[];spider.pathTime=0;}spider.patrolling=true;
+   if(!Number.isInteger(spider.patrolIndex))spider.patrolIndex=(spider.id+1)%patrol.length;
+   let target=center(patrol[spider.patrolIndex]);if(Math.hypot(target.x-spider.x,target.y-spider.y)<8){spider.patrolIndex=(spider.patrolIndex+1)%patrol.length;target=center(patrol[spider.patrolIndex]);spider.pathTime=0;}
+   if(clearWalk(spider,target,solid))moveEnemy(spider,target,dt,solid,55);
+   else{spider.pathTime-=ms;if(spider.pathTime<=0){spider.path=findPath(spider,target,solid);spider.pathTime=600;}while(spider.path?.length&&Math.hypot(spider.path[0].x-spider.x,spider.path[0].y-spider.y)<5)spider.path.shift();if(spider.path?.length)moveEnemy(spider,spider.path[0],dt,solid,55);}
+  }return 0;
+ }
+ if(spider.patrolling){spider.path=[];spider.pathTime=0;spider.patrolling=false;}
  if(safe)return 0;
  if(distance<=48&&clearShot(spider,rig,solid)){
   if(spider.bite===0){spider.bite=1000;return 1;}

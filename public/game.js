@@ -1318,7 +1318,9 @@ class BaseWorld {
 
 const DEMYAN_SITE={x:35,y:31};
 const DEMYAN_ENTRANCE=[{x:32,y:29},{x:32,y:30},{x:32,y:31}];
-const DEMYAN_GUARDS=[{x:30,y:28},{x:30,y:30},{x:30,y:32},{x:28,y:29},{x:28,y:31},{x:26,y:28},{x:26,y:30},{x:26,y:32}];
+const DEMYAN_GUARDS=[{x:30,y:25},{x:34,y:25},{x:38,y:25},{x:40,y:27},{x:40,y:31},{x:40,y:36},{x:36,y:36},{x:32,y:36},{x:30,y:33},{x:30,y:29}];
+function demyanWall(x,y){return x>=32&&x<=38&&y>=27&&y<=34&&(x===32||x===38||y===27||y===34)&&!DEMYAN_ENTRANCE.some(p=>p.x===x&&p.y===y);}
+function demyanOpenCell(x,y){return (x>=33&&x<=37&&y>=28&&y<=33)||(x>=30&&x<=40&&y>=25&&y<=36&&(x<32||x>38||y<27||y>34));}
 const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady'];
 const HQ_RECIPE={earth:100,stone:60,iron:10};
 const HQ_MS=15000;
@@ -1879,10 +1881,10 @@ class FloorWorld {
     if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftGeometry(FLOOR_LIFT).colliders.some(rect=>circleHitsRect(px,py,rect))){this.x=25;this.y=7;}
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
-  blocked(x,y){const item=this.floor===5?((x>=33&&x<=37&&y>=28&&y<=33)||DEMYAN_GUARDS.some(p=>p.x===x&&p.y===y)):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
+  blocked(x,y){if(this.floor===5&&demyanWall(x,y))return true;const item=this.floor===5?demyanOpenCell(x,y):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
   material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
-  hardness(x,y){return this.material(x,y)==='earth'?1:2.5;}
-  drill(x,y,amount){if(!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
+  hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return this.material(x,y)==='earth'?1:2.5;}
+  drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
@@ -1972,12 +1974,12 @@ const STORY_LINES = {
     {speaker:'Серёга Т',text:'Демьян? Это ты?'},
     {speaker:'Демьян П.',text:'Тимофеич? Живой, значит. Хорошо. Сколько вас?'},
     {speaker:'Серёга Т',text:'Теперь несколько. Есть бур. Карта пятого этажа сохранилась — сейчас передам пилоту.'},
-    {speaker:'Демьян П.',text:'Тогда слушайте внимательно. Со мной трое. Есть раненые. Основной проход держу я. Пробейте боковой — с запада от поста.'}
+    {speaker:'Демьян П.',text:'Слушайте внимательно. Со мной трое, есть раненые. Мы внутри ограждения: стены усилены, бур их не возьмёт. Единственный вход слева, с запада — три разрушаемых блока. Они будут подсвечены. Вокруг патрулируют десять пауков. Уничтожь всех десятерых и разбей эти три блока, затем подай бур к проходу.'}
   ],
   demyanContact:[
-    {speaker:'Демьян П.',text:'Бур, вижу тебя! Западная стена — три пласта у входа. Убери завал, там обойдёшь их.'},
+    {speaker:'Демьян П.',text:'Бур, вижу тебя! Слева три подсвеченных блока — это единственный вход. Остальное ограждение нерушимое. Вокруг десять пауков: перебей всех и разбей три блока. Пока проход не открыт и хотя бы один паук жив, люди остаются внутри.'},
     {speaker:'Герой',text:'Долго здесь держишься?'},
-    {speaker:'Демьян П.',text:'Потом поговорим. За мной люди. Зачисти подходы и подай бур к проходу.'}
+    {speaker:'Демьян П.',text:'Потом поговорим. За мной люди. Уничтожь всех десятерых, открой проход и подай бур к нему. Сначала вывезем людей.'}
   ],
   demyanEvac:[
     {speaker:'Герой',text:'Проход открыт. Выходи!'},
@@ -1995,7 +1997,7 @@ const STORY_LINES = {
     {speaker:'Герой',text:'Думаешь, наверху можно жить?'},
     {speaker:'Демьян П.',text:'Думаю, пора это проверить. Только с пустыми руками мы туда не выйдем.'},
     {speaker:'Демьян П.',text:'Собери архитектора и Серёгу. Начнём со штаба — нужно понять, что у нас осталось и как добраться до верхних ворот.'},
-    {speaker:'Строительный мастер',text:'Чертёж штаба есть. Выбирай площадку пять на пять, расчищай и привози материалы. За стройку отвечаю я.'}
+    {speaker:'Строительный мастер',text:'Чертёж штаба есть. Выбирай площадку девять на восемь, расчищай и привози материалы. За стройку отвечаю я.'}
   ],
   hqReady:[
     {speaker:'Строительный мастер',text:'Штаб готов. Связь проверили, вход свободен. Демьян, принимай.'},
@@ -2376,7 +2378,7 @@ function queueRepairBrief(q,armory){
 const SPIDER_DIG_POWER=.5; // Temporary digging balance: soil takes two seconds.
 const SPIDER_WALK_COST=CELL/75;
 function spiderHardSolids(world,solid) {
- const hard=(x,y)=>solid(x,y)&&!world.blocked(x,y);
+ const hard=(x,y)=>solid(x,y)&&(!world.blocked(x,y)||!Number.isFinite(world.hardness?.(x,y)??1));
  hard.rectangles=solid.rectangles||[];return hard;
 }
 class TunnelHeap {
@@ -2491,7 +2493,7 @@ function moveEnemy(spider,target,dt,solid,speed=75) {
  }
  spider.angle=Math.atan2(dy,dx)*180/Math.PI+90;
 }
-function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=false,world=null,onDig=null}={}) {
+function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=false,world=null,onDig=null,patrol=null}={}) {
  const ms=Math.max(0,Math.min(delta,50)),dt=ms/1000;spider.digging=false;
  if(spider.hp<=0){
   if(tutorial||finite)return 0;
@@ -2503,7 +2505,16 @@ function stepSpider(spider,rig,delta,solid,{tutorial=false,finite=false,safe=fal
  }
  spider.bite=Math.max(0,spider.bite-ms);
  const distance=Math.hypot(rig.x-spider.x,rig.y-spider.y);
- if(!tutorial&&distance>SPIDER_AGGRO)return 0;
+ if(!tutorial&&distance>SPIDER_AGGRO){
+  if(patrol?.length){
+   if(!spider.patrolling){spider.path=[];spider.pathTime=0;}spider.patrolling=true;
+   if(!Number.isInteger(spider.patrolIndex))spider.patrolIndex=(spider.id+1)%patrol.length;
+   let target=center(patrol[spider.patrolIndex]);if(Math.hypot(target.x-spider.x,target.y-spider.y)<8){spider.patrolIndex=(spider.patrolIndex+1)%patrol.length;target=center(patrol[spider.patrolIndex]);spider.pathTime=0;}
+   if(clearWalk(spider,target,solid))moveEnemy(spider,target,dt,solid,55);
+   else{spider.pathTime-=ms;if(spider.pathTime<=0){spider.path=findPath(spider,target,solid);spider.pathTime=600;}while(spider.path?.length&&Math.hypot(spider.path[0].x-spider.x,spider.path[0].y-spider.y)<5)spider.path.shift();if(spider.path?.length)moveEnemy(spider,spider.path[0],dt,solid,55);}
+  }return 0;
+ }
+ if(spider.patrolling){spider.path=[];spider.pathTime=0;spider.patrolling=false;}
  if(safe)return 0;
  if(distance<=48&&clearShot(spider,rig,solid)){
   if(spider.bite===0){spider.bite=1000;return 1;}
@@ -2660,6 +2671,7 @@ const combatMethods={
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
   this.spiders=this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
+  if(this.floorNumber===5)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
   this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(1000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
   if(this.floorNumber===3||this.floorNumber===4||this.floorNumber===5)this.createSpiderViews();
@@ -2719,7 +2731,7 @@ const combatMethods={
   for(const s of this.spiders){
    // Base enemies belong only to the finite tutorial wave, never to floor respawns.
    if(!this.floorNumber&&!tutorial)continue;
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4||this.floorNumber===5,safe,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4||this.floorNumber===5,safe,patrol:this.floorNumber===5?DEMYAN_GUARDS:null,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage*(1-(this.collectionBuffs?.defense||0)));
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));
@@ -3236,7 +3248,8 @@ const demyanMethods={
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
    g.fillStyle(0x243c3b);g.fillRoundedRect(33*CELL,28*CELL,5*CELL,6*CELL,10);g.lineStyle(3,0x526860);g.strokeRect(33*CELL+8,28*CELL+8,5*CELL-16,6*CELL-16);
-   // The west side is the cleared-by-player rescue route; ruins are visual, not invisible walls.
+   // Reinforced enclosure is actual indestructible terrain, with one three-block west entrance.
+   for(let cy=27;cy<=34;cy++)for(let cx=32;cx<=38;cx++)if(demyanWall(cx,cy)){const bx=cx*CELL,by=cy*CELL;g.fillStyle(0x202e31);g.fillRect(bx,by,CELL,CELL);g.fillStyle(0x6b7775);g.fillRoundedRect(bx+3,by+3,CELL-6,CELL-9,4);g.lineStyle(3,0x9aa79e);g.strokeRect(bx+5,by+5,CELL-10,CELL-13);g.lineStyle(5,0x394b4e);g.lineBetween(bx+10,by+12,bx+CELL-10,by+CELL-15);g.lineBetween(bx+CELL-10,by+12,bx+10,by+CELL-15);}
    for(let i=0;i<7;i++){g.fillStyle(i%2?0x735746:0x8b7757);g.fillRoundedRect(33*CELL+16+i*37,32*CELL+28+(i%2)*8,32,26,4);}
    for(let i=0;i<35;i++){g.fillStyle(0xc39b50);g.fillRect(x-90+(i*47)%180,y-20+(i*29)%65,6,3);}
    g.fillStyle(0x19302e);g.fillRoundedRect(35*CELL,28*CELL+12,110,48,6);g.fillStyle(0x81b989);g.fillRect(35*CELL+14,28*CELL+22,70,22);
@@ -3307,7 +3320,7 @@ const demyanMethods={
   const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
-  if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Пробей боковой проход и уничтожь нападающих.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
+  if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
  headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';const others=this.occupiedBuildingGeometries().filter(g=>g.kind!=='hq');const error=validateBuildingMove('hq',geom,this.world,others,this.rig);if(error)return error;const f=geom.footprint,buffer={x:f.x-2*CELL,y:f.y-2*CELL,width:f.width+4*CELL,height:f.height+4*CELL};if([...others.map(g=>g.footprint),ARCHITECT_FOOTPRINT].some(f=>rectanglesOverlap(buffer,f)))return 'Оставь проход шириной две клетки между зданиями';return null;},
@@ -4052,7 +4065,7 @@ class Base extends globalThis.Phaser.Scene {
     if(time-this.lastSave>1000)this.persist();
   }
   drawLiftGlow(time) {
-    this.blockGlow.clear();if(this.floorNumber||!this.world.rescued)return;
+    this.blockGlow.clear();if(this.floorNumber===5&&!this.demyanQuest.rescued){const pulse=.55+.25*Math.sin(time*.004);for(const p of DEMYAN_ENTRANCE)if(this.world.blocked(p.x,p.y)){this.blockGlow.fillStyle(0xffd66c,.18);this.blockGlow.fillRect(p.x*CELL,p.y*CELL,CELL,CELL);this.blockGlow.lineStyle(4,0xffe28b,pulse);this.blockGlow.strokeRect(p.x*CELL+3,p.y*CELL+3,CELL-6,CELL-6);}return;}if(this.floorNumber||!this.world.rescued)return;
     const blocks=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?REPAIR_BLOCKS:this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?ARMORY_BLOCKS:this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?WORKSHOP_BLOCKS:this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
     const pulse=.35+.15*Math.sin(time*.0035);
     for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
@@ -4087,6 +4100,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued){this.refreshHUD();return;}
     if(this.world.blocked(x,y)) {
       this.cutting=true;
+      if(!Number.isFinite(this.world.hardness?.(x,y)??1)){this.sparkEmitter.emitParticleAt(middle(x),middle(y),2);return;}
       const key=y*BASE_SIZE+x;
       const material=this.world.material?.(x,y)||'earth';
       const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02+(this.collectionBuffs?.drill||0)));

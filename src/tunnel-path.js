@@ -3,7 +3,7 @@ import { driveFits } from './drive-controller.js';
 export const SPIDER_DIG_POWER=.5; // Temporary digging balance: soil takes two seconds.
 const SPIDER_WALK_COST=CELL/75;
 export function spiderHardSolids(world,solid) {
- const hard=(x,y)=>solid(x,y)&&!world.blocked(x,y);
+ const hard=(x,y)=>solid(x,y)&&(!world.blocked(x,y)||!Number.isFinite(world.hardness?.(x,y)??1));
  hard.rectangles=solid.rectangles||[];return hard;
 }
 class TunnelHeap {

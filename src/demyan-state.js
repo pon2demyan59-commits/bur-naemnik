@@ -1,7 +1,9 @@
 import { CELL } from './base-state.js';
 export const DEMYAN_SITE={x:35,y:31};
 export const DEMYAN_ENTRANCE=[{x:32,y:29},{x:32,y:30},{x:32,y:31}];
-export const DEMYAN_GUARDS=[{x:30,y:28},{x:30,y:30},{x:30,y:32},{x:28,y:29},{x:28,y:31},{x:26,y:28},{x:26,y:30},{x:26,y:32}];
+export const DEMYAN_GUARDS=[{x:30,y:25},{x:34,y:25},{x:38,y:25},{x:40,y:27},{x:40,y:31},{x:40,y:36},{x:36,y:36},{x:32,y:36},{x:30,y:33},{x:30,y:29}];
+export function demyanWall(x,y){return x>=32&&x<=38&&y>=27&&y<=34&&(x===32||x===38||y===27||y===34)&&!DEMYAN_ENTRANCE.some(p=>p.x===x&&p.y===y);}
+export function demyanOpenCell(x,y){return (x>=33&&x<=37&&y>=28&&y<=33)||(x>=30&&x<=40&&y>=25&&y<=36&&(x<32||x>38||y<27||y>34));}
 export const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady'];
 export const HQ_RECIPE={earth:100,stone:60,iron:10};
 export const HQ_MS=15000;

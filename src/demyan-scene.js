@@ -1,6 +1,6 @@
 import { readSettings } from './storage.js';
 import { ARCHITECT_FOOTPRINT } from './construction-state.js';
-import { DEMYAN_SITE, DEMYAN_ENTRANCE, DEMYAN_GUARDS, HQ_RECIPE, HQ_WIDTH, HQ_HEIGHT, demyanGeometry, canEvacuateDemyan, beginHeadquarters, stepHeadquarters } from './demyan-state.js';
+import { DEMYAN_SITE, DEMYAN_ENTRANCE, DEMYAN_GUARDS, demyanWall, HQ_RECIPE, HQ_WIDTH, HQ_HEIGHT, demyanGeometry, canEvacuateDemyan, beginHeadquarters, stepHeadquarters } from './demyan-state.js';
 import { CELL } from './base-state.js';
 import { makePerson, updatePerson } from './people-view.js';
 import { nearestTarget, findPath, moveEnemy } from './combat-state.js';
@@ -21,7 +21,8 @@ export const demyanMethods={
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
    g.fillStyle(0x243c3b);g.fillRoundedRect(33*CELL,28*CELL,5*CELL,6*CELL,10);g.lineStyle(3,0x526860);g.strokeRect(33*CELL+8,28*CELL+8,5*CELL-16,6*CELL-16);
-   // The west side is the cleared-by-player rescue route; ruins are visual, not invisible walls.
+   // Reinforced enclosure is actual indestructible terrain, with one three-block west entrance.
+   for(let cy=27;cy<=34;cy++)for(let cx=32;cx<=38;cx++)if(demyanWall(cx,cy)){const bx=cx*CELL,by=cy*CELL;g.fillStyle(0x202e31);g.fillRect(bx,by,CELL,CELL);g.fillStyle(0x6b7775);g.fillRoundedRect(bx+3,by+3,CELL-6,CELL-9,4);g.lineStyle(3,0x9aa79e);g.strokeRect(bx+5,by+5,CELL-10,CELL-13);g.lineStyle(5,0x394b4e);g.lineBetween(bx+10,by+12,bx+CELL-10,by+CELL-15);g.lineBetween(bx+CELL-10,by+12,bx+10,by+CELL-15);}
    for(let i=0;i<7;i++){g.fillStyle(i%2?0x735746:0x8b7757);g.fillRoundedRect(33*CELL+16+i*37,32*CELL+28+(i%2)*8,32,26,4);}
    for(let i=0;i<35;i++){g.fillStyle(0xc39b50);g.fillRect(x-90+(i*47)%180,y-20+(i*29)%65,6,3);}
    g.fillStyle(0x19302e);g.fillRoundedRect(35*CELL,28*CELL+12,110,48,6);g.fillStyle(0x81b989);g.fillRect(35*CELL+14,28*CELL+22,70,22);
@@ -92,7 +93,7 @@ export const demyanMethods={
   const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
-  if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Пробей боковой проход и уничтожь нападающих.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
+  if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
  headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';const others=this.occupiedBuildingGeometries().filter(g=>g.kind!=='hq');const error=validateBuildingMove('hq',geom,this.world,others,this.rig);if(error)return error;const f=geom.footprint,buffer={x:f.x-2*CELL,y:f.y-2*CELL,width:f.width+4*CELL,height:f.height+4*CELL};if([...others.map(g=>g.footprint),ARCHITECT_FOOTPRINT].some(f=>rectanglesOverlap(buffer,f)))return 'Оставь проход шириной две клетки между зданиями';return null;},
