@@ -6,7 +6,7 @@ const BUILDING_MENUS={
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
  hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
- armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
+ armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
  lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
  porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}

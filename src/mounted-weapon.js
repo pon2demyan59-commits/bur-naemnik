@@ -1,5 +1,5 @@
 // Compact roof-mounted cannon, facing right in drill-local coordinates.
-export function drawMountedTurret(scene,root,upgraded=false) {
+export function drawMountedTurret(scene,root,upgraded=false,weapon='basic') {
  const base=scene.add.graphics(),barrel=scene.add.container(0,0),steel=scene.add.graphics(),armor=scene.add.graphics(),flash=scene.add.graphics();
  root.add([base,barrel,armor,flash]);barrel.add(steel);
  const outline=0x172e32,accent=upgraded?0xe4b85c:0xdb9149;
@@ -16,6 +16,15 @@ export function drawMountedTurret(scene,root,upgraded=false) {
  steel.fillStyle(outline);steel.fillRoundedRect(22,-5,6,10,2);
  steel.fillStyle(0x879b91);steel.fillRect(23,-3,3,6);
  steel.fillStyle(0x0d252b);steel.fillRect(26,-2,2,4);
+ if(['machinegun','shotgun'].includes(weapon)){
+  for(const y of [-7,5]){steel.fillStyle(outline);steel.fillRoundedRect(9,y,19,3,1);steel.fillStyle(0x93a69c);steel.fillRect(11,y,14,1);}
+ }
+ if(['heavy','rocket','rail','plasma'].includes(weapon)){
+  steel.fillStyle(outline);steel.fillRoundedRect(10,-6,25,12,2);steel.fillStyle(0x729088);steel.fillRect(12,-4,21,8);steel.fillStyle(0x162f34);steel.fillRect(32,-4,3,8);
+ }
+ if(['flame','electric','acid','plasma'].includes(weapon)){
+  const glow={flame:0xff9950,electric:0x7cdaff,acid:0x8fe67a,plasma:0xc0a1ff}[weapon];steel.fillStyle(glow);steel.fillRect(14,-3,14,2);steel.fillRect(14,2,14,1);
+ }
  // Low, rounded housing leaves the drill cabin and tracks visible.
  armor.fillStyle(outline);armor.fillRoundedRect(-11,-9,23,18,5);
  armor.fillStyle(0x3e6664);armor.fillRoundedRect(-9,-7,19,14,4);

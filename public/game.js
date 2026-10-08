@@ -121,7 +121,7 @@ function createTouchJoystick(element, onInput, canStart = () => true) {
 }
 
 // Compact roof-mounted cannon, facing right in drill-local coordinates.
-function drawMountedTurret(scene,root,upgraded=false) {
+function drawMountedTurret(scene,root,upgraded=false,weapon='basic') {
  const base=scene.add.graphics(),barrel=scene.add.container(0,0),steel=scene.add.graphics(),armor=scene.add.graphics(),flash=scene.add.graphics();
  root.add([base,barrel,armor,flash]);barrel.add(steel);
  const outline=0x172e32,accent=upgraded?0xe4b85c:0xdb9149;
@@ -138,6 +138,15 @@ function drawMountedTurret(scene,root,upgraded=false) {
  steel.fillStyle(outline);steel.fillRoundedRect(22,-5,6,10,2);
  steel.fillStyle(0x879b91);steel.fillRect(23,-3,3,6);
  steel.fillStyle(0x0d252b);steel.fillRect(26,-2,2,4);
+ if(['machinegun','shotgun'].includes(weapon)){
+  for(const y of [-7,5]){steel.fillStyle(outline);steel.fillRoundedRect(9,y,19,3,1);steel.fillStyle(0x93a69c);steel.fillRect(11,y,14,1);}
+ }
+ if(['heavy','rocket','rail','plasma'].includes(weapon)){
+  steel.fillStyle(outline);steel.fillRoundedRect(10,-6,25,12,2);steel.fillStyle(0x729088);steel.fillRect(12,-4,21,8);steel.fillStyle(0x162f34);steel.fillRect(32,-4,3,8);
+ }
+ if(['flame','electric','acid','plasma'].includes(weapon)){
+  const glow={flame:0xff9950,electric:0x7cdaff,acid:0x8fe67a,plasma:0xc0a1ff}[weapon];steel.fillStyle(glow);steel.fillRect(14,-3,14,2);steel.fillRect(14,2,14,1);
+ }
  // Low, rounded housing leaves the drill cabin and tracks visible.
  armor.fillStyle(outline);armor.fillRoundedRect(-11,-9,23,18,5);
  armor.fillStyle(0x3e6664);armor.fillRoundedRect(-9,-7,19,14,4);
@@ -2349,6 +2358,295 @@ class WorkshopView {
  }
 }
 
+// Canonical weapon recipes; combat and supplier prices are initial balance.
+const WEAPON_COMPONENTS=[
+ {
+  "id": "part01",
+  "name": "Лёгкая сталь",
+  "price": 40
+ },
+ {
+  "id": "part02",
+  "name": "бункерная бронза",
+  "price": 60
+ },
+ {
+  "id": "part03",
+  "name": "хитиновая пластина",
+  "price": 80
+ },
+ {
+  "id": "part04",
+  "name": "Ствольная сталь",
+  "price": 100
+ },
+ {
+  "id": "part05",
+  "name": "механическая бронза",
+  "price": 120
+ },
+ {
+  "id": "part06",
+  "name": "суставной хрящ",
+  "price": 140
+ },
+ {
+  "id": "part07",
+  "name": "Ударостойкая сталь",
+  "price": 160
+ },
+ {
+  "id": "part08",
+  "name": "защитная латунь",
+  "price": 180
+ },
+ {
+  "id": "part09",
+  "name": "дробящий зуб",
+  "price": 200
+ },
+ {
+  "id": "part10",
+  "name": "Орудийная сталь",
+  "price": 220
+ },
+ {
+  "id": "part11",
+  "name": "вольфрамовая сталь",
+  "price": 240
+ },
+ {
+  "id": "part12",
+  "name": "массивная скелетная кость",
+  "price": 260
+ },
+ {
+  "id": "part13",
+  "name": "Жаростойкий сплав",
+  "price": 280
+ },
+ {
+  "id": "part14",
+  "name": "герметичный припой",
+  "price": 300
+ },
+ {
+  "id": "part15",
+  "name": "органическая смола",
+  "price": 320
+ },
+ {
+  "id": "part16",
+  "name": "Обмоточный сплав",
+  "price": 340
+ },
+ {
+  "id": "part17",
+  "name": "золотой контактный сплав",
+  "price": 360
+ },
+ {
+  "id": "part18",
+  "name": "бронированная паразитическая железа",
+  "price": 380
+ },
+ {
+  "id": "part19",
+  "name": "Барьерный сплав",
+  "price": 400
+ },
+ {
+  "id": "part20",
+  "name": "уплотнительная сталь",
+  "price": 420
+ },
+ {
+  "id": "part21",
+  "name": "кислотная железа",
+  "price": 440
+ },
+ {
+  "id": "part22",
+  "name": "Тяжёлый бронесплав",
+  "price": 460
+ },
+ {
+  "id": "part23",
+  "name": "стойкий сигнальный сплав",
+  "price": 480
+ },
+ {
+  "id": "part24",
+  "name": "алый биоконцентрат",
+  "price": 500
+ },
+ {
+  "id": "part25",
+  "name": "Сверхтвёрдый режущий сплав",
+  "price": 520
+ },
+ {
+  "id": "part26",
+  "name": "высокочистый контактный сплав",
+  "price": 540
+ },
+ {
+  "id": "part27",
+  "name": "металлизированный сегмент",
+  "price": 560
+ },
+ {
+  "id": "part28",
+  "name": "Ксенотитан",
+  "price": 580
+ },
+ {
+  "id": "part29",
+  "name": "ксенозолотой проводник",
+  "price": 600
+ },
+ {
+  "id": "part30",
+  "name": "древняя ткань колосса",
+  "price": 620
+ }
+];
+const WEAPON_CATALOG=[
+ {
+  "id": "basic",
+  "name": "Базовая пушка",
+  "damage": 1,
+  "interval": 1000,
+  "range": 2,
+  "blueprintPrice": 0,
+  "recipe": {
+   "part01": 4,
+   "part02": 2,
+   "part03": 2
+  }
+ },
+ {
+  "id": "machinegun",
+  "name": "Пулемёт",
+  "damage": 0.55,
+  "interval": 350,
+  "range": 2.5,
+  "blueprintPrice": 500,
+  "recipe": {
+   "part04": 5,
+   "part05": 3,
+   "part06": 3
+  }
+ },
+ {
+  "id": "shotgun",
+  "name": "Дробовик",
+  "damage": 2.2,
+  "interval": 1400,
+  "range": 1.5,
+  "blueprintPrice": 2000,
+  "recipe": {
+   "part07": 5,
+   "part08": 3,
+   "part09": 3
+  }
+ },
+ {
+  "id": "heavy",
+  "name": "Тяжёлая пушка",
+  "damage": 3.5,
+  "interval": 2200,
+  "range": 3,
+  "blueprintPrice": 4500,
+  "recipe": {
+   "part10": 7,
+   "part11": 4,
+   "part12": 3
+  }
+ },
+ {
+  "id": "flame",
+  "name": "Огнемёт",
+  "damage": 0.4,
+  "interval": 200,
+  "range": 1.25,
+  "blueprintPrice": 8000,
+  "recipe": {
+   "part13": 5,
+   "part14": 3,
+   "part15": 4
+  }
+ },
+ {
+  "id": "electric",
+  "name": "Электроразрядник",
+  "damage": 1.8,
+  "interval": 800,
+  "range": 2,
+  "blueprintPrice": 12500,
+  "recipe": {
+   "part16": 5,
+   "part17": 3,
+   "part18": 3
+  }
+ },
+ {
+  "id": "acid",
+  "name": "Кислотомёт",
+  "damage": 0.8,
+  "interval": 500,
+  "range": 2.5,
+  "blueprintPrice": 18000,
+  "recipe": {
+   "part19": 5,
+   "part20": 3,
+   "part21": 4
+  }
+ },
+ {
+  "id": "rocket",
+  "name": "Ракетница",
+  "damage": 4,
+  "interval": 2500,
+  "range": 3.5,
+  "blueprintPrice": 24500,
+  "recipe": {
+   "part22": 6,
+   "part23": 3,
+   "part24": 3
+  }
+ },
+ {
+  "id": "rail",
+  "name": "Рельсотрон",
+  "damage": 5,
+  "interval": 2800,
+  "range": 4,
+  "blueprintPrice": 32000,
+  "recipe": {
+   "part25": 7,
+   "part26": 4,
+   "part27": 3
+  }
+ },
+ {
+  "id": "plasma",
+  "name": "Плазмомёт",
+  "damage": 3,
+  "interval": 1100,
+  "range": 3,
+  "blueprintPrice": 40500,
+  "recipe": {
+   "part28": 6,
+   "part29": 4,
+   "part30": 2
+  }
+ }
+];
+function weaponDefinition(id){return WEAPON_CATALOG.find(w=>w.id===id)||WEAPON_CATALOG[0];}
+function weaponStats(q,buff=0){const w=weaponDefinition(q.equippedWeapon);return {...w,damage:w.damage*(1+(q.weaponLevel||0)*.02+buff),range:w.range*64};}
+
+
 
 
 const ARMORER_SITE={x:17,y:27};
@@ -2359,19 +2657,77 @@ const ARMORY_BLOCKS=[{x:40,y:33},{x:41,y:33},{x:42,y:33}];
 const ARMORY_STORIES=['armoryBrief','armorer','armoryReturn','armoryReady'];
 function restoreArmory(v={}) {
  if(!v||typeof v!=='object')v={};
- return {briefed:v.briefed===true,rescued:v.rescued===true,blueprint:v.blueprint===true,returnBriefed:v.returnBriefed===true,ready:v.ready===true,
- gifted:v.gifted===true,installed:v.installed===true&&v.gifted===true,
- weaponLevel:Number.isInteger(v.weaponLevel)?Math.max(0,Math.min(100,v.weaponLevel)):0,
- serviceRemaining:v.ready===true&&v.installed===true&&Number.isFinite(v.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,v.serviceRemaining)):null,
+ const catalog=restoreWeaponCatalog(v);
+ return {...catalog,briefed:v.briefed===true,rescued:v.rescued===true,blueprint:v.blueprint===true,returnBriefed:v.returnBriefed===true,ready:v.ready===true,
+ gifted:v.gifted===true,installed:v.installed===true&&(catalog.weapons[catalog.equippedWeapon]||0)>0,
+ weaponLevel:catalog.weaponLevels[catalog.equippedWeapon]||0,
+ serviceRemaining:v.ready===true&&(v.installed===true||Object.values(catalog.weapons).some(n=>n>0))&&Number.isFinite(v.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,v.serviceRemaining)):null,
  dialogue:ARMORY_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,Math.min(4,v.dialoguePage)):0};
 }
 function armoryBlockCount(world){return ARMORY_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 function onArmoryDeck(rig,d=ARMORY_DECK){return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
 function canRestoreArmory(q,world){return q.rescued&&q.blueprint&&q.returnBriefed&&armoryBlockCount(world)===0;}
 function weaponUpgradePrice(q){return Math.ceil(100*Math.pow(1.25,q.weaponLevel));}
-function installWeapon(q){if(!q.ready||!q.gifted||q.installed||q.serviceRemaining!=null)return false;q.installed=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
-function buyWeaponUpgrade(q,credits,allowDuringService=false){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||(!allowDuringService&&q.serviceRemaining!=null)||q.weaponLevel>=100||credits<price)return {bought:false,credits};q.weaponLevel++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
+function installWeapon(q){if(!q.ready||!q.gifted||q.installed||q.serviceRemaining!=null)return false;q.weapons.basic=Math.max(1,q.weapons.basic||0);q.equippedWeapon='basic';q.weaponLevel=q.weaponLevels.basic||0;q.installed=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
+function buyWeaponUpgrade(q,credits,allowDuringService=false){const price=weaponUpgradePrice(q);if(!q.ready||!q.installed||(!allowDuringService&&q.serviceRemaining!=null)||q.weaponLevel>=100||!Number.isFinite(credits)||credits<price)return {bought:false,credits};q.weaponLevel++;q.weaponLevels[q.equippedWeapon||'basic']=q.weaponLevel;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};}
 
+const weaponNatural=n=>Number.isSafeInteger(n)&&n>0?Math.min(100000,n):0;
+function restoreWeaponCatalog(v){
+ const weapons={},weaponLevels={},components={};
+ for(const w of WEAPON_CATALOG){const n=weaponNatural(v.weapons?.[w.id]);if(n)weapons[w.id]=n;weaponLevels[w.id]=Math.min(100,weaponNatural(v.weaponLevels?.[w.id]));}
+ if(v.gifted===true)weapons.basic=Math.max(1,weapons.basic||0);
+ if(!v.weaponLevels)weaponLevels.basic=Math.min(100,weaponNatural(v.weaponLevel));
+ for(const p of WEAPON_COMPONENTS){const n=weaponNatural(v.components?.[p.id]);if(n)components[p.id]=n;}
+ const blueprints=WEAPON_CATALOG.filter(w=>(Array.isArray(v.blueprints)&&v.blueprints.includes(w.id))||(w.id==='basic'&&v.blueprint===true)).map(w=>w.id);
+ const equippedWeapon=WEAPON_CATALOG.some(w=>w.id===v.equippedWeapon&&(weapons[w.id]||0)>0)?v.equippedWeapon:'basic';
+ return {weapons,weaponLevels,components,blueprints,equippedWeapon};
+}
+function hasWeaponBlueprint(q,id){return q.blueprints.includes(id)||(id==='basic'&&q.blueprint);}
+function buyWeaponBlueprint(q,id,credits){const w=WEAPON_CATALOG.find(w=>w.id===id);if(!q.ready||q.serviceRemaining!=null||!w||id==='basic'||hasWeaponBlueprint(q,id)||!Number.isFinite(credits)||credits<w.blueprintPrice)return {bought:false,credits};q.blueprints.push(id);return {bought:true,credits:credits-w.blueprintPrice};}
+function weaponMissingParts(q,id){const w=WEAPON_CATALOG.find(w=>w.id===id);return w?Object.entries(w.recipe).filter(([key,n])=>(q.components[key]||0)<n).map(([key,n])=>({id:key,count:n-(q.components[key]||0)})):[];}
+function weaponPartsPrice(q,id){return weaponMissingParts(q,id).reduce((sum,p)=>sum+p.count*WEAPON_COMPONENTS.find(c=>c.id===p.id).price,0);}
+function buyWeaponParts(q,id,credits){const w=WEAPON_CATALOG.find(w=>w.id===id),price=weaponPartsPrice(q,id);if(!q.ready||q.serviceRemaining!=null||!w||!hasWeaponBlueprint(q,id)||!price||!Number.isFinite(credits)||credits<price)return {bought:false,credits};for(const p of weaponMissingParts(q,id))q.components[p.id]=(q.components[p.id]||0)+p.count;return {bought:true,credits:credits-price};}
+function craftWeapon(q,id){const w=WEAPON_CATALOG.find(w=>w.id===id);if(!q.ready||q.serviceRemaining!=null||!w||!hasWeaponBlueprint(q,id)||weaponMissingParts(q,id).length||(q.weapons[id]||0)>=100000)return false;for(const [key,n] of Object.entries(w.recipe)){q.components[key]-=n;if(!q.components[key])delete q.components[key];}q.weapons[id]=(q.weapons[id]||0)+1;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
+function equipCraftedWeapon(q,id){if(!q.ready||q.serviceRemaining!=null||!WEAPON_CATALOG.some(w=>w.id===id)||!q.weapons[id]||(q.installed&&q.equippedWeapon===id))return false;q.installed=true;q.equippedWeapon=id;q.weaponLevel=q.weaponLevels[id]||0;q.serviceRemaining=WORKSHOP_SERVICE_MS;return true;}
+
+
+
+
+function createWeaponPanel(scene,onInstall){
+ const q=scene.armoryQuest,panel=document.createElement('div');panel.className='weapon-console';
+ const readout=document.createElement('p'),status=document.createElement('p'),catalog=document.createElement('div'),detail=document.createElement('section'),body=document.createElement('div'),exit=document.createElement('button');
+ readout.className='service-readout';status.className='service-status';status.setAttribute('role','status');catalog.className='weapon-list';catalog.setAttribute('aria-label','Каталог оружия');detail.className='weapon-detail';body.className='weapon-browser';exit.className='floor-button';exit.textContent='ГОТОВО';body.append(catalog,detail);panel.append(readout,status,body,exit);
+ let selected=q.equippedWeapon||'basic',signature='',message='';
+ const node=(tag,text,className)=>{const el=document.createElement(tag);el.textContent=text;if(className)el.className=className;return el;};
+ const action=(label,disabled,run)=>{const button=node('button',label,'metal-button');button.disabled=disabled;button.addEventListener('click',()=>{run();scene.refreshMountedWeapon();scene.refreshHUD();scene.persist();render();});detail.append(button);};
+ const pay=(result,text)=>{if(result.bought){scene.credits=result.credits;message=text;}};
+ const mounted=()=>{onInstall();message='Оружейник устанавливает оружие.';};
+ const render=()=>{
+  const busy=q.serviceRemaining!=null,w=weaponDefinition(selected),stats=weaponStats(q,scene.collectionBuffs?.weapon||0);
+  readout.textContent=`Кредиты: ${scene.credits}\n${q.installed?'На буре: '+weaponDefinition(q.equippedWeapon).name:'Пушка ещё не установлена'}${q.installed?'\nУрон: '+Number(stats.damage.toFixed(3)):''}`;
+  status.textContent=`Кредиты: ${scene.credits} · `+(busy?`Оружейник работает · ${(q.serviceRemaining/1000).toFixed(1)} с`:(message||'Выбери оружие. Чертёж → материалы → изготовление → установка.'));exit.disabled=busy;
+  const next=JSON.stringify([selected,scene.credits,q.weapons,q.components,q.blueprints,q.blueprint,q.weaponLevels,q.installed,q.equippedWeapon,busy]);if(next===signature)return;signature=next;
+  catalog.replaceChildren();
+  for(const entry of WEAPON_CATALOG){const button=node('button','','weapon-choice'+(entry.id===selected?' is-selected':''));button.setAttribute('aria-pressed',String(entry.id===selected));button.dataset.weapon=entry.id;const owned=q.weapons[entry.id]||0;button.append(node('span',entry.name),node('small',q.installed&&q.equippedWeapon===entry.id?'НА БУРЕ':owned?'В АРСЕНАЛЕ · '+owned:hasWeaponBlueprint(q,entry.id)?'ЧЕРТЁЖ ИЗУЧЕН':'НЕТ ЧЕРТЕЖА'));button.addEventListener('click',()=>{selected=entry.id;message='';render();});catalog.append(button);}
+  detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id);preview.setAttribute('aria-hidden','true');preview.append(node('i','','weapon-mount'),node('i','','weapon-barrels'));detail.append(preview,node('h3',w.name));
+  const level=q.weaponLevels[w.id]||0,damage=w.damage*(1+level*.02+(scene.collectionBuffs?.weapon||0));detail.append(node('p',`Урон ${Number(damage.toFixed(3))} · ${Number((1000/w.interval).toFixed(2))} выстр./с · Дальность ${w.range} клетки`,'weapon-stats'),node('p',`Уровень улучшения: ${level}/100 · Экземпляров: ${q.weapons[w.id]||0}`,'weapon-stats'));
+  if(!hasWeaponBlueprint(q,w.id)){
+   detail.append(node('p',w.id==='basic'?'Чертёж находится на втором этаже, в оружейном шкафу.':'Оружейник может передать чертёж за кредиты.','weapon-note'));
+   if(w.id!=='basic')action(`ИЗУЧИТЬ ЧЕРТЁЖ · ${w.blueprintPrice} КР.`,busy||scene.credits<w.blueprintPrice,()=>pay(buyWeaponBlueprint(q,w.id,scene.credits),'Чертёж изучен. Теперь доступны материалы и изготовление.'));
+  }
+  detail.append(node('h4','РЕЦЕПТ · 1 ЭКЗЕМПЛЯР'));
+  const recipe=node('ul','','weapon-recipe');for(const [id,n] of Object.entries(w.recipe)){const owned=q.components[id]||0;recipe.append(node('li',`${WEAPON_COMPONENTS.find(p=>p.id===id).name} · ${owned}/${n}`,owned>=n?'is-ready':'is-missing'));}detail.append(recipe);
+  const price=weaponPartsPrice(q,w.id),known=hasWeaponBlueprint(q,w.id);
+  detail.append(node('p','Материалы хранятся в оружейной. Пока производство сплавов не запущено, их можно закупать здесь.','weapon-note'));
+  if(price)action(`ЗАКУПИТЬ НЕДОСТАЮЩЕЕ · ${price} КР.`,busy||!known||scene.credits<price,()=>pay(buyWeaponParts(q,w.id,scene.credits),'Материалы закуплены. Можно изготовить оружие.'));
+  action('ИЗГОТОВИТЬ · 4 СЕКУНДЫ',busy||!known||weaponMissingParts(q,w.id).length>0,()=>{if(craftWeapon(q,w.id))message='Создаётся один экземпляр. После завершения установи его на бур.';});
+  const equipped=q.installed&&q.equippedWeapon===w.id;
+  action(equipped?'УСТАНОВЛЕНО НА БУРЕ':'УСТАНОВИТЬ · БЕСПЛАТНО',busy||!(q.weapons[w.id]||(w.id==='basic'&&q.gifted))||equipped,()=>{const ok=w.id==='basic'&&!q.installed&&q.gifted?installWeapon(q):equipCraftedWeapon(q,w.id);if(ok)mounted();});
+  if(equipped)action(level>=100?'МАКСИМАЛЬНЫЙ УРОВЕНЬ':`УЛУЧШИТЬ +2% · ${weaponUpgradePrice(q)} КР.`,level>=100||scene.credits<weaponUpgradePrice(q),()=>pay(buyWeaponUpgrade(q,scene.credits,true),'Улучшение оплачено. Оно сохраняется у выбранного оружия.'));
+ };
+ exit.addEventListener('click',()=>{if(q.serviceRemaining==null){document.querySelector('#dialog').close();scene.checkRepair();}});
+ render();return {panel,render};
+}
 
 
 const REPAIRMAN_SITE={x:36,y:39};
@@ -2701,13 +3057,14 @@ const repairMethods={
 
 
 
+
 const combatMethods={
  makeCombat(){
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
   this.spiders=this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
   if(this.floorNumber===5)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
-  this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(1000,this.campaign.combat.cooldown)):0;
+  this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(3000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
   if(this.floorNumber===3||this.floorNumber===4||this.floorNumber===5)this.createSpiderViews();
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.beginDefense(this.campaign.combat?.wave);
@@ -2774,6 +3131,7 @@ const combatMethods={
    }
   }
   if(this.armoryQuest.installed){
+   const weapon=weaponStats(this.armoryQuest,this.collectionBuffs?.weapon||0);
    // Tracking runs every frame, including reloads and enemies behind rubble.
    const target=nearestTarget(this.rig,this.spiders,Infinity,()=>false);
    if(target){
@@ -2782,8 +3140,8 @@ const combatMethods={
      const x=this.rig.x+mount.x*c-mount.y*s,y=this.rig.y+mount.x*s+mount.y*c;
      mount.rotation=Math.atan2(target.y-y,target.x-x)-this.rig.rotation;
     }
-    if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=WEAPON_RANGE&&clearShot(this.rig,target,solid)){
-     this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02+(this.collectionBuffs?.weapon||0));this.animateWeaponShot?.();
+    if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=weapon.range&&clearShot(this.rig,target,solid)){
+     this.weaponCooldown=weapon.interval;this.fireAt(this.rig,target,weapon.damage);this.animateWeaponShot?.();
     }
    }
   }
@@ -2883,6 +3241,7 @@ const combatMethods={
 
 
 
+
 const armoryMethods={
  makeArmoryObjects() {
   const q=this.armoryQuest;
@@ -2903,7 +3262,7 @@ const armoryMethods={
  },
  collectArmoryItem(kind) {
   const q=this.armoryQuest;
-  if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
+  if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;q.weapons.basic=Math.max(1,q.weapons.basic||0);this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
   if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.showDiscovery({kind:'blueprint',name:'Первая пушка',description:'Чертёж оружия для бура',note:'Чертёж сохранён. Вернись на базу, чтобы восстановить оружейную.'});}
   this.refreshHUD();this.persist();
  },
@@ -2917,12 +3276,10 @@ const armoryMethods={
  },
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig,this.buildingDeck('armory')))return;
-  this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p'),status=document.createElement('p'),button=document.createElement('button'),exit=document.createElement('button');text.className='service-readout';status.className='service-status';status.setAttribute('role','status');button.className='metal-button';exit.className='floor-button';exit.textContent='ГОТОВО';
-  const render=()=>{text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'}\nМощность  ${Number((100+q.weaponLevel*2+(this.collectionBuffs?.weapon||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;button.textContent=!q.installed?'УСТАНОВИТЬ ПУШКУ · БЕСПЛАТНО':q.weaponLevel>=100?'ПУШКА УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`;button.disabled=q.installed?q.weaponLevel>=100||this.credits<weaponUpgradePrice(q):!q.gifted;status.textContent=q.serviceRemaining!=null?`Оружейник работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить пушку ещё раз или выйти.';exit.disabled=q.serviceRemaining!=null;};
+  this.dialogClosed();this.persist();
+  const {panel,render}=createWeaponPanel(this,()=>{this.rewardQuest('weaponInstalled');queueRepairBrief(this.repairQuest,q);});
   this.armoryPanelRender=render;document.querySelector('#dialog').addEventListener('close',()=>{this.armoryPanelRender=null;},{once:true});
-  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits,true);changed=result.bought;if(changed)this.credits=result.credits;}else{changed=installWeapon(q);if(changed)this.rewardQuest('weaponInstalled');}if(!changed)return;queueRepairBrief(this.repairQuest,q);this.refreshMountedWeapon();render();this.refreshHUD();this.persist();});
-  exit.addEventListener('click',()=>{if(q.serviceRemaining==null){document.querySelector('#dialog').close();this.checkRepair();}});render();panel.append(text,status,button,exit);showBuildingMenu('armory',panel);
+  showBuildingMenu('armory',panel);
  },
  makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
  refreshMountedWeapon(){
@@ -2931,7 +3288,7 @@ const armoryMethods={
   this.weaponFlashTimer?.remove();this.weaponFlashTimer=null;
   root.removeAll(true);root.setVisible(this.armoryQuest.installed);this.weaponBarrel=null;this.weaponFlash=null;
   if(!this.armoryQuest.installed)return;
-  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
+  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0,this.armoryQuest.equippedWeapon);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
  },
  animateWeaponShot(){
   if(!this.weaponBarrel)return;
@@ -4395,7 +4752,7 @@ const BUILDING_MENUS={
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
  hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
- armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
+ armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
  lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
  porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
@@ -4621,6 +4978,7 @@ if(game?.scale&&game?.events)startViewportSync(game,document.querySelector('#can
 
 
 
+
 function campaignObjective(p={}){
  const c=p.constructionQuest||{};if(c.warehouse)return 'Склад построен';if(c.remaining!=null)return 'Строительство склада';if(c.unlocked)return 'Построить первый склад';if(c.briefed)return c.rescued?'Вернуть мастера на базу':'Найти строительного мастера';
  const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{};
@@ -4654,7 +5012,7 @@ function createInventoryPanel(p={}){
  const tracker=globalThis.document?.querySelector?.('#quest-status')?.textContent;if(tracker)infoRow(radio,'Ориентир',tracker);
  const rig=panelSection(panel,'Бур');
  infoRow(rig,'Прочность',summary.hull+'/'+DRILL_MAX_HP);infoRow(rig,'Мощность',summary.power+'%');
- infoRow(rig,'Кредиты',summary.credits);infoRow(rig,'Оружие',p.armoryQuest?.installed?'Пушка · '+Number((100+(p.armoryQuest.weaponLevel||0)*2+collectionBuffTotals(p.closedCollections).weapon*100).toFixed(3))+'%':'Не установлено');
+ infoRow(rig,'Кредиты',summary.credits);infoRow(rig,'Оружие',p.armoryQuest?.installed?weaponDefinition(p.armoryQuest.equippedWeapon).name+' · ур. '+(p.armoryQuest.weaponLevel||0):'Не установлено');
  const hold=panelSection(panel,'Грузовой отсек · '+summary.cargo+'/'+collectionCargoCapacity(p.closedCollections));
  for(const m of MATERIALS)if(cargo[m.id])infoRow(hold,m.name,cargo[m.id]);
  if(!summary.cargo)infoRow(hold,'Отсек пуст','—');
@@ -4676,8 +5034,8 @@ function createInventoryPanel(p={}){
 function createHelpPanel(){
  const panel=document.createElement('div');panel.className='help-panel';
  const sections=[['Управление',[['WASD / стрелки','Двигаться и бурить: удерживай направление к блоку.'],['E / пробел','Взаимодействовать рядом с человеком, предметом или постройкой.'],['Esc','Открыть паузу. Прогресс сохраняется.'],['На телефоне','Круглый джойстик слева: потяни для движения и бурения, отпусти для остановки. Чем дальше тянешь, тем быстрее едешь. Кнопка действия справа.']]],
- ['Добыча и база',[['Груз · 200','Коллекции могут увеличить базовую вместимость 200. Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подъедь ко входу в дом архитектора на базе. Первый склад появляется готовым бесплатно, без строительства и расхода материалов. Первый склад хранит до 100 единиц каждого материала; улучшения увеличивают лимит каждой секции на 100; запас не теряется при гибели.'],['Перенос зданий','На базе открой «Инвентарь → Постройки», потяни восстановленное здание на расчищенное место и подтверди. Потяни пустое место, чтобы переместить камеру.'],['Коллекции','Открой отдельную страницу через инвентарь или паузу. Полный набор закрывается по подтверждению, артефакты расходуются. Неполный набор даёт ноль. Баф закрытой коллекции постоянный и сохраняется после гибели.'],['Награды','Завершённые задания дают кредиты один раз. Повторная загрузка не выдаёт их заново.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','Установи пушку, покупай несколько улучшений подряд и восстанавливай прочность в ремонтном цехе.']]],
- ['Бои и лифт',[['Пушка','Стреляет автоматически: дальность две клетки. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
+ ['Добыча и база',[['Груз · 200','Коллекции могут увеличить базовую вместимость 200. Порода попадает в отсек. В Породнике выбирай, что продать, а что оставить.'],['Строительство','После спасения мастера на четвёртом этаже подъедь ко входу в дом архитектора на базе. Первый склад появляется готовым бесплатно, без строительства и расхода материалов. Первый склад хранит до 100 единиц каждого материала; улучшения увеличивают лимит каждой секции на 100; запас не теряется при гибели.'],['Перенос зданий','На базе открой «Инвентарь → Постройки», потяни восстановленное здание на расчищенное место и подтверди. Потяни пустое место, чтобы переместить камеру.'],['Коллекции','Открой отдельную страницу через инвентарь или паузу. Полный набор закрывается по подтверждению, артефакты расходуются. Неполный набор даёт ноль. Баф закрытой коллекции постоянный и сохраняется после гибели.'],['Награды','Завершённые задания дают кредиты один раз. Повторная загрузка не выдаёт их заново.'],['Мастерская','Улучшай мощность за кредиты. Можно купить несколько улучшений подряд.'],['Оружейная и ремонт','В оружейной выбери чертёж, закупи недостающие материалы, изготовь оружие и установи его на бур. Улучшения каждого вида сохраняются отдельно. Прочность восстанавливай в ремонтном цехе.']]],
+ ['Бои и лифт',[['Пушка','Базовая пушка стреляет автоматически: дальность две клетки. Урон, дальность и частота зависят от установленного оружия. Порода мешает выстрелам.'],['Пауки','Могут прорыть путь через слабые блоки. На третьем этаже возрождаются через 15 секунд.'],['Первая волна','Союзники помогают отбить 20 пауков. После победы они больше не появляются на базе.'],['Карты доступа','Открывай новые этажи. Открытый этаж остаётся доступным навсегда.']]]];
  for(const [title,rows] of sections){const section=panelSection(panel,title);for(const [label,value] of rows)infoRow(section,label,value);}
  return panel;
 }
@@ -4687,7 +5045,7 @@ function createDrillPanel(p={}){
  const hero=document.createElement('div');hero.className='drill-hero';const art=document.createElement('img');art.src='./public/assets/game/drill-compact.webp';art.alt='Бур';const title=document.createElement('h3');title.textContent='ПАСПОРТ БУРА · БУНКЕР №72';hero.append(art,title);panel.append(hero);
  const hull=panelSection(panel,'Состояние и груз');infoRow(hull,'Прочность',summary.hull+' / '+DRILL_MAX_HP);infoRow(hull,'Грузовой отсек',summary.cargo+' / '+capacity);infoRow(hull,'Свободное место',capacity-summary.cargo);infoRow(hull,'Кредиты',summary.credits);infoRow(hull,'Местоположение',summary.location);
  const mining=panelSection(panel,'Бурение и движение');infoRow(mining,'Насадка на головку',p.workshopQuest?.earthHead?'Усиленная земляная':'Стандартная');infoRow(mining,'Мощность',summary.power+'%');infoRow(mining,'Улучшения мощности',(p.workshopQuest?.upgrades||0)+' / 100 · +2% за улучшение');infoRow(mining,'Скорость бурения',Number(power.toFixed(3))+' прочности/с');infoRow(mining,'Земля · целый блок',Number((1/(power*(p.workshopQuest?.earthHead?12.5:1))).toFixed(3))+' с');infoRow(mining,'Камень · целый блок',Number((2/power).toFixed(3))+' с');infoRow(mining,'Максимальная скорость',Number((280*(1+buffs.speed)/64).toFixed(3))+' клеток/с');
- const weapon=panelSection(panel,'Оружие');infoRow(weapon,'Установлено',p.armoryQuest?.installed?'Пушка':'Нет');if(p.armoryQuest?.installed){infoRow(weapon,'Улучшения',(p.armoryQuest.weaponLevel||0)+' / 100');infoRow(weapon,'Урон за выстрел',Number((1+(p.armoryQuest.weaponLevel||0)*.02+buffs.weapon).toFixed(3)));infoRow(weapon,'Дальность','2 клетки');infoRow(weapon,'Частота','1 выстрел/с');}
+ const weapon=panelSection(panel,'Оружие');infoRow(weapon,'Установлено',p.armoryQuest?.installed?weaponDefinition(p.armoryQuest.equippedWeapon).name:'Нет');if(p.armoryQuest?.installed){infoRow(weapon,'Улучшения',(p.armoryQuest.weaponLevel||0)+' / 100');infoRow(weapon,'Урон за выстрел',Number(weaponStats(p.armoryQuest,buffs.weapon).damage.toFixed(3)));infoRow(weapon,'Дальность',weaponDefinition(p.armoryQuest.equippedWeapon).range+' клетки');infoRow(weapon,'Частота',Number((1000/weaponDefinition(p.armoryQuest.equippedWeapon).interval).toFixed(2))+' выстрел/с');}
  const effects=panelSection(panel,'Действующие бафы коллекций');for(const [key,label] of Object.entries({drill:'Мощность бура',weapon:'Урон оружия',speed:'Скорость движения',defense:'Снижение входящего урона',cargo:'Вместимость груза',sale:'Доход от продажи'}))infoRow(effects,label,'+'+Number((buffs[key]*100).toFixed(3))+'%');
  const base=panelSection(panel,'База');infoRow(base,'Мастерская',p.workshopQuest?.ready?'Работает':'Не восстановлена');infoRow(base,'Оружейная',p.armoryQuest?.ready?'Работает':'Не восстановлена');infoRow(base,'Ремонтный цех',p.repairQuest?.ready?'Работает':'Не восстановлен');infoRow(base,'Склад',p.constructionQuest?.warehouse?'Уровень '+(p.constructionQuest.warehouseLevel||1)+' · '+warehouseCapacity(p.constructionQuest)+' каждого материала':'Не открыт');
  const note=document.createElement('p');note.className='terminal-note';note.textContent='Показаны текущие параметры с улучшениями и бафами полностью закрытых коллекций. Время бурения указано при непрерывной работе по целому блоку. При гибели груз теряется, складской запас сохраняется.';panel.append(note);return panel;

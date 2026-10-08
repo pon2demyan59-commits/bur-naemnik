@@ -1,3 +1,4 @@
+import { createWeaponPanel } from './weapon-panel.js';
 import { makeQuestItem } from './quest-item-view.js';
 import { showBuildingMenu } from './game-menus.js';
 import { queueRepairBrief } from './repair-state.js';
@@ -28,7 +29,7 @@ export const armoryMethods={
  },
  collectArmoryItem(kind) {
   const q=this.armoryQuest;
-  if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
+  if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;q.weapons.basic=Math.max(1,q.weapons.basic||0);this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
   if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.showDiscovery({kind:'blueprint',name:'Первая пушка',description:'Чертёж оружия для бура',note:'Чертёж сохранён. Вернись на базу, чтобы восстановить оружейную.'});}
   this.refreshHUD();this.persist();
  },
@@ -42,12 +43,10 @@ export const armoryMethods={
  },
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig,this.buildingDeck('armory')))return;
-  this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console';
-  const text=document.createElement('p'),status=document.createElement('p'),button=document.createElement('button'),exit=document.createElement('button');text.className='service-readout';status.className='service-status';status.setAttribute('role','status');button.className='metal-button';exit.className='floor-button';exit.textContent='ГОТОВО';
-  const render=()=>{text.textContent=`${q.installed?'Пушка установлена':'Первая пушка · подарок'}\nМощность  ${Number((100+q.weaponLevel*2+(this.collectionBuffs?.weapon||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;button.textContent=!q.installed?'УСТАНОВИТЬ ПУШКУ · БЕСПЛАТНО':q.weaponLevel>=100?'ПУШКА УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ ПУШКУ +2% · ${weaponUpgradePrice(q)} КРЕДИТОВ`;button.disabled=q.installed?q.weaponLevel>=100||this.credits<weaponUpgradePrice(q):!q.gifted;status.textContent=q.serviceRemaining!=null?`Оружейник работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить пушку ещё раз или выйти.';exit.disabled=q.serviceRemaining!=null;};
+  this.dialogClosed();this.persist();
+  const {panel,render}=createWeaponPanel(this,()=>{this.rewardQuest('weaponInstalled');queueRepairBrief(this.repairQuest,q);});
   this.armoryPanelRender=render;document.querySelector('#dialog').addEventListener('close',()=>{this.armoryPanelRender=null;},{once:true});
-  button.addEventListener('click',()=>{let changed;if(q.installed){const result=buyWeaponUpgrade(q,this.credits,true);changed=result.bought;if(changed)this.credits=result.credits;}else{changed=installWeapon(q);if(changed)this.rewardQuest('weaponInstalled');}if(!changed)return;queueRepairBrief(this.repairQuest,q);this.refreshMountedWeapon();render();this.refreshHUD();this.persist();});
-  exit.addEventListener('click',()=>{if(q.serviceRemaining==null){document.querySelector('#dialog').close();this.checkRepair();}});render();panel.append(text,status,button,exit);showBuildingMenu('armory',panel);
+  showBuildingMenu('armory',panel);
  },
  makeMountedWeapon(){this.weaponArt=this.add.container(-5,-9);this.rig.add(this.weaponArt);this.refreshMountedWeapon();},
  refreshMountedWeapon(){
@@ -56,7 +55,7 @@ export const armoryMethods={
   this.weaponFlashTimer?.remove();this.weaponFlashTimer=null;
   root.removeAll(true);root.setVisible(this.armoryQuest.installed);this.weaponBarrel=null;this.weaponFlash=null;
   if(!this.armoryQuest.installed)return;
-  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
+  const parts=drawMountedTurret(this,root,this.armoryQuest.weaponLevel>0,this.armoryQuest.equippedWeapon);this.weaponBarrel=parts.barrel;this.weaponFlash=parts.flash;
  },
  animateWeaponShot(){
   if(!this.weaponBarrel)return;

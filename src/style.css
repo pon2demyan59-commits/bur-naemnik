@@ -530,3 +530,29 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 .settlement-layout .service-controls{grid-column:2;grid-row:1}
 .settlement-layout .service-portrait{height:125px}
 @media(max-width:650px){.service-layout.settlement-layout{grid-template-columns:1fr}.settlement-layout .service-staff{display:none}.settlement-layout .service-controls{grid-column:1;grid-row:1}}
+.service-layout.service-armory{grid-template-columns:150px minmax(0,1fr);gap:16px;}
+.service-armory .service-machine{display:none;}
+.service-armory .service-controls.weapon-console{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:stretch;gap:10px;}
+.service-armory .service-portrait{height:145px;}
+.service-armory .service-readout{font-size:13px;line-height:1.6;padding:12px;}
+.service-armory .service-status{min-height:32px;text-align:left;color:#c3d6b7;}
+.service-armory .close-dialog{display:none;}
+.weapon-browser{display:grid;grid-template-columns:155px minmax(0,1fr);gap:12px;align-items:start;}
+.weapon-list{display:grid;gap:5px;}
+#dialog .weapon-choice{display:flex;flex-direction:column;gap:4px;text-align:left;padding:10px;border:1px solid #496d5b;border-radius:5px;background:#102e26;color:#d3dfbf;min-width:0;font-size:13px;}
+#dialog .weapon-choice small{font-size:9px;color:#9ebfa4;}
+#dialog .weapon-choice.is-selected{border-color:#d6b761;background:#34402b;color:#ffe8ad;box-shadow:inset 3px 0 #d6b761;}
+.weapon-detail{padding:15px;border:1px solid #597662;border-radius:6px;background:linear-gradient(140deg,#1f3d30,#0b241e);display:flex;flex-direction:column;gap:9px;min-width:0;}
+.weapon-detail h3,.weapon-detail h4,.weapon-detail p{margin:0;}
+.weapon-detail h3{font-size:20px;color:#ffe5a1;}.weapon-detail h4{font-size:11px;letter-spacing:1px;color:#a8c3a5;margin-top:7px;}
+.weapon-stats,.weapon-note{font-size:12px;color:#c1d2b1;line-height:1.5;}.weapon-note{font-size:11px;color:#a0b39a;}
+.weapon-recipe{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:12px;}.weapon-recipe li{padding:7px 8px;background:#071e18aa;border-radius:3px;}.weapon-recipe .is-ready{color:#a0f0bb;}.weapon-recipe .is-missing{color:#e6c997;}
+.weapon-detail .metal-button{min-height:41px;font-size:11px;padding:10px;}
+.weapon-preview{height:65px;position:relative;border-radius:4px;background:radial-gradient(ellipse,#345943,#102c22);overflow:hidden;}
+.weapon-mount{position:absolute;left:calc(50% - 35px);top:17px;width:55px;height:33px;border:4px solid #102a29;border-radius:10px;background:linear-gradient(#89a893,#395c53);box-shadow:0 4px #071c1b;z-index:1;}
+.weapon-mount:after{content:'';position:absolute;left:18px;top:7px;width:11px;height:11px;border:2px solid #203d36;border-radius:3px;background:#d1a553;}
+.weapon-barrels{position:absolute;left:calc(50% + 8px);top:25px;width:60px;height:15px;border:3px solid #122b2b;border-radius:4px;background:linear-gradient(#a0b5a6,#476d66);}
+.weapon-machinegun .weapon-barrels,.weapon-shotgun .weapon-barrels{height:21px;top:21px;background:repeating-linear-gradient(#aac0ad 0 3px,#1d3832 3px 7px);}
+.weapon-heavy .weapon-barrels,.weapon-rocket .weapon-barrels,.weapon-rail .weapon-barrels{height:23px;top:21px;width:72px;}
+.weapon-flame .weapon-barrels{border-right-color:#ffaf62;}.weapon-electric .weapon-barrels{border-right-color:#80dfff;}.weapon-acid .weapon-barrels{border-right-color:#99ed78;}.weapon-plasma .weapon-barrels{border-right-color:#ceacff;}
+@media(max-width:700px){.service-layout.service-armory{grid-template-columns:1fr;}.service-armory .service-staff{display:none;}.service-armory .service-controls.weapon-console{grid-column:1;}.weapon-browser{grid-template-columns:1fr;}.weapon-list{grid-template-columns:repeat(2,minmax(0,1fr));}.weapon-detail{padding:12px;}#dialog .weapon-choice{padding:8px;}}

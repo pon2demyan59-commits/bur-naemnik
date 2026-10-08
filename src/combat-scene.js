@@ -1,3 +1,4 @@
+import { weaponStats } from './weapon-catalog.js';
 import { DEMYAN_GUARDS } from './demyan-state.js';
 import { BUILDER_GUARDS } from './construction-state.js';
 import { CELL } from './base-state.js';
@@ -11,7 +12,7 @@ export const combatMethods={
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
   this.spiders=this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
   if(this.floorNumber===5)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
-  this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(1000,this.campaign.combat.cooldown)):0;
+  this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(3000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
   if(this.floorNumber===3||this.floorNumber===4||this.floorNumber===5)this.createSpiderViews();
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.beginDefense(this.campaign.combat?.wave);
@@ -78,6 +79,7 @@ export const combatMethods={
    }
   }
   if(this.armoryQuest.installed){
+   const weapon=weaponStats(this.armoryQuest,this.collectionBuffs?.weapon||0);
    // Tracking runs every frame, including reloads and enemies behind rubble.
    const target=nearestTarget(this.rig,this.spiders,Infinity,()=>false);
    if(target){
@@ -86,8 +88,8 @@ export const combatMethods={
      const x=this.rig.x+mount.x*c-mount.y*s,y=this.rig.y+mount.x*s+mount.y*c;
      mount.rotation=Math.atan2(target.y-y,target.x-x)-this.rig.rotation;
     }
-    if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=WEAPON_RANGE&&clearShot(this.rig,target,solid)){
-     this.weaponCooldown=1000;this.fireAt(this.rig,target,1+this.armoryQuest.weaponLevel*.02+(this.collectionBuffs?.weapon||0));this.animateWeaponShot?.();
+    if(this.weaponCooldown===0&&Math.hypot(target.x-this.rig.x,target.y-this.rig.y)<=weapon.range&&clearShot(this.rig,target,solid)){
+     this.weaponCooldown=weapon.interval;this.fireAt(this.rig,target,weapon.damage);this.animateWeaponShot?.();
     }
    }
   }
