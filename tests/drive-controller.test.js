@@ -70,3 +70,26 @@ test('off-center entry assistance works in all four directions',()=>{
     assert.ok(Math.abs((horizontal?state.y:state.x)-160)<1);
   }
 });
+
+test('sliding along every building edge preserves speed with keyboard and analog input',()=>{
+ const solid=()=>false;solid.rectangles=[{x:200,y:200,width:1600,height:1600}];
+ const cases=[
+  [{x:179,y:400,angle:84,speed:280},'down',{x:.1,y:1,strength:1},'y',1],
+  [{x:1821,y:1500,angle:-96,speed:280},'up',{x:-.1,y:-1,strength:1},'y',-1],
+  [{x:400,y:179,angle:6,speed:280},'right',{x:1,y:.1,strength:1},'x',1],
+  [{x:1500,y:1821,angle:-174,speed:280},'left',{x:-1,y:-.1,strength:1},'x',-1]
+ ];
+ for(const [start,key,stick,axis,sign] of cases)for(const input of [key,stick]){
+  let s={...start};for(let i=0;i<120;i++){s=driveStep(s,input,1/60,solid);assert.ok(driveFits(s.x,s.y,solid));assert.ok(s.speed>260);assert.equal(s.blocked,false);}
+  assert.ok((s[axis]-start[axis])*sign>540);
+ }
+});
+test('a one-cell concrete corridor remains drivable while touching either foundation',()=>{
+ const solid=()=>false;solid.rectangles=[{x:0,y:0,width:256,height:2000},{x:320,y:0,width:256,height:2000}];
+ for(const [x,dx] of [[277,-.1],[299,.1]]){let s={x,y:300,angle:90,speed:280};for(let i=0;i<120;i++){s=driveStep(s,{x:dx,y:1,strength:1},1/60,solid);assert.ok(driveFits(s.x,s.y,solid));assert.ok(s.speed>260);}assert.ok(s.y>840);}
+});
+test('wall sliding still stops frontal impacts and sealed corners, including long frames',()=>{
+ const wall=()=>false;wall.rectangles=[{x:200,y:0,width:200,height:2000}];
+ for(const dt of [1/120,1/30,.2]){let s={x:179,y:400,angle:12,speed:280};for(let i=0;i<60;i++){s=driveStep(s,'right',dt,wall);assert.ok(driveFits(s.x,s.y,wall));}assert.equal(s.speed,0);assert.ok(s.y<401);}
+ const corner=()=>false;corner.rectangles=[{x:200,y:0,width:200,height:400},{x:0,y:200,width:400,height:200}];let s={x:179,y:179,angle:45,speed:280};for(let i=0;i<60;i++){s=driveStep(s,{x:1,y:1,strength:1},.2,corner);assert.ok(driveFits(s.x,s.y,corner));}assert.equal(s.speed,0);assert.equal(s.x,179);assert.equal(s.y,179);
+});

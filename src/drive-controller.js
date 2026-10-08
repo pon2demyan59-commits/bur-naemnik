@@ -68,6 +68,17 @@ export function driveStep(state,direction,dt,solid,maxSpeed=280) {
         const sy=guide.horizontal?y+clamp(guide.center-y,stride):y;
         if(Math.hypot(sx-x,sy-y)>.001&&driveFits(sx,sy,solid)) {x=sx;y=sy;continue;}
       }
+      // A blocked normal component must not cancel travel along the wall.
+      // This also handles building rectangles, which are outside the tile guide.
+      // Require meaningful input along the edge so pressing straight into a
+      // wall still stops instead of creeping sideways during the chassis turn.
+      const inputRadians=inputAngle*Math.PI/180;
+      const slides=[
+        {x:nx,y,amount:Math.abs(nx-x),intent:Math.abs(Math.cos(inputRadians))},
+        {x,y:ny,amount:Math.abs(ny-y),intent:Math.abs(Math.sin(inputRadians))}
+      ].sort((a,b)=>b.amount-a.amount);
+      const slide=direction&&slides.find(p=>p.amount>.001&&p.intent>=.25&&driveFits(p.x,p.y,solid));
+      if(slide){x=slide.x;y=slide.y;continue;}
       blocked=true;speed=0;break;
     }
     x=nx;y=ny;
