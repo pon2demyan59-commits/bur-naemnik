@@ -10,7 +10,7 @@
 Новые растровые ассеты созданы встроенным ImageGen с запросом прозрачного фона. После генерации выполнены обрезка прозрачных полей, уменьшение и WebP-конвертация:
 - `public/assets/ui/demyan-portrait.webp`: stern serious senior military commander, black beret, olive officer uniform, radio, no smile, transparent bust portrait.
 - `public/assets/game/warehouse-house.webp`: compact teal industrial warehouse, loading shutter, ore crates, amber lamps, sign СКЛАД, transparent frontal sprite.
-- `public/assets/game/headquarters.webp`: original asymmetrical brutalist concrete military fortress, olive armor, left control tower, right radar dish, red horizontal windows, blast gate, sign ШТАБ, transparent frontal sprite; generated from scratch without architect reference.
+- `public/assets/game/headquarters-v2.webp`: military fortress with left control tower, right radar dish and central blast gate, restyled with the workshop as palette and cartoon rendering reference: softly rounded concrete, faded blue-teal panels, ochre fasteners, warm amber command windows, bold readable edges. Built-in ImageGen edit of headquarters.webp, transparent background. Military silhouette preserved; architect hall not used as a design reference.
 - `public/assets/game/military-guard.webp`: full body armed sentry, black beret, olive tactical uniform, rifle, transparent sprite.
 
 Проверка: 152 автоматических теста, сборка, браузер на 1440×900 / 390×844 / 844×390; восемь часовых за пределами тела здания, работающий вход, загрузка портрета, сохранность складских запасов и уровня.
