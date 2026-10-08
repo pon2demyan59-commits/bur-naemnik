@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openPauseMenu,showBuildingMenu} from '../src/game-menus.js';
-function menuDOM(){
+function menuDOM(deferredClose=false){
+ const pending=[];
  class Element {
   constructor(){this.children=[];this.listeners={};this.dataset={};this.open=false;}
   append(...children){for(const child of children){if(child.parent)child.parent.children=child.parent.children.filter(c=>c!==child);child.parent=this;this.children.push(child);}}
@@ -11,12 +12,28 @@ function menuDOM(){
   removeEventListener(type,fn){this.listeners[type]=(this.listeners[type]||[]).filter(l=>l.fn!==fn);}
   emit(type){for(const l of [...(this.listeners[type]||[])]){if(l.once)this.removeEventListener(type,l.fn);l.fn();}}
   showModal(){this.open=true;}
-  close(){this.open=false;this.emit('close');}
+  close(){this.open=false;if(deferredClose)pending.push(()=>this.emit('close'));else this.emit('close');}
  }
  const dialog=new Element(),body=new Element(),title=new Element(),close=new Element();
  globalThis.document={createElement:()=>new Element(),querySelector:s=>({'#dialog':dialog,'#dialog-body':body,'#dialog-title':title,'.close-dialog':close}[s])};
- return {dialog,body,title,close,Element};
+ return {dialog,body,title,close,Element,flushClose(){while(pending.length)pending.shift()();}};
 }
+test('leaving pause for the main menu never resumes gameplay when native close arrives later',()=>{
+ const {dialog,body,flushClose}=menuDOM(true),operations=[],listeners={};
+ const scene={input:{enabled:true},dialogClosed(){},persist(){},snapshotCampaign:()=>({}),scene:{pause(){operations.push('pause');},resume(){operations.push('resume');},start(key){operations.push('start '+key);}},events:{once(type,fn){listeners[type]=fn;},off(type){delete listeners[type];}}};
+ openPauseMenu(scene);
+ body.children[0].children.find(b=>b.textContent==='НАСТРОЙКИ').emit('click');const staleBack=dialog.menuBack;staleBack();
+ body.children[0].children.find(b=>b.textContent==='ГЛАВНОЕ МЕНЮ').emit('click');
+ assert.equal(dialog.open,false);assert.equal(scene.pauseMenuActive,false);assert.equal(dialog.menuBack,null);
+ flushClose();staleBack();assert.deepEqual(operations,['pause','start Menu']);assert.equal(dialog.open,false);assert.equal(dialog.listeners.close.length,0);
+});
+test('Continue resumes immediately once and a delayed close cannot affect the next pause session',()=>{
+ const {dialog,body,flushClose}=menuDOM(true);let resumes=0;
+ const scene={input:{enabled:true},dialogClosed(){},persist(){},scene:{pause(){},resume(){resumes++;}},events:{once(){},off(){}}};
+ openPauseMenu(scene);body.children[0].children.find(b=>b.textContent==='ПРОДОЛЖИТЬ').emit('click');assert.equal(resumes,1);assert.equal(scene.input.enabled,true);
+ openPauseMenu(scene);flushClose();assert.equal(dialog.open,true);assert.equal(scene.pauseMenuActive,true);assert.equal(resumes,1);
+ dialog.close();flushClose();assert.equal(resumes,2);assert.equal(scene.pauseMenuActive,false);
+});
 test('pause submenus keep the scene paused, return to pause, then resume exactly once',()=>{
  const {dialog,body,title}=menuDOM();let pauses=0,resumes=0,saves=0;const listeners={};
  const scene={floorNumber:3,input:{enabled:true},dialogClosed(){},persist(){saves++;},snapshotCampaign:()=>({floor:3,location:'floor'}),

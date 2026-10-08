@@ -54,20 +54,32 @@ export function createSettingsPanel(){
 export function openPauseMenu(scene){
  const dialog=document.querySelector('#dialog');if(dialog.open||scene.pauseMenuActive)return;scene.pauseMenuActive=true;scene.dialogClosed();scene.persist();
  scene.scene.pause();scene.input.enabled=false;
- const resume=()=>{scene.pauseMenuActive=false;dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
- const abort=()=>{scene.pauseMenuActive=false;dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
- dialog.addEventListener('close',resume,{once:true});scene.events.once('shutdown',abort);
+ let finished=false;
+ const finish=resumeGame=>{
+  if(finished)return;finished=true;scene.pauseMenuActive=false;
+  dialog.removeEventListener('close',resume);scene.events.off('shutdown',abort);dialog.menuBack=null;
+  scene.input.enabled=true;scene.dialogClosed();
+  const focus=document.activeElement;if(dialog.contains?.(focus))focus?.blur?.();
+  if(dialog.open)dialog.close();
+  if(resumeGame)scene.scene.resume();
+ };
+ // Native close events arrive later. Detach before starting another scene so
+ // that closing the pause window cannot resume a scene already shut down.
+ const resume=()=>{if(!dialog.open)finish(true);};
+ const abort=()=>finish(false);
+ dialog.addEventListener('close',resume);scene.events.once('shutdown',abort);
  const render=()=>{
+  if(finished)return;
   const panel=document.createElement('div');panel.className='pause-panel';
   const badge=document.createElement('p');badge.className='pause-badge';badge.textContent=scene.floorNumber?'ШАХТА · ЭТАЖ '+scene.floorNumber:'БУНКЕР №72 · БАЗА';panel.append(badge);
   for(const [label,action,primary] of [
-   ['ПРОДОЛЖИТЬ',()=>dialog.close(),true],
+   ['ПРОДОЛЖИТЬ',()=>finish(true),true],
    ['ИНВЕНТАРЬ',()=>showGamePanel('ИНВЕНТАРЬ',createInventoryPanel(scene.snapshotCampaign()),'inventory',render)],
    ['ХАРАКТЕРИСТИКИ БУРА',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(scene.snapshotCampaign()),'drill',render)],
    ['КОЛЛЕКЦИИ',()=>scene.openCollections(render)],
    ['НАСТРОЙКИ',()=>showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings',render)],
    ['КАК ИГРАТЬ',()=>showGamePanel('СПРАВОЧНИК БУРА',createHelpPanel(),'help',render)],
-   ['ГЛАВНОЕ МЕНЮ',()=>{dialog.close();scene.persist();scene.scene.start('Menu');}]
+   ['ГЛАВНОЕ МЕНЮ',()=>{finish(false);scene.persist();scene.scene.start('Menu');}]
   ]){const button=document.createElement('button');button.type='button';button.className=primary?'metal-button pause-primary':'floor-button';button.textContent=label;button.addEventListener('click',action);panel.append(button);}
   showGamePanel('ПАУЗА',panel,'pause');
  };

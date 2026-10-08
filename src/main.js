@@ -69,7 +69,9 @@ class ArtworkScene extends Phaser.Scene {
     ui.replaceChildren(); ui.dataset.screen = type;
     const stage = document.createElement('section'); stage.className = `stage ${type}`;
     const title = document.createElement('h1'); title.className = 'mobile-title'; title.innerHTML = 'БУР<span>Забытые внизу</span>';
-    stage.append(title); ui.append(stage); return stage;
+    stage.append(title); ui.append(stage);
+    this.events.once('shutdown',()=>stage.remove());
+    return stage;
   }
   button(stage, label, cls, action) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = cls;
