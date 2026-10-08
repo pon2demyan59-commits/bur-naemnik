@@ -1,7 +1,7 @@
 import { buildingGeometry, rectanglesOverlap } from './building-layout-state.js';
 import { claimQuestReward } from './quest-rewards.js';
 import { FLOOR_LIFT } from './lift-state.js';
-import { BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_STORIES, CONSTRUCTION_DESK, WAREHOUSE_PLOTS, WAREHOUSE_RECIPE, WAREHOUSE_MS, WAREHOUSE_CAPACITY, warehouseCapacity, warehouseUpgradePrice, upgradeWarehouse, warehouseBody, warehouseDeck, plotBlocked, builderEntranceLeft, canRescueBuilder, beginWarehouse, stepConstruction, transferWarehouse, stockCount } from './construction-state.js';
+import { BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_STORIES, CONSTRUCTION_DESK, ARCHITECT_BODY, ARCHITECT_DECK, ARCHITECT_FOOTPRINT, WAREHOUSE_PLOTS, WAREHOUSE_RECIPE, WAREHOUSE_MS, WAREHOUSE_CAPACITY, warehouseCapacity, warehouseUpgradePrice, upgradeWarehouse, warehouseBody, warehouseDeck, plotBlocked, builderEntranceLeft, canRescueBuilder, beginWarehouse, stepConstruction, transferWarehouse, stockCount } from './construction-state.js';
 import { CELL } from './base-state.js';
 import { nearWorkshopItem, objectiveBearing } from './workshop-state.js';
 import { makePerson, updatePerson } from './people-view.js';
@@ -10,12 +10,16 @@ import { MATERIALS } from './materials.js';
 import { cargoCount } from './cargo-state.js';
 const inDeck=(rig,d)=>rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 export const constructionMethods={
+ prepareArchitectHouse(){
+  if(this.floorNumber||!this.constructionQuest?.unlocked)return;
+  const f=ARCHITECT_FOOTPRINT;for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
+ },
  grantStarterWarehouse(announce=true){
   const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
   const others=['lift','porodnik','workshop','armory','repair'].map(key=>buildingGeometry(this.buildingLayout,key).footprint);
   const original={plot:q.plot,offset:q.offset};const candidates=[original,...WAREHOUSE_PLOTS.map((_,plot)=>({plot,offset:{dx:0,dy:0}}))];
   for(let y=12;y<=44;y++)for(let x=2;x<=44;x++)candidates.push({plot:0,offset:{dx:x-WAREHOUSE_PLOTS[0].x,dy:y-WAREHOUSE_PLOTS[0].y}});
-  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(g.footprint,f))&&!rectanglesOverlap(g.footprint,{x:21*CELL,y:23*CELL,width:3*CELL,height:2*CELL})&&!rectanglesOverlap(g.footprint,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
+  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(g.footprint,f))&&!rectanglesOverlap(g.footprint,ARCHITECT_FOOTPRINT)&&!rectanglesOverlap(g.footprint,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
   if(!position)return false;q.plot=position.plot;q.offset=position.offset;q.warehouse=true;q.remaining=null;
   const b=warehouseBody(q);for(let y=b.y/CELL;y<(b.y+b.height)/CELL+1;y++)for(let x=b.x/CELL;x<(b.x+b.width)/CELL;x++){this.world.cleared.add(y*50+x);this.world.damage.delete(y*50+x);this.terrain?.paintCell(x,y);}
   this.renderConstruction();
@@ -31,10 +35,10 @@ export const constructionMethods={
   }else if(!this.floorNumber){
    this.constructionArt=this.add.graphics().setDepth(5);
    const d=CONSTRUCTION_DESK,x=(d.x+.5)*CELL,y=(d.y+.5)*CELL;
-   this.builderAtBase=makePerson(this,x+45,y-42,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
-   this.builderSerega=makePerson(this,x-45,y-42,'serega').setVisible(q.unlocked);
-   this.constructionTable=this.add.graphics().setDepth(9).setVisible(q.unlocked);const g=this.constructionTable;
-   g.fillStyle(0x443d2c);g.fillRect(x-36,y+8,8,19);g.fillRect(x+28,y+8,8,19);g.fillStyle(0x9a7451);g.fillRoundedRect(x-44,y-17,88,35,5);g.lineStyle(3,0x423629);g.strokeRoundedRect(x-44,y-17,88,35,5);g.fillStyle(0xb0cbd0);g.fillRect(x-32,y-12,52,23);g.lineStyle(1,0x416477);g.strokeRect(x-26,y-8,34,15);g.lineBetween(x-10,y-8,x-10,y+7);
+   this.builderAtBase=makePerson(this,x+76,y+32,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
+   this.builderSerega=makePerson(this,x-76,y+32,'serega').setVisible(q.unlocked);
+   this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
+   this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
    this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);
    this.renderConstruction();
   }
@@ -44,7 +48,7 @@ export const constructionMethods={
   if(this.floorNumber===4&&q.briefed&&!q.rescued&&nearWorkshopItem(this.rig,BUILDER_SITE))return canRescueBuilder(q,this.world,this.spiders||[])?'builder':'builderBlocked';
   if(this.floorNumber)return null;
   if(q.warehouse&&inDeck(this.rig,warehouseDeck(q)))return 'warehouse';
-  if(q.unlocked&&nearWorkshopItem(this.rig,CONSTRUCTION_DESK))return 'construction';return null;
+  if(q.unlocked&&inDeck(this.rig,ARCHITECT_DECK))return 'construction';return null;
  },
  interactConstruction(){
   const action=this.constructionAction();
@@ -74,8 +78,8 @@ export const constructionMethods={
   }
  },
  renderConstruction(){
-  const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
-  this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.constructionTable?.setVisible(q.unlocked);
+  this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
+  this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);this.architectSign?.setVisible(q.unlocked);
   this.warehouseSign?.setVisible(q.warehouse);if(!q.unlocked)return;
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
   g.fillStyle(0x87c5aa,.12);g.fillRect(b.x,b.y,b.width,b.height+CELL);g.lineStyle(3,q.warehouse?0x6a8276:0xeec874,.8);g.strokeRect(b.x,b.y,b.width,b.height);

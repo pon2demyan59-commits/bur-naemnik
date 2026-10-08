@@ -4,7 +4,7 @@ import { PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER } from './porodnik-s
 import { WORKSHOP_BODY, WORKSHOP_DECK } from './workshop-state.js';
 import { ARMORY_BODY, ARMORY_DECK } from './armory-state.js';
 import { REPAIR_BODY, REPAIR_DECK } from './repair-state.js';
-import { warehouseBody, warehouseDeck } from './construction-state.js';
+import { warehouseBody, warehouseDeck, ARCHITECT_FOOTPRINT } from './construction-state.js';
 export const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад'};
 export function restoreBuildingLayout(value={}){const out={};for(const key of ['lift','porodnik','workshop','armory','repair']){const p=value?.[key];if(p&&Number.isInteger(p.dx)&&Number.isInteger(p.dy)&&Math.abs(p.dx)<=45&&Math.abs(p.dy)<=45)out[key]={dx:p.dx,dy:p.dy};}return out;}
 const shifted=(rect,dx,dy)=>({...rect,x:rect.x+dx*CELL,y:rect.y+dy*CELL});
@@ -23,8 +23,8 @@ export function validateBuildingMove(key,geometry,world,others,rig){
  if(f.x<2*CELL||f.y<2*CELL||f.x+f.width>48*CELL||f.y+f.height>48*CELL)return 'Слишком близко к стене бункера';
  for(let y=Math.floor(f.y/CELL);y<Math.ceil((f.y+f.height)/CELL);y++)for(let x=Math.floor(f.x/CELL);x<Math.ceil((f.x+f.width)/CELL);x++)if(world.blocked(x,y))return 'Сначала расчисти место буром';
  if(others.some(g=>rectanglesOverlap(f,g.footprint)))return 'Здесь другая постройка или её площадка';
- const fixed=[{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL},{x:21*CELL,y:23*CELL,width:3*CELL,height:2*CELL}];
- if(fixed.some(r=>rectanglesOverlap(f,r)))return 'Оставь свободным вход и стол с чертежами';
+ const fixed=[{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL},ARCHITECT_FOOTPRINT];
+ if(fixed.some(r=>rectanglesOverlap(f,r)))return 'Оставь свободным вход и дом архитектора';
  if(rig&&rectanglesOverlap(key==='lift'?f:geometry.body,{x:rig.x-30,y:rig.y-30,width:60,height:60}))return 'Бур стоит на месте постройки';
  return null;
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { restoreConstruction, beginWarehouse, stepConstruction, transferWarehouse, BUILDER_SITE, BUILDER_ENTRANCE, BUILDER_GUARDS, canRescueBuilder, WAREHOUSE_PLOTS, warehouseCapacity, warehouseUpgradePrice, upgradeWarehouse } from '../src/construction-state.js';
+import { constructionMethods } from '../src/construction-scene.js';
 import { FloorWorld, ownedKeycards, questKeycard, liftDestinations } from '../src/lift-state.js';
 import { BaseWorld } from '../src/base-state.js';
 import { restoreSpider, stepSpider } from '../src/combat-state.js';
@@ -61,3 +62,8 @@ test('death loses carried materials but preserves warehouse stock and constructi
 });
 
 test('warehouse upgrades persist and each material has its own limit',()=>{const q=restoreConstruction({rescued:true,unlocked:true,warehouse:true}),cargo={earth:150,stone:150};assert.equal(warehouseCapacity(q),100);assert.equal(transferWarehouse(q,cargo,'earth',150,true),100);assert.equal(transferWarehouse(q,cargo,'stone',150,true),100);assert.deepEqual(upgradeWarehouse(q,199),{bought:false,credits:199});assert.deepEqual(upgradeWarehouse(q,200),{bought:true,credits:0});assert.equal(warehouseUpgradePrice(q),250);assert.equal(warehouseCapacity(restoreConstruction(JSON.parse(JSON.stringify(q)))),200);assert.equal(transferWarehouse(q,cargo,'earth',50,true),50);assert.equal(warehouseCapacity(restoreConstruction({warehouseLevel:-5})),100);});
+
+test('architect house replaces the desk, clears only its footprint and opens from the entrance',()=>{
+ const q=restoreConstruction({rescued:true,unlocked:true});const s={floorNumber:0,constructionQuest:q,world:{cleared:new Set(),damage:new Map()},rig:{x:22.5*64,y:24.8*64}};
+ constructionMethods.prepareArchitectHouse.call(s);assert.equal(s.world.cleared.size,6);assert.equal(constructionMethods.constructionAction.call(s),'construction');s.rig.y=23.5*64;assert.equal(constructionMethods.constructionAction.call(s),null);s.floorNumber=1;s.world.cleared.clear();constructionMethods.prepareArchitectHouse.call(s);assert.equal(s.world.cleared.size,0);
+});
