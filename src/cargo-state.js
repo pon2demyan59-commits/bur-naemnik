@@ -28,6 +28,6 @@ export function quoteCargo(hold,selection,saleBonus=0){
 export function takeCargoSale(hold,selection,saleBonus=0){
  const result=quoteCargo(hold,selection,saleBonus);if(!result.amount)return null;
  for(const [id,count] of Object.entries(result.sale)){hold[id]-=count;if(hold[id]===0)delete hold[id];}
- return {...result,...(saleBonus?{saleBonus}:{}),remaining:10000};
+ return {...result,...(saleBonus?{saleBonus}:{}),remaining:3000};
 }
 

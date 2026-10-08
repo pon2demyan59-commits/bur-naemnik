@@ -1647,9 +1647,69 @@ function quoteCargo(hold,selection,saleBonus=0){
 function takeCargoSale(hold,selection,saleBonus=0){
  const result=quoteCargo(hold,selection,saleBonus);if(!result.amount)return null;
  for(const [id,count] of Object.entries(result.sale)){hold[id]-=count;if(hold[id]===0)delete hold[id];}
- return {...result,...(saleBonus?{saleBonus}:{}),remaining:10000};
+ return {...result,...(saleBonus?{saleBonus}:{}),remaining:3000};
 }
 
+
+
+
+const groundMaterialIds=new Set(MATERIALS.map(m=>m.id));
+function restoreGroundCargo(value){
+ const cells=new Map();if(!Array.isArray(value))return [];
+ for(const p of value){if(!Number.isInteger(p?.x)||!Number.isInteger(p?.y)||p.x<2||p.y<2||p.x>=48||p.y>=48||!groundMaterialIds.has(p.material)||!Number.isSafeInteger(p.count)||p.count<1)continue;const key=p.y*50+p.x;const old=cells.get(key);if(old&&old.material!==p.material)continue;cells.set(key,{x:p.x,y:p.y,material:p.material,count:Math.min(100000,(old?.count||0)+p.count)});}
+ return [...cells.values()];
+}
+function leaveGroundCargo(piles,x,y,material){
+ if(!groundMaterialIds.has(material))return false;const pile=piles.find(p=>p.x===x&&p.y===y);if(pile){if(pile.material!==material)return false;pile.count++;}else piles.push({x,y,material,count:1});return true;
+}
+function collectGroundCargo(pile,hold,capacity){
+ const count=Math.min(pile.count,Math.max(0,capacity-cargoCount(hold)));if(!count)return 0;hold[pile.material]=(hold[pile.material]||0)+count;pile.count-=count;return count;
+}
+
+
+
+
+const pileColors={earth:0xb17c4c,stone:0xabb1a7,iron:0xb37d66,copper:0xe09b5d,bauxite:0xc5bb9b,tin:0xafc6c7,zinc:0x83b6b9,nickel:0x9bb382,chromium:0x9dbaac,titanium:0x8ba6cc,tungsten:0x85869b,gold:0xf6cf67,xenorite:0xba8ee9};
+const groundCargoMethods={
+ makeGroundCargo(){this.groundCargoViews=new Map();this.groundCargoIndex=new Map();this.renderGroundCargo();},
+ renderGroundCargo(){
+  if(!this.groundCargoViews)return;this.groundCargoIndex=new Map((this.groundCargo||[]).map(p=>[p.y*50+p.x,p]));
+  for(const [key,view] of this.groundCargoViews)if(!this.groundCargoIndex.has(key)){view.destroy();this.groundCargoViews.delete(key);}
+  for(const [key,p] of this.groundCargoIndex){if(this.groundCargoViews.has(key))continue;const g=this.add.graphics().setPosition((p.x+.5)*CELL,(p.y+.5)*CELL).setDepth(12);g.fillStyle(0x0a1b1a,.32);g.fillEllipse(0,7,42,24);
+   for(let i=0;i<5;i++){const x=[-15,9,-3,15,-7][i],y=[2,5,-9,-4,11][i];g.fillStyle(pileColors[p.material]||0xb17c4c);g.fillTriangle(x-9,y+7,x+8,y+5,x+2,y-9);g.lineStyle(2,0xffedb0,.4);g.lineBetween(x-9,y+7,x+2,y-9);}this.groundCargoViews.set(key,g);
+  }
+ },
+ leaveBrokenMaterial(x,y,material){this.groundCargo||=[];leaveGroundCargo(this.groundCargo,x,y,material);this.renderGroundCargo();},
+ collectNearbyGroundCargo(){
+  if(!this.groundCargoIndex?.size||this.cargo>=this.cargoCapacity())return;const cx=Math.floor(this.rig.x/CELL),cy=Math.floor(this.rig.y/CELL);let changed=false;
+  for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){const p=this.groundCargoIndex.get(y*50+x);if(!p||Math.hypot(this.rig.x-(x+.5)*CELL,this.rig.y-(y+.5)*CELL)>CELL*.85)continue;const n=collectGroundCargo(p,this.cargoHold,this.cargoCapacity());if(n){changed=true;this.showCargoPickup(p.material,(x+.5)*CELL,(y+.5)*CELL,true,n);}}
+  if(changed){this.groundCargo=this.groundCargo.filter(p=>p.count);this.cargo=cargoCount(this.cargoHold);this.renderGroundCargo();this.refreshHUD();this.persist();}
+ }
+};
+
+
+function floorClearReward(floor){return Number.isInteger(floor)&&floor>=0&&floor<=100?5000+floor*2500:0;}
+function restoreClearedFloors(value){return [...new Set(Array.isArray(value)?value.filter(f=>Number.isInteger(f)&&f>=0&&f<=100):[])].sort((a,b)=>a-b);}
+function remainingFloorBlocks(world){let n=0;for(let y=2;y<BASE_SIZE-2;y++)for(let x=2;x<BASE_SIZE-2;x++)if(world.blocked(x,y)&&Number.isFinite(world.hardness?.(x,y)??1))n++;return n;}
+function claimFloorClear(state,world,floor){
+ const reward=floorClearReward(floor);if(!reward||state.clearedFloors?.includes(floor)||remainingFloorBlocks(world)>0)return 0;
+ state.clearedFloors||=[];state.clearedFloors.push(floor);state.credits+=reward;return reward;
+}
+// Both automatic and manual collapse must consult this permanent campaign flag.
+function floorCanCollapse(progress,floor){return !restoreClearedFloors(progress?.clearedFloors).includes(floor);}
+
+
+const floorClearMethods={
+ checkFloorClear(){
+  if(!this.world?.cleared||this.discoveryActive||this.storyActive||this.busy||this.leaving)return;
+  if(this.lastClearSize===this.world.cleared.size)return;this.lastClearSize=this.world.cleared.size;
+  this.blocksRemaining=remainingFloorBlocks(this.world);const reward=claimFloorClear(this,this.world,this.floorNumber);this.renderFloorClearProgress();
+  if(reward){this.refreshHUD();this.persist();this.showDiscovery({kind:'floor-clear',name:this.floorNumber?'Этаж '+this.floorNumber+' расчищен':'База полностью расчищена',description:'Награда за полную расчистку',note:'Эта территория больше не обрушится. Оставшуюся породу можно забрать в любое время.',rewards:[{kind:'credits',name:'Кредиты',count:reward}]});}
+ },
+ renderFloorClearProgress(){
+  const el=document.querySelector('#floor-clear-progress');if(!el)return;el.textContent=this.clearedFloors?.includes(this.floorNumber)?'✓ РАСЧИЩЕНО · ОБВАЛОВ НЕ БУДЕТ':this.blocksRemaining==null?'':`До полной расчистки: ${this.blocksRemaining} блоков · +${floorClearReward(this.floorNumber)} кр.`;
+ }
+};
 
 
 
@@ -1667,7 +1727,7 @@ const cargoMethods={
   const summary=document.createElement('div');summary.className='porodnik-summary';summary.setAttribute('aria-live','polite');
   const metrics=['Продать блоков','Останется в буре','Выручка'].map(label=>{const cell=document.createElement('div'),caption=document.createElement('span'),value=document.createElement('strong');caption.textContent=label;cell.append(caption,value);summary.append(cell);return value;});
   const footer=document.createElement('div');footer.className='porodnik-footer';
-  const sell=document.createElement('button');sell.className='metal-button porodnik-sell';sell.textContent='ПРОДАТЬ · 10 СЕК';
+  const sell=document.createElement('button');sell.className='metal-button porodnik-sell';sell.textContent='ПРОДАТЬ · 3 СЕК';
   const render=()=>{const quote=quoteCargo(this.cargoHold,selection(),this.collectionBuffs?.sale||0);metrics[0].textContent=String(quote.amount);metrics[1].textContent=String(this.cargo-quote.amount);metrics[2].textContent=quote.payout+' кр.';sell.disabled=!quote.amount;for(const r of rows)r.row.classList.toggle('is-selected',r.check.checked);};
   for(const m of MATERIALS){
    const count=this.cargoHold[m.id]||0;if(!count)continue;
@@ -2269,16 +2329,16 @@ function onPorodnikDeck(rig,d=PORODNIK_DECK) {
   return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 }
 
-const PORODNIK_CYCLE_MS=10000;
+const PORODNIK_CYCLE_MS=3000;
 function restorePorodnikJob(value,capacity=200,saleBonus=0) {
-  if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>capacity||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>PORODNIK_CYCLE_MS)return null;
+  if(!value||!Number.isInteger(value.amount)||value.amount<=0||value.amount>capacity||!Number.isFinite(value.remaining)||value.remaining<0||value.remaining>10000)return null;
   if(value.sale){
     const sale=restoreCargo(value.sale,0,capacity),amount=cargoCount(sale);
     if(amount!==value.amount)return null;
-    const bonus=Number.isFinite(value.saleBonus)&&value.saleBonus>=0&&value.saleBonus<=saleBonus?value.saleBonus:0;return {...quoteCargo(sale,sale,bonus),...(bonus?{saleBonus:bonus}:{}),remaining:value.remaining};
+    const bonus=Number.isFinite(value.saleBonus)&&value.saleBonus>=0&&value.saleBonus<=saleBonus?value.saleBonus:0;return {...quoteCargo(sale,sale,bonus),...(bonus?{saleBonus:bonus}:{}),remaining:Math.min(value.remaining,PORODNIK_CYCLE_MS)};
   }
   // A cycle started before typed cargo keeps its already-promised old payout.
-  return {amount:value.amount,remaining:value.remaining};
+  return {amount:value.amount,remaining:Math.min(value.remaining,PORODNIK_CYCLE_MS)};
 }
 function stepPorodnikJob(job,delta) {
   if(!job)return 0;
@@ -3977,24 +4037,55 @@ function structureRecipe(id){return STRUCTURE_RECIPES.find(r=>r.id===id);}
 function formatStructureRecipe(recipe){return recipe.ingredients.map(p=>p.name+' ×'+p.count).join(' + ');}
 function filterStructureRecipes(category,query=''){const term=String(query).trim().toLocaleLowerCase('ru');return STRUCTURE_RECIPES.filter(r=>r.category===category&&(!term||(r.name+' '+formatStructureRecipe(r)).toLocaleLowerCase('ru').includes(term)));}
 
+const recipeArtFiles={hq:'headquarters-top',architect:'architect-house-top',warehouse:'warehouse-house-top',porodnik:'porodnik',workshop:'workshop',armory:'armory-v2',repair:'repair-shop',lift:'freight-lift'};
+const recipeBenefits={hq:'Штаб Демьяна П. и новые сюжетные задания.',architect:'Чертежи и строительство собственного убежища.',housing:'Уютное жильё для первых 10 спасённых жителей.',power:'Источник энергии для производств убежища.',warehouse:'Запасы каждого материала вне грузового отсека.',porodnik:'Превращает лишнюю породу в кредиты.',workshop:'Улучшения бура и мощные буровые насадки.',armory:'Изготовление, установка и усиление оружия.',repair:'Восстанавливает прочность повреждённого бура.',smelter:'Превращает добытую руду в металлические слитки.',alloy:'Создаёт сплавы для сложных рецептов.',assembly:'Производит защиту, ловушки и боевые башни.',lab:'Помогает открывать новые рецепты опытным путём.',fame:'Хранит трофеи и открывает их усиления.',lift:'Связывает убежище с этажами шахты.'};
+function recipeBenefit(r){return recipeBenefits[r.id]||({Преграды:'Укрепление периметра и защита подходов.',Препятствия:'Задерживает противников на пути к убежищу.',Ловушки:'Подготовь сюрприз на пути монстров.',Башни:'Огневая поддержка и оборона убежища.','Оружие для бура':'Новый способ расправляться с обитателями шахты.'}[r.category]||'Новый проект для убежища.');}
+function recipeArt(r){
+ if(recipeArtFiles[r.id])return './public/assets/game/'+recipeArtFiles[r.id]+'.webp';
+ const n=Number(r.id.match(/\d+$/)?.[0]||0),color=['#9dbfaf','#e1c58d','#abbee7','#ca9d8c','#a6c98b'][n%5];let shape='';
+ if(r.id==='housing')shape='<rect x="29" y="31" width="46" height="73" rx="5" fill="#557973" stroke="#b9ceb3" stroke-width="4"/><rect x="85" y="31" width="46" height="73" rx="5" fill="#557973" stroke="#b9ceb3" stroke-width="4"/><path d="M36 43h31m-31 13h31m-31 13h31m25-26h31m-31 13h31m-31 13h31" stroke="#b2d7c3" stroke-width="6"/><path d="M50 81h17v23H50m43-23h17v23H93" fill="#f3ca7b"/><path d="M80 30v83" stroke="#b5a384" stroke-width="3"/>';
+ else if(r.id==='power')shape='<rect x="25" y="27" width="110" height="79" rx="9" fill="#385952" stroke="#8fae9b" stroke-width="4"/><circle cx="57" cy="62" r="24" fill="#7c927a" stroke="#bec89c" stroke-width="4"/><path d="M57 39v46M34 62h46m-39-16l33 33m0-33L41 79" stroke="#30483c" stroke-width="5"/><path d="M112 35L89 69h16l-9 29 27-39h-16z" fill="#ffd178"/><path d="M27 101h106" stroke="#b8a677" stroke-width="5"/>';
+ else if(['smelter','alloy','assembly','lab','fame'].includes(r.id)){const glow={smelter:'#ffad64',alloy:'#b79de5',assembly:'#b2d2a5',lab:'#82e2cc',fame:'#f6d77e'}[r.id];shape='<rect x="27" y="29" width="106" height="77" rx="7" fill="#42685d" stroke="'+glow+'" stroke-width="4"/><rect x="35" y="37" width="42" height="60" rx="4" fill="#243e37"/><rect x="84" y="37" width="40" height="28" rx="4" fill="#263f38"/><circle cx="56" cy="65" r="17" fill="'+glow+'"/><circle cx="56" cy="65" r="10" fill="#365449"/><path d="M87 77h33m-33 9h33m-33 9h33" stroke="'+glow+'" stroke-width="4"/>';}
+ else if(r.category==='Преграды')shape='<path d="M28 48h104v48H28z" fill="#607d73"/><path d="M32 51l96 41M32 92l96-41M50 48v48m30-48v48m30-48v48" stroke="'+color+'" stroke-width="5"/><path d="M25 35v72m110-72v72" stroke="#dec89a" stroke-width="10"/>';
+ else if(r.category==='Препятствия')shape='<path d="M24 99l14-55h84l14 55z" fill="'+color+'"/><path d="M39 44l84 55M67 44l65 55M36 81l26-37" stroke="#3c5653" stroke-width="10"/>';
+ else if(r.category==='Ловушки')shape='<ellipse cx="80" cy="83" rx="57" ry="30" fill="#667c74"/><path d="M35 83l13-35 12 35 19-47 18 47 13-35 14 35" fill="'+color+'" stroke="#243f3b" stroke-width="4"/><circle cx="80" cy="88" r="9" fill="#f2b961"/>';
+ else if(r.category==='Башни'||r.category==='Оружие для бура')shape='<ellipse cx="80" cy="95" rx="44" ry="20" fill="#263d39"/><path d="M49 51h62l14 40-27 17H62L36 91z" fill="#617e70" stroke="'+color+'" stroke-width="5"/><circle cx="80" cy="71" r="23" fill="'+color+'"/><path d="M72 65V18h16v47" fill="#344e4c" stroke="#d7dfc1" stroke-width="4"/><path d="M'+(60+n%4*5)+' 91h32" stroke="#f9bf60" stroke-width="5"/>';
+ else shape='<path d="M25 50l55-23 55 23v53H25z" fill="#536f64" stroke="'+color+'" stroke-width="4"/><path d="M25 50h110M45 50v53m70-53v53" stroke="#263f3b" stroke-width="5"/><path d="M62 69h36v34H62z" fill="#b5bfa0"/><rect x="67" y="74" width="26" height="13" rx="2" fill="#7de0b3"/>';
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 130"><ellipse cx="80" cy="108" rx="68" ry="12" fill="#051b19" opacity=".5"/>'+shape+'</svg>');
+}
+
+
+
+
+
 
 
 const structureRecipeMethods={
  openStructureRecipes(category='Здания'){
-  if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='lift-console structure-recipe-console';
-  const title=document.createElement('p');title.className='service-readout';title.textContent='КНИГА РЕЦЕПТОВ\n'+STRUCTURE_RECIPES.length+' проектов';
-  const note=document.createElement('p');note.className='terminal-note';note.textContent='Состав на одну постройку или один предмет. Проекты с отметкой «План» можно изучить здесь; их строительство откроется позже.';
-  const filters=document.createElement('div');filters.className='structure-recipe-filters';const select=document.createElement('select');select.setAttribute('aria-label','Тип сооружения');
+  if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='recipe-showroom';
+  const hero=document.createElement('header');hero.className='recipe-showroom-hero';const intro=document.createElement('div'),eyebrow=document.createElement('span'),title=document.createElement('h3'),note=document.createElement('p'),wallet=document.createElement('strong');eyebrow.textContent='ПАВЕЛ М. · ПРОЕКТНОЕ БЮРО';title.textContent='Построй своё убежище';note.textContent='65 проектов для жизни, добычи и обороны. Найди чертёж в породе или купи доступный проект здесь.';wallet.className='recipe-wallet';intro.append(eyebrow,title,note);hero.append(intro,wallet);
+  const tabs=document.createElement('nav');tabs.className='recipe-category-tabs';tabs.setAttribute('aria-label','Категории проектов');const filters=document.createElement('div');filters.className='structure-recipe-filters';const select=document.createElement('select');select.setAttribute('aria-label','Тип сооружения');
   for(const key of STRUCTURE_CATEGORIES){const option=document.createElement('option');option.value=key;option.textContent=key+' · '+STRUCTURE_RECIPES.filter(r=>r.category===key).length;select.append(option);}select.value=STRUCTURE_CATEGORIES.includes(category)?category:'Здания';
-  const search=document.createElement('input');search.type='search';search.placeholder='Название или материал';search.setAttribute('aria-label','Поиск рецепта');filters.append(select,search);
-  const count=document.createElement('p');count.className='terminal-note';count.setAttribute('role','status');const list=document.createElement('div');list.className='structure-recipe-grid';
-  const render=()=>{const recipes=filterStructureRecipes(select.value,search.value);count.textContent='Найдено: '+recipes.length;list.replaceChildren();for(const r of recipes){const card=document.createElement('section');card.className='structure-recipe-card';card.dataset.recipe=r.id;const name=document.createElement('h3');name.textContent=r.name+(r.size?' · '+r.size:'');const status=document.createElement('p');status.className='recipe-availability';status.textContent=r.availability==='build'?'Строительство доступно по чертежу':r.availability==='weapon'?'Изготовление в оружейной':r.availability==='story'?'Сюжетная постройка · дополнительные экземпляры в плане':'План · строительство ещё не введено';
-   const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=formatStructureRecipe(r);card.append(name,status,recipe);const learned=document.createElement('p');learned.className='recipe-availability';learned.textContent=this.recipeLearned(r.id)?'✓ Рецепт изучен':'○ Рецепт ещё не найден';card.append(learned);
-   if(r.leader){const leader=document.createElement('p');leader.className='terminal-note';leader.textContent=r.leader+' · '+r.role;card.append(leader);}
-   if(r.id==='warehouse'){const gift=document.createElement('p');gift.className='terminal-note';gift.textContent='Первый склад появляется бесплатно. Этот рецепт — для будущих дополнительных складов.';card.append(gift);}
-   list.append(card);
-  }};
-  select.addEventListener('change',render);search.addEventListener('input',render);const back=document.createElement('button');back.className='floor-button';back.textContent='← К ЧЕРТЕЖАМ';back.addEventListener('click',()=>this.openBuildingBlueprints());panel.append(title,note,filters,count,list,back);render();showBuildingMenu('construction',panel);panel.parentElement.classList.add('settlement-layout');
+  const search=document.createElement('input');search.type='search';search.placeholder='Найти проект или материал…';search.setAttribute('aria-label','Поиск рецепта');const onlyKnown=document.createElement('button');onlyKnown.type='button';onlyKnown.className='recipe-known-filter';onlyKnown.textContent='Только изученные';onlyKnown.setAttribute('aria-pressed','false');let knownOnly=false;filters.append(select,search,onlyKnown);
+  const count=document.createElement('p');count.className='recipe-result-count';count.setAttribute('role','status');const list=document.createElement('div');list.className='structure-recipe-grid';
+  const tabButtons=[];for(const key of STRUCTURE_CATEGORIES){const b=document.createElement('button');b.type='button';b.textContent=key+' · '+STRUCTURE_RECIPES.filter(r=>r.category===key).length;b.addEventListener('click',()=>{select.value=key;render();});tabButtons.push([key,b]);tabs.append(b);}
+  const render=()=>{wallet.textContent=this.credits.toLocaleString('ru-RU')+' кр.';for(const [key,b] of tabButtons){b.classList.toggle('active',key===select.value);b.setAttribute('aria-pressed',String(key===select.value));}const recipes=filterStructureRecipes(select.value,search.value).filter(r=>!knownOnly||this.recipeLearned(r.id));count.textContent=recipes.length+' проектов · изучено '+STRUCTURE_RECIPES.filter(r=>this.recipeLearned(r.id)).length+' из 65';list.replaceChildren();
+   if(!recipes.length){const empty=document.createElement('p');empty.className='recipe-empty';empty.textContent='Таких проектов пока нет. Попробуй другой материал или категорию.';list.append(empty);}
+   for(const r of recipes){const known=this.recipeLearned(r.id),card=document.createElement('section');card.className='structure-recipe-card'+(known?' is-learned':'');card.dataset.recipe=r.id;
+    const stage=document.createElement('div');stage.className='recipe-art-stage';const art=document.createElement('img');art.src=recipeArt(r);art.alt='';art.loading='lazy';const badge=document.createElement('span');badge.className='recipe-state-badge';badge.textContent=known?'✓ ИЗУЧЕНО':r.availability==='planned'?'БУДУЩИЙ ПРОЕКТ':'ЧЕРТЁЖ';stage.append(art,badge);if(r.size){const size=document.createElement('span');size.className='recipe-size';size.textContent=r.size+' клеток';stage.append(size);}
+    const body=document.createElement('div');body.className='recipe-card-body';const name=document.createElement('h3');name.textContent=r.name;const purpose=document.createElement('p');purpose.className='recipe-benefit';purpose.textContent=recipeBenefit(r);body.append(name,purpose);
+    const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Материалы и подробности';const ingredients=document.createElement('div');ingredients.className='recipe-material-chips';for(const item of r.ingredients){const chip=document.createElement('span'),qty=document.createElement('strong');chip.append(document.createTextNode(item.name+' '));qty.textContent='×'+item.count;chip.append(qty);ingredients.append(chip);}details.append(summary,ingredients);
+    if(r.leader){const leader=document.createElement('p');leader.className='recipe-leader';leader.textContent=r.leader+' · '+r.role;details.append(leader);}if(r.id==='warehouse'){const free=document.createElement('p');free.className='recipe-leader';free.textContent='Первый склад выдаётся бесплатно. Рецепт — для будущих дополнительных складов.';details.append(free);}body.append(details);
+    const state=document.createElement('p');state.className='recipe-availability';state.textContent=r.availability==='planned'?'Строительство появится позже':r.availability==='story'?'Открывается по сюжету':r.availability==='weapon'?'Изготовление в оружейной':'Строительство в доме архитектора';body.append(state);
+    const bp=BUILDING_BLUEPRINTS.find(b=>b.id===r.id),weapon=r.availability==='weapon'?WEAPON_CATALOG.find(w=>'weapon-'+w.id===r.id):null;
+    if(!known&&bp){const available=buildingBlueprintAvailable(bp.id,this.constructionQuest,this.demyanQuest),buy=document.createElement('button');buy.className='recipe-buy';buy.textContent=available?'КУПИТЬ ЧЕРТЁЖ · '+bp.price+' КР.':bp.id==='hq'?'ПОСЛЕ ВОЗВРАЩЕНИЯ ДЕМЬЯНА':'ПО ПОРУЧЕНИЮ ШТАБА';buy.disabled=!available||this.credits<bp.price;buy.addEventListener('click',()=>{if(this.purchaseBuildingBlueprint(bp.id))render();});body.append(buy);}
+    else if(!known&&weapon&&weapon.id!=='basic'){const buy=document.createElement('button');buy.className='recipe-buy';buy.textContent='КУПИТЬ ЧЕРТЁЖ · '+weapon.blueprintPrice+' КР.';buy.disabled=!this.armoryQuest.ready||this.armoryQuest.serviceRemaining!=null||this.credits<weapon.blueprintPrice;buy.addEventListener('click',()=>{const result=buyWeaponBlueprint(this.armoryQuest,weapon.id,this.credits);if(result.bought){this.credits=result.credits;this.refreshHUD();this.persist();render();}});body.append(buy);}
+    else if(known&&bp&&buildingBlueprintAvailable(bp.id,this.constructionQuest,this.demyanQuest)){const use=document.createElement('button');use.className='recipe-buy secondary';const built=r.id==='hq'?this.demyanQuest.hq:this.baseProjects[r.id]?.built;use.textContent=built?'✓ ЗДАНИЕ ПОСТРОЕНО':'К СТРОИТЕЛЬСТВУ';use.disabled=!!built;use.addEventListener('click',()=>r.id==='hq'?this.openHeadquartersBuild():this.openSettlementConstruction());body.append(use);}
+    else {const hint=document.createElement('p');hint.className='recipe-acquire-hint';hint.textContent=known?'✓ Рецепт изучен':weapon?.id==='basic'?'Сюжетный чертёж · этаж 2':'Можно найти при бурении на этажах';body.append(hint);}
+    card.append(stage,body);list.append(card);
+   }
+  };
+  select.addEventListener('change',render);search.addEventListener('input',render);onlyKnown.addEventListener('click',()=>{knownOnly=!knownOnly;onlyKnown.setAttribute('aria-pressed',String(knownOnly));render();});const back=document.createElement('button');back.className='floor-button';back.textContent='← К ЧЕРТЕЖАМ И УЛУЧШЕНИЯМ';back.addEventListener('click',()=>this.openBuildingBlueprints());panel.append(hero,tabs,filters,count,list,back);render();showGamePanel('ПРОЕКТЫ УБЕЖИЩА',panel,'recipes');
  }
 };
 
@@ -5065,16 +5156,14 @@ function makeOfficer(scene,x,y){
 }
 const demyanMethods={
  makeDemyan(){
-  this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
+  this.commandPost=null;this.commandPostGlow=null;this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
   const q=this.demyanQuest;
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
-   g.fillStyle(0x243c3b);g.fillRoundedRect(33*CELL,28*CELL,5*CELL,6*CELL,10);g.lineStyle(3,0x526860);g.strokeRect(33*CELL+8,28*CELL+8,5*CELL-16,6*CELL-16);
+   this.commandPost=this.add.image(33*CELL,28*CELL,'command-post').setOrigin(0).setDisplaySize(5*CELL,6*CELL).setDepth(5);
+   this.commandPostGlow=this.add.circle(35.5*CELL,28.7*CELL,6,0xb9ed89,.8).setDepth(7);
    // Reinforced enclosure is actual indestructible terrain, with one three-block west entrance.
    for(let cy=27;cy<=34;cy++)for(let cx=32;cx<=38;cx++)if(demyanWall(cx,cy)){const bx=cx*CELL,by=cy*CELL;g.fillStyle(0x202e31);g.fillRect(bx,by,CELL,CELL);g.fillStyle(0x6b7775);g.fillRoundedRect(bx+3,by+3,CELL-6,CELL-9,4);g.lineStyle(3,0x9aa79e);g.strokeRect(bx+5,by+5,CELL-10,CELL-13);g.lineStyle(5,0x394b4e);g.lineBetween(bx+10,by+12,bx+CELL-10,by+CELL-15);g.lineBetween(bx+CELL-10,by+12,bx+10,by+CELL-15);}
-   for(let i=0;i<7;i++){g.fillStyle(i%2?0x735746:0x8b7757);g.fillRoundedRect(33*CELL+16+i*37,32*CELL+28+(i%2)*8,32,26,4);}
-   for(let i=0;i<35;i++){g.fillStyle(0xc39b50);g.fillRect(x-90+(i*47)%180,y-20+(i*29)%65,6,3);}
-   g.fillStyle(0x19302e);g.fillRoundedRect(35*CELL,28*CELL+12,110,48,6);g.fillStyle(0x81b989);g.fillRect(35*CELL+14,28*CELL+22,70,22);
    this.postLabel=this.add.text(x,28*CELL-12,'КОМАНДНЫЙ ПОСТ · ПОСЛЕДНИЙ РУБЕЖ',{fontFamily:'Arial',fontSize:'16px',color:'#f4c77b',backgroundColor:'#20302c',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);
    this.demyanPerson=makeOfficer(this,x,y).setVisible(!q.rescued);
    this.demyanGun=this.add.graphics();this.demyanGun.fillStyle(0x152423);this.demyanGun.fillRoundedRect(-8,-5,36,9,2);this.demyanGun.fillStyle(0x859485);this.demyanGun.fillRect(22,-3,18,4);this.demyanPerson.add(this.demyanGun);
@@ -5115,7 +5204,7 @@ const demyanMethods={
  },
  interactDemyan(){const a=this.demyanAction();if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){this.openHeadquarters();return true;}return false;},
  updateDemyan(ms){
-  const q=this.demyanQuest;if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
+  const q=this.demyanQuest;if(this.commandPostGlow)this.commandPostGlow.setAlpha(.55+.2*Math.sin(this.time.now*.004));if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
    this.updateHeadquartersSentries();
    if(stepHeadquarters(q,ms)){this.renderHeadquarters();this.persist();this.startStory('hqReady');}else if(q.remaining!=null)this.renderHeadquarters();return;
@@ -5269,8 +5358,9 @@ const DISCOVERY_COLORS=['#d6c79c','#99d796','#6ed8cf','#78b7ff','#b798ff','#ef8c
 function discoveryDetails(item){
  const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
  if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
+ if(item.kind==='floor-clear')return {eyebrow:'ТЕРРИТОРИЯ ОСВОБОЖДЕНА!',heading:'ПОЛНАЯ РАСЧИСТКА',name:item.name,description:item.description,note:item.note,artPath:'game/headquarters-top.webp',color:'#bee796',rarity:6};
  if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
- return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',color:'#ffd780',rarity:5};
+ return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',artPath:item.kind==='blueprint'?'quests/blueprint.svg':'game/bonus-cache-v2.webp',color:'#ffd780',rarity:5};
 }
 const discoveryMethods={
  showDiscovery(item){
@@ -5281,8 +5371,8 @@ const discoveryMethods={
   this.discoveryCards ||= [];if(this.discoveryCards.includes(floor))return false;
   this.discoveryCards.push(floor);this.persist();this.showDiscovery({kind:'keycard',floor});return true;
  },
- showBonusBoxDiscovery(name='Бонусный ящик',contents='Содержимое получено'){
-  this.showDiscovery({kind:'crate',name,description:'Бонусный ящик',note:contents});
+ showBonusBoxDiscovery(name='Бонусный ящик',contents='Содержимое получено',rewards=[],remaining=[]){
+  this.showDiscovery({kind:'crate',name,description:'Запасы из прошлого',note:contents,rewards,remaining});
  },
  openNextDiscovery(){
   const item=this.discoveryQueue?.shift();if(!item){this.discoveryActive=false;return;}
@@ -5293,12 +5383,15 @@ const discoveryMethods={
   const sparks=document.createElement('div');sparks.className='discovery-sparks';sparks.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const dot=document.createElement('i');dot.style.setProperty('--i',String(i));dot.style.setProperty('--top',String(15+(i*17)%65)+'%');sparks.append(dot);}
   const eyebrow=document.createElement('p');eyebrow.className='discovery-eyebrow';eyebrow.textContent=spec.eyebrow;
   const heading=document.createElement('h2');heading.id='discovery-heading';heading.textContent=spec.heading;
-  const art=document.createElement('img');art.className='discovery-art';art.src='./public/assets/quests/'+spec.art;art.alt='';
+  const art=document.createElement('img');art.className='discovery-art';art.src='./public/assets/'+(spec.artPath||'quests/'+spec.art);art.alt='';
   const name=document.createElement('strong');name.className='discovery-name';name.textContent=spec.name;
   const rarity=document.createElement('p');rarity.className='discovery-rarity';rarity.textContent=spec.description;
   const note=document.createElement('p');note.className='discovery-note';note.textContent=spec.note;
   const button=document.createElement('button');button.type='button';button.className='discovery-continue';button.textContent='ПРОДОЛЖИТЬ';
-  card.append(beams,sparks,eyebrow,heading,art,name,rarity,note,button);dialog.append(card);document.querySelector('#ui').append(dialog);let closed=false;
+  card.append(beams,sparks,eyebrow,heading,art,name,rarity);
+  if(item.rewards?.length){const caption=document.createElement('p');caption.className='discovery-loot-caption';caption.textContent='ПОЛУЧЕНО';card.append(caption);const grid=document.createElement('div');grid.className='discovery-loot-grid';for(const reward of item.rewards){const row=document.createElement('div');row.className='discovery-loot '+reward.kind;const mark=document.createElement('span');mark.className='discovery-loot-mark';mark.setAttribute('aria-hidden','true');mark.textContent=reward.kind==='credits'?'◈':reward.kind==='artifact'?'✦':reward.kind==='material'?'⬟':'◆';const label=document.createElement('strong'),amount=document.createElement('b');label.textContent=reward.name;amount.textContent=(reward.kind==='credits'?'+':'×')+reward.count.toLocaleString('ru-RU');row.append(mark,label,amount);grid.append(row);}card.append(grid);}
+  if(item.remaining?.length){const rest=document.createElement('div');rest.className='discovery-remaining';rest.textContent='ОСТАЛОСЬ В ТАЙНИКЕ · '+item.remaining.map(a=>a.name+' ×'+a.count).join(' · ')+'. Освободи отсек и вернись за запасами.';card.append(rest);}
+  card.append(note,button);dialog.append(card);document.querySelector('#ui').append(dialog);let closed=false;
   const cleanup=()=>{document.removeEventListener('keydown',keyboard,true);dialog.removeEventListener('cancel',cancel);dialog.remove();};
   const finish=()=>{if(closed)return;closed=true;cleanup();this.events.off('shutdown',abort);this.discoveryActive=false;
    if(this.discoveryQueue.length){this.openNextDiscovery();return;}
@@ -5364,6 +5457,8 @@ function collectBonusCache(cache,scene){
 }
 function formatBonusLoot(items){return items.map(a=>(lootById.get(a.id)?.name||a.id)+' ×'+a.count).join(' · ');}
 
+function bonusLootDetails(items){return items.map(a=>({...lootById.get(a.id),count:a.count})).filter(a=>a.name);}
+
 
 
 const bonusCacheMethods={
@@ -5374,24 +5469,26 @@ const bonusCacheMethods={
   for(const [key,view] of this.bonusCacheViews)if(!active.has(key)){view.destroy();this.bonusCacheViews.delete(key);}
   for(const cache of this.bonusCaches||[]){const key=cache.y*50+cache.x;if(this.bonusCacheViews.has(key))continue;
    const root=this.add.container((cache.x+.5)*CELL,(cache.y+.5)*CELL).setDepth(13);
-   const glow=this.add.ellipse(0,4,58,42,0xffd276,.25),art=this.add.image(0,-8,'bonus-cache').setDisplaySize(55,55),label=this.add.text(0,-43,'ТАЙНИК',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#ffe3a1',backgroundColor:'#263e33',padding:{x:5,y:3}}).setOrigin(.5);root.add([glow,art,label]);this.bonusCacheViews.set(key,root);
+   const glow=this.add.ellipse(0,4,58,42,0xffd276,.25),art=this.add.image(0,-8,'bonus-cache').setDisplaySize(62,62),label=this.add.text(0,-43,'ТАЙНИК',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe3a1',backgroundColor:'#263e33',padding:{x:5,y:3}}).setOrigin(.5);root.add([glow,art,label]);this.bonusCacheViews.set(key,root);
   }
  },
  findBonusCacheInBrokenBlock(x,y){
   const cache=rollBonusCache(this.floorNumber,x,y);if(!cache)return null;
   this.bonusCaches ||= [];this.bonusCaches.push(cache);const received=collectBonusCache(cache,this);this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.persist();
-  const contents=received.length?'Получено: '+formatBonusLoot(received):'Грузовой отсек заполнен.';
-  const rest=cache.items.length?' Осталось в тайнике: '+formatBonusLoot(cache.items)+'. Освободи отсек и забери остаток на месте находки.':'';
-  this.showBonusBoxDiscovery('Бонусный тайник',contents+rest);for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',name:a.name,rarity:a.rarity});return cache;
+  this.showBonusBoxDiscovery('Бонусный тайник',received.length?'Запасы уже добавлены в твой инвентарь.':'Освободи грузовой отсек — тайник останется здесь.',received,bonusLootDetails(cache.items));for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',name:a.name,rarity:a.rarity});return cache;
  },
  bonusCacheAction(){if(!this.floorNumber)return null;return (this.bonusCaches||[]).find(c=>Math.hypot(this.rig.x-(c.x+.5)*CELL,this.rig.y-(c.y+.5)*CELL)<1.5*CELL)||null;},
  interactBonusCache(){
   const cache=this.bonusCacheAction();if(!cache)return false;
   const received=collectBonusCache(cache,this);if(!received.length){this.notify('ТАЙНИК НА МЕСТЕ · Освободи грузовой отсек, чтобы забрать материалы.');return true;}
   this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.refreshHUD();this.persist();
-  this.showBonusBoxDiscovery('Запасы из тайника','Получено: '+formatBonusLoot(received)+(cache.items.length?' · Осталось: '+formatBonusLoot(cache.items):' · Тайник полностью разобран.'));return true;
+  this.showBonusBoxDiscovery('Запасы из тайника',cache.items.length?'Часть запасов остаётся на месте находки.':'Тайник полностью разобран.',received,bonusLootDetails(cache.items));return true;
  }
 };
+
+
+
+
 
 
 
@@ -5445,12 +5542,12 @@ const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const p=save?.progress||{};this.clearedFloors=restoreClearedFloors(p.clearedFloors);this.lastClearSize=null;this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
-    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];
+    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];this.groundCargo=restoreGroundCargo(local.groundCargo);
     // Old saves may park inside the newly installed machine.
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('porodnik').collider)){this.world.x=18;this.world.y=35;}
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('workshop').body)){this.world.x=32;this.world.y=35;}
@@ -5514,7 +5611,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -5624,7 +5721,7 @@ class Base extends globalThis.Phaser.Scene {
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
       <aside class="radio-card"><button class="quest-toggle" type="button" aria-controls="quest-details" aria-expanded="true"></button><div id="quest-details"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></div></aside>
-      <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
+      <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="floor-clear-progress"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <button class="hud-button building-mode-button" id="base-buildings" type="button">ПОСТРОЙКИ</button><div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
     const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');radio.classList.toggle('radio-in-inventory',readSettings().radioInInventory);
@@ -5691,11 +5788,11 @@ class Base extends globalThis.Phaser.Scene {
     const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
   }
   snapshotCampaign() {
-    const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
+    const local={...this.world.snapshot(),groundCargo:(this.groundCargo||[]).map(p=>({...p})),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,clearedFloors:[...(this.clearedFloors||[])],learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -5874,7 +5971,7 @@ class Base extends globalThis.Phaser.Scene {
     const baseDock=document.createElement('aside');baseDock.className='lift-base-dock';
     for(const entry of liftDestinations(this.campaign)) {
       const button=document.createElement('button');button.className='floor-button';button.dataset.floor=entry.floor;
-      button.textContent=entry.floor===0?'⌂ БАЗА · №72':`ЭТАЖ ${entry.floor}${entry.enabled?'':' · НУЖНА КЛЮЧ-КАРТА'}`;
+      button.textContent=(entry.floor===0?'⌂ БАЗА · №72':`ЭТАЖ ${entry.floor}${entry.enabled?'':' · НУЖНА КЛЮЧ-КАРТА'}`)+(this.clearedFloors.includes(entry.floor)?' · ✓ РАСЧИЩЕН':'');
       button.disabled=!entry.enabled;button.classList.toggle('selected',entry.floor===selected);
       button.addEventListener('click',()=>{selected=entry.floor;buttons.forEach(b=>b.classList.toggle('selected',Number(b.dataset.floor)===selected));display.textContent=selected===0?'БАЗА · №72':`ЭТАЖ ${selected}`;travel.disabled=selected===this.floorNumber;status.textContent=selected===this.floorNumber?'Ты уже на этой остановке.':'Платформа готова к отправлению.';});
       buttons.push(button);(entry.floor===0?baseDock:floors).append(button);
@@ -5961,7 +6058,7 @@ class Base extends globalThis.Phaser.Scene {
     const direction=this.touchStick || this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);if(this.discoveryActive)return;
-    this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));this.updateDemyan(Math.min(delta,50));if(this.busy||this.leaving||this.storyActive)return;this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();
+    this.collectNearbyGroundCargo();this.checkFloorClear();if(this.discoveryActive)return;this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));this.updateDemyan(Math.min(delta,50));if(this.busy||this.leaving||this.storyActive)return;this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();this.checkFloorClear();
   }
   updateWorkshopService(time,dt,q=this.workshopQuest,deck=null) {
     deck ||= this.buildingDeck(q===this.armoryQuest?'armory':q===this.repairQuest?'repair':'workshop');
@@ -6030,7 +6127,7 @@ class Base extends globalThis.Phaser.Scene {
       if(broken) {
         this.findArtifactInBrokenBlock();this.findRecipeInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
-        this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
+        if(!collected)this.leaveBrokenMaterial(x,y,material);this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
@@ -6041,13 +6138,13 @@ class Base extends globalThis.Phaser.Scene {
     }
 
   }
-  showCargoPickup(material,x,y,collected) {
+  showCargoPickup(material,x,y,collected,count=1) {
     this.pickupLabels ||= [];
     // Limit transient labels when several blocks break in quick succession.
     if(this.pickupLabels.length>=6){
       const old=this.pickupLabels.shift();this.tweens.killTweensOf(old);old.destroy();
     }
-    const label=this.add.text(x,y-20,collected?'+1 '+materialDefinition(material).name:'Отсек заполнен',{
+    const label=this.add.text(x,y-20,collected?'+'+count+' '+materialDefinition(material).name:'Отсек полон · порода осталась на земле',{
       fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:collected?'#d6f5aa':'#ffcf85',
       stroke:'#102e2b',strokeThickness:4,padding:{x:4,y:2}
     }).setOrigin(.5).setDepth(35);
@@ -6123,7 +6220,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
@@ -6140,7 +6237,7 @@ const BUILDING_MENUS={
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
  lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
- porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
+ porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 3 секунды'}
 };
 function showGamePanel(title,content,kind='terminal',back=null){
  const dialog=document.querySelector('#dialog');dialog.className='game-dialog';dialog.menuBack=back;
@@ -6296,7 +6393,7 @@ class Boot extends Phaser.Scene {
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory-v2.webp');
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
-    this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
+    this.load.image('bonus-cache','./public/assets/game/bonus-cache-v2.webp');this.load.image('command-post','./public/assets/game/command-post-v2.webp');
     this.load.image('warehouse-house','./public/assets/game/warehouse-house-top.webp');this.load.image('military-guard','./public/assets/game/military-guard.webp');
     this.load.image('headquarters','./public/assets/game/headquarters-top.webp');
     this.load.image('architect-house', './public/assets/game/architect-house-top.webp');

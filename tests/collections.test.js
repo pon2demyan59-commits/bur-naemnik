@@ -29,7 +29,7 @@ test('capacity applies to pickup, warehouse withdrawal and cargo restoration',()
  const s=new Base();s.sys={settings:{key:'Floor'}};s.init({save:{progress:{floor:1,closedCollections:closed,cargoHold:{earth:capacity}}}});assert.equal(s.cargo,capacity);
 });
 test('boosted sale preserves promised payout across reload and stays exactly ten seconds',()=>{
- const closed=COLLECTIONS.filter(c=>c.effect==='sale').map(c=>c.id),bonus=collectionBuffTotals(closed).sale,hold={earth:250};const job=takeCargoSale(hold,{earth:250},bonus);assert.equal(job.payout,Math.round(500*(1+bonus)));assert.equal(job.remaining,10000);assert.equal(restorePorodnikJob(job,300,bonus).payout,job.payout);assert.equal(quoteCargo({earth:1},{earth:1}).payout,2);
+ const closed=COLLECTIONS.filter(c=>c.effect==='sale').map(c=>c.id),bonus=collectionBuffTotals(closed).sale,hold={earth:250};const job=takeCargoSale(hold,{earth:250},bonus);assert.equal(job.payout,Math.round(500*(1+bonus)));assert.equal(job.remaining,3000);assert.equal(restorePorodnikJob(job,300,bonus).payout,job.payout);assert.equal(quoteCargo({earth:1},{earth:1}).payout,2);
 });
 test('movement bonus changes speed without crossing collisions; closed IDs are sanitized',()=>{
  const solid=()=>false,state={x:800,y:800,angle:0,speed:0};let normal=state,boosted=state;for(let i=0;i<80;i++){normal=driveStep(normal,'right',.05,solid);boosted=driveStep(boosted,'right',.05,solid,350);}assert.ok(boosted.x>normal.x);assert.deepEqual(restoreClosedCollections([1,1,1000,-1,1001,'2']),[1,1000]);const totals=collectionBuffTotals(COLLECTIONS.map(c=>c.id));assert.ok(totals.defense<1);

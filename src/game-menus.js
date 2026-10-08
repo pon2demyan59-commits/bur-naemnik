@@ -9,7 +9,7 @@ const BUILDING_MENUS={
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
  lift:{title:'ГРУЗОВОЙ ЛИФТ',art:'menu-lift-scene',hint:'Открытые этажи доступны навсегда'},
- porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 10 секунд'}
+ porodnik:{title:'ПОРОДНИК',art:'porodnik',hint:'Продажа выбранной породы · переработка 3 секунды'}
 };
 export function showGamePanel(title,content,kind='terminal',back=null){
  const dialog=document.querySelector('#dialog');dialog.className='game-dialog';dialog.menuBack=back;

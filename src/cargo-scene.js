@@ -14,7 +14,7 @@ export const cargoMethods={
   const summary=document.createElement('div');summary.className='porodnik-summary';summary.setAttribute('aria-live','polite');
   const metrics=['Продать блоков','Останется в буре','Выручка'].map(label=>{const cell=document.createElement('div'),caption=document.createElement('span'),value=document.createElement('strong');caption.textContent=label;cell.append(caption,value);summary.append(cell);return value;});
   const footer=document.createElement('div');footer.className='porodnik-footer';
-  const sell=document.createElement('button');sell.className='metal-button porodnik-sell';sell.textContent='ПРОДАТЬ · 10 СЕК';
+  const sell=document.createElement('button');sell.className='metal-button porodnik-sell';sell.textContent='ПРОДАТЬ · 3 СЕК';
   const render=()=>{const quote=quoteCargo(this.cargoHold,selection(),this.collectionBuffs?.sale||0);metrics[0].textContent=String(quote.amount);metrics[1].textContent=String(this.cargo-quote.amount);metrics[2].textContent=quote.payout+' кр.';sell.disabled=!quote.amount;for(const r of rows)r.row.classList.toggle('is-selected',r.check.checked);};
   for(const m of MATERIALS){
    const count=this.cargoHold[m.id]||0;if(!count)continue;

@@ -1,3 +1,7 @@
+import { restoreGroundCargo } from './ground-cargo-state.js';
+import { groundCargoMethods } from './ground-cargo-scene.js';
+import { restoreClearedFloors } from './floor-clear-state.js';
+import { floorClearMethods } from './floor-clear-scene.js';
 import { restoreRecipeKnowledge, restoreRecipeAccess } from './recipe-drop-state.js';
 import { recipeDropMethods } from './recipe-drop-scene.js';
 import { structureRecipeMethods } from './structure-recipe-scene.js';
@@ -50,12 +54,12 @@ const heading = {left:180,right:0,up:-90,down:90};
 export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const p=save?.progress||{};this.clearedFloors=restoreClearedFloors(p.clearedFloors);this.lastClearSize=null;this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
-    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];
+    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];this.groundCargo=restoreGroundCargo(local.groundCargo);
     // Old saves may park inside the newly installed machine.
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('porodnik').collider)){this.world.x=18;this.world.y=35;}
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('workshop').body)){this.world.x=32;this.world.y=35;}
@@ -119,7 +123,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -229,7 +233,7 @@ export class Base extends globalThis.Phaser.Scene {
     const hud=document.createElement('section');hud.className='base-hud';hud.innerHTML=`
       <header class="base-top"><div class="base-location">БУНКЕР №72 <span>База</span></div><div class="hud-actions"><button class="hud-button" id="base-inventory">ИНВЕНТАРЬ</button><button class="hud-button" id="base-menu">Ⅱ ПАУЗА</button></div></header>
       <aside class="radio-card"><button class="quest-toggle" type="button" aria-controls="quest-details" aria-expanded="true"></button><div id="quest-details"><div class="radio-title"><span class="radio-led"></span> РАЦИЯ · БАЗА</div><strong id="quest-name"></strong><p id="radio-text"></p><div class="quest-track" id="quest-status"></div><div id="keycard-info" class="keycard-info" aria-label="Ключ-карты лифта" hidden></div></div></aside>
-      <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
+      <footer class="base-bottom"><div class="combat-hud"><span id="combat-hull"></span><span id="hud-cargo"></span><span id="hud-credits"></span><span id="floor-clear-progress"></span><span id="combat-tip" hidden></span><span id="combat-loot" hidden></span></div><div id="base-save" role="status" hidden></div><button class="hud-button rescue-button" id="rescue-action">СПАСТИ СЕРЁГУ</button></footer>
       <button class="hud-button building-mode-button" id="base-buildings" type="button">ПОСТРОЙКИ</button><div class="touch-pad"><div class="touch-joystick" role="group" aria-label="Джойстик: потяни в нужную сторону, отпусти для остановки"><span class="joystick-axis axis-horizontal"></span><span class="joystick-axis axis-vertical"></span><span class="joystick-knob"></span></div></div>`;
     ui.append(hud);
     const radio=hud.querySelector('.radio-card'),toggle=hud.querySelector('.quest-toggle');radio.classList.toggle('radio-in-inventory',readSettings().radioInInventory);
@@ -296,11 +300,11 @@ export class Base extends globalThis.Phaser.Scene {
     const card=document.createElement('span');card.className='keycard-chip';card.textContent='Этаж '+floor;info.append(card);
   }
   snapshotCampaign() {
-    const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
+    const local={...this.world.snapshot(),groundCargo:(this.groundCargo||[]).map(p=>({...p})),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,clearedFloors:[...(this.clearedFloors||[])],learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -479,7 +483,7 @@ export class Base extends globalThis.Phaser.Scene {
     const baseDock=document.createElement('aside');baseDock.className='lift-base-dock';
     for(const entry of liftDestinations(this.campaign)) {
       const button=document.createElement('button');button.className='floor-button';button.dataset.floor=entry.floor;
-      button.textContent=entry.floor===0?'⌂ БАЗА · №72':`ЭТАЖ ${entry.floor}${entry.enabled?'':' · НУЖНА КЛЮЧ-КАРТА'}`;
+      button.textContent=(entry.floor===0?'⌂ БАЗА · №72':`ЭТАЖ ${entry.floor}${entry.enabled?'':' · НУЖНА КЛЮЧ-КАРТА'}`)+(this.clearedFloors.includes(entry.floor)?' · ✓ РАСЧИЩЕН':'');
       button.disabled=!entry.enabled;button.classList.toggle('selected',entry.floor===selected);
       button.addEventListener('click',()=>{selected=entry.floor;buttons.forEach(b=>b.classList.toggle('selected',Number(b.dataset.floor)===selected));display.textContent=selected===0?'БАЗА · №72':`ЭТАЖ ${selected}`;travel.disabled=selected===this.floorNumber;status.textContent=selected===this.floorNumber?'Ты уже на этой остановке.':'Платформа готова к отправлению.';});
       buttons.push(button);(entry.floor===0?baseDock:floors).append(button);
@@ -566,7 +570,7 @@ export class Base extends globalThis.Phaser.Scene {
     const direction=this.touchStick || this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
     this.advanceVehicle(time,dt,direction);if(this.discoveryActive)return;
-    this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));this.updateDemyan(Math.min(delta,50));if(this.busy||this.leaving||this.storyActive)return;this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();
+    this.collectNearbyGroundCargo();this.checkFloorClear();if(this.discoveryActive)return;this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));this.updateDemyan(Math.min(delta,50));if(this.busy||this.leaving||this.storyActive)return;this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();this.checkFloorClear();
   }
   updateWorkshopService(time,dt,q=this.workshopQuest,deck=null) {
     deck ||= this.buildingDeck(q===this.armoryQuest?'armory':q===this.repairQuest?'repair':'workshop');
@@ -635,7 +639,7 @@ export class Base extends globalThis.Phaser.Scene {
       if(broken) {
         this.findArtifactInBrokenBlock();this.findRecipeInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
-        this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
+        if(!collected)this.leaveBrokenMaterial(x,y,material);this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
@@ -646,13 +650,13 @@ export class Base extends globalThis.Phaser.Scene {
     }
 
   }
-  showCargoPickup(material,x,y,collected) {
+  showCargoPickup(material,x,y,collected,count=1) {
     this.pickupLabels ||= [];
     // Limit transient labels when several blocks break in quick succession.
     if(this.pickupLabels.length>=6){
       const old=this.pickupLabels.shift();this.tweens.killTweensOf(old);old.destroy();
     }
-    const label=this.add.text(x,y-20,collected?'+1 '+materialDefinition(material).name:'Отсек заполнен',{
+    const label=this.add.text(x,y-20,collected?'+'+count+' '+materialDefinition(material).name:'Отсек полон · порода осталась на земле',{
       fontFamily:'Arial',fontSize:'15px',fontStyle:'bold',color:collected?'#d6f5aa':'#ffcf85',
       stroke:'#102e2b',strokeThickness:4,padding:{x:4,y:2}
     }).setOrigin(.5).setDepth(35);
@@ -728,4 +732,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);

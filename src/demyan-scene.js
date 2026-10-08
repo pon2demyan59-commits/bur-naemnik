@@ -16,16 +16,14 @@ function makeOfficer(scene,x,y){
 }
 export const demyanMethods={
  makeDemyan(){
-  this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
+  this.commandPost=null;this.commandPostGlow=null;this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
   const q=this.demyanQuest;
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
-   g.fillStyle(0x243c3b);g.fillRoundedRect(33*CELL,28*CELL,5*CELL,6*CELL,10);g.lineStyle(3,0x526860);g.strokeRect(33*CELL+8,28*CELL+8,5*CELL-16,6*CELL-16);
+   this.commandPost=this.add.image(33*CELL,28*CELL,'command-post').setOrigin(0).setDisplaySize(5*CELL,6*CELL).setDepth(5);
+   this.commandPostGlow=this.add.circle(35.5*CELL,28.7*CELL,6,0xb9ed89,.8).setDepth(7);
    // Reinforced enclosure is actual indestructible terrain, with one three-block west entrance.
    for(let cy=27;cy<=34;cy++)for(let cx=32;cx<=38;cx++)if(demyanWall(cx,cy)){const bx=cx*CELL,by=cy*CELL;g.fillStyle(0x202e31);g.fillRect(bx,by,CELL,CELL);g.fillStyle(0x6b7775);g.fillRoundedRect(bx+3,by+3,CELL-6,CELL-9,4);g.lineStyle(3,0x9aa79e);g.strokeRect(bx+5,by+5,CELL-10,CELL-13);g.lineStyle(5,0x394b4e);g.lineBetween(bx+10,by+12,bx+CELL-10,by+CELL-15);g.lineBetween(bx+CELL-10,by+12,bx+10,by+CELL-15);}
-   for(let i=0;i<7;i++){g.fillStyle(i%2?0x735746:0x8b7757);g.fillRoundedRect(33*CELL+16+i*37,32*CELL+28+(i%2)*8,32,26,4);}
-   for(let i=0;i<35;i++){g.fillStyle(0xc39b50);g.fillRect(x-90+(i*47)%180,y-20+(i*29)%65,6,3);}
-   g.fillStyle(0x19302e);g.fillRoundedRect(35*CELL,28*CELL+12,110,48,6);g.fillStyle(0x81b989);g.fillRect(35*CELL+14,28*CELL+22,70,22);
    this.postLabel=this.add.text(x,28*CELL-12,'КОМАНДНЫЙ ПОСТ · ПОСЛЕДНИЙ РУБЕЖ',{fontFamily:'Arial',fontSize:'16px',color:'#f4c77b',backgroundColor:'#20302c',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);
    this.demyanPerson=makeOfficer(this,x,y).setVisible(!q.rescued);
    this.demyanGun=this.add.graphics();this.demyanGun.fillStyle(0x152423);this.demyanGun.fillRoundedRect(-8,-5,36,9,2);this.demyanGun.fillStyle(0x859485);this.demyanGun.fillRect(22,-3,18,4);this.demyanPerson.add(this.demyanGun);
@@ -66,7 +64,7 @@ export const demyanMethods={
  },
  interactDemyan(){const a=this.demyanAction();if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){this.openHeadquarters();return true;}return false;},
  updateDemyan(ms){
-  const q=this.demyanQuest;if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
+  const q=this.demyanQuest;if(this.commandPostGlow)this.commandPostGlow.setAlpha(.55+.2*Math.sin(this.time.now*.004));if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
    this.updateHeadquartersSentries();
    if(stepHeadquarters(q,ms)){this.renderHeadquarters();this.persist();this.startStory('hqReady');}else if(q.remaining!=null)this.renderHeadquarters();return;

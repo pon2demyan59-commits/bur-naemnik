@@ -46,3 +46,5 @@ export function collectBonusCache(cache,scene){
  cache.items=cache.items.filter(a=>a.count>0);scene.cargo=cargoCount(scene.cargoHold);return received;
 }
 export function formatBonusLoot(items){return items.map(a=>(lootById.get(a.id)?.name||a.id)+' ×'+a.count).join(' · ');}
+
+export function bonusLootDetails(items){return items.map(a=>({...lootById.get(a.id),count:a.count})).filter(a=>a.name);}

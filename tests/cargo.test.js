@@ -16,7 +16,7 @@ test('selling selected quantities keeps other ore and pays quoted prices only af
  assert.deepEqual(hold,{earth:4,stone:2,gold:2,iron:3});
  assert.equal(job.amount,8);assert.equal(job.payout,22);
  const restored=restorePorodnikJob(JSON.parse(JSON.stringify(job)));
- assert.equal(stepPorodnikJob(restored,9999),0);assert.equal(stepPorodnikJob(restored,1),22);
+ assert.equal(stepPorodnikJob(restored,2999),0);assert.equal(stepPorodnikJob(restored,1),22);
  assert.deepEqual(quoteCargo(hold,{gold:Infinity,stone:-1}),{sale:{},amount:0,payout:0});
  assert.equal(takeCargoSale(hold,{}),null);
 });
