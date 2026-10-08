@@ -1,3 +1,4 @@
+import { clampEditorZoom } from './editor-camera.js';
 import { buildingGeometry, buildingDriveway, buildingPerimeterColliders, BUILDING_LABELS, buildingClearance, validateBuildingMove } from './building-layout-state.js';
 import { CELL } from './base-state.js';
 import { writeSave } from './storage.js';
@@ -34,7 +35,7 @@ export const buildingLayoutMethods={
   this.layoutGhostKey=null;this.layoutPointer=null;this.layoutSelected=null;this.layoutCandidate=null;
   this.layoutPreview=this.add.graphics().setDepth(40);this.layoutGhost=this.add.container(0,0).setDepth(40.5).setAlpha(.8).setVisible(false);this.layoutLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#fff1b1',backgroundColor:'#18362d',padding:{x:9,y:6}}).setOrigin(.5).setDepth(41).setVisible(false);
   const strip=document.createElement('div');strip.className='building-editor-strip';strip.hidden=true;
-  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';
+  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание или пустую карту · WASD/стрелки — камера · колёсико — масштаб. Между зданиями — одна клетка.';
   const save=document.createElement('button'),cancel=document.createElement('button');save.className=cancel.className='hud-button';save.textContent='ПОДТВЕРДИТЬ';cancel.textContent='ОТМЕНА';save.disabled=true;const exit=document.createElement('button');exit.className='hud-button';exit.textContent='ГОТОВО';exit.addEventListener('click',()=>this.toggleBuildingEditor());strip.append(note,save,cancel,exit);document.querySelector('.base-hud').append(strip);this.layoutStrip=strip;this.layoutNote=note;this.layoutConfirm=save;
   save.addEventListener('click',()=>this.confirmBuildingMove());cancel.addEventListener('click',()=>this.cancelBuildingMove());
   const down=p=>{if(!this.layoutEditing||this.floorNumber||this.layoutPointer!=null)return;this.layoutPointer=p.id;const world=this.cameras.main.getWorldPoint(p.x,p.y);this.layoutStart={x:world.x,y:world.y,screenX:p.x,screenY:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};
@@ -54,7 +55,7 @@ export const buildingLayoutMethods={
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
   if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null||Object.values(this.baseProjects||{}).some(q=>q.remaining!=null)){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
-  this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(Math.min(.72,this.cameras.main.zoom));
+  this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(clampEditorZoom(this.cameras.main,Math.min(.72,this.cameras.main.zoom)));
  },
  candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  drawBuildingCandidate(){
@@ -71,7 +72,7 @@ export const buildingLayoutMethods={
   }this.layoutGhost.setPosition(b.x,b.y).setVisible(true);this.layoutGhost.list.forEach(art=>art.setTint(error?0xffa59a:0xffffff));
   this.layoutLabel.setPosition(f.x+f.width/2,f.y-18).setText(BUILDING_LABELS[key]).setVisible(true);
  },
- cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';},
+ cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание или пустую карту · WASD/стрелки — камера · колёсико — масштаб. Между зданиями — одна клетка.';},
  confirmBuildingMove(){
   if(!this.layoutEditing||!this.layoutSelected||!this.layoutCandidate)return;const key=this.layoutSelected,geom=this.candidateGeometry();const error=validateBuildingMove(key,geom,this.world,this.occupiedBuildingGeometries(key),this.rig);if(error){this.layoutNote.textContent=error;return;}
   const campaign=this.snapshotCampaign();if(key==='warehouse')campaign.constructionQuest.offset={...this.layoutCandidate};else if(key==='hq'){campaign.demyanQuest.plot={x:this.demyanQuest.plot.x+this.layoutCandidate.dx,y:this.demyanQuest.plot.y+this.layoutCandidate.dy};delete campaign.buildingLayout.hq;}else campaign.buildingLayout={...campaign.buildingLayout,[key]:{...this.layoutCandidate}};

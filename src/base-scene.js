@@ -1,3 +1,4 @@
+import { editorCameraMethods, editorCameraActive, clampEditorZoom } from './editor-camera.js';
 import { DRILL_UPGRADE_LIMIT, drillUpgradePower } from './drill-balance.js';
 import { drawRockFragment, ROCK_COLORS } from './rock-fragments.js';
 import { restoreGroundCargo } from './ground-cargo-state.js';
@@ -108,7 +109,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.clearInput = () => { this.layoutPointer=null;this.joystick?.reset(); this.hold=null; this.touchStick=null; this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
-    this.fit = size => { this.cameras.main.setViewport(0,0,size.width,size.height); this.cameras.main.setZoom(this.layoutEditing?Math.min(.72,gameplayZoom(size.width,size.height)):gameplayZoom(size.width,size.height)); };
+    this.fit = size => { this.cameras.main.setViewport(0,0,size.width,size.height); this.cameras.main.setZoom(editorCameraActive(this)?clampEditorZoom(this.cameras.main,this.cameras.main.zoom):gameplayZoom(size.width,size.height)); };
     this.scale.on('resize',this.fit);
     this.events.once('shutdown',()=>{
       if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
@@ -126,7 +127,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();this.makeEditorCamera();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -545,7 +546,7 @@ export class Base extends globalThis.Phaser.Scene {
   }
   update(time,delta) {
     if(!this.keys||document.hidden)return;
-    if(this.layoutEditing||this.hqSelecting||this.projectSelecting){this.speed=0;this.cutting=false;return;}
+    if(this.layoutEditing||this.hqSelecting||this.projectSelecting){this.speed=0;this.cutting=false;this.updateEditorCamera(delta);return;}
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
     if(this.discoveryActive||this.busy||this.storyActive)return;
     if(document.querySelector('#dialog').open){
@@ -734,4 +735,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,editorCameraMethods,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);

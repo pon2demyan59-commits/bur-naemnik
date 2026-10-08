@@ -5121,6 +5121,44 @@ function validateBuildingMove(key,geometry,world,others,rig){
 }
 
 
+const EDITOR_ZOOM_MIN=.45,EDITOR_ZOOM_MAX=1.1;
+function editorCameraActive(scene){return !!(scene.layoutEditing||scene.hqSelecting||scene.projectSelecting);}
+function editorZoomLimits(camera){return {min:Math.min(EDITOR_ZOOM_MAX,Math.max(EDITOR_ZOOM_MIN,camera.width/(BASE_SIZE*CELL),camera.height/(BASE_SIZE*CELL))),max:EDITOR_ZOOM_MAX};}
+function clampEditorZoom(camera,value){const {min,max}=editorZoomLimits(camera);return Math.max(min,Math.min(max,value));}
+const editorCameraMethods={
+ makeEditorCamera(){
+  const wheel=(pointer,over,dx,dy)=>{
+   if(!editorCameraActive(this)||document.querySelector('#dialog').open||!Number.isFinite(dy)||!dy)return;
+   const camera=this.cameras.main,old=camera.zoom,next=clampEditorZoom(camera,old*Math.exp(-Math.max(-200,Math.min(200,dy))*.0015));if(next===old)return;
+   const x=pointer.x-camera.x-camera.width/2,y=pointer.y-camera.y-camera.height/2;
+   camera.setZoom(next);this.panEditorCamera(x*(1/old-1/next),y*(1/old-1/next));
+   // Rebase an empty-map drag when zoom changes; retain building drag world anchors.
+   const anchors=[!this.layoutSelected&&this.layoutStart,this.hqPointer,this.projectPanPointer].filter(Boolean);
+   for(const a of anchors){a.scrollX=camera.scrollX;a.scrollY=camera.scrollY;if('screenX' in a){a.screenX=pointer.x;a.screenY=pointer.y;}else{a.x=pointer.x;a.y=pointer.y;}a.moved=true;}
+   this.editorZoom=next;
+  };
+  this.input.on('wheel',wheel);this.events.once('shutdown',()=>this.input.off('wheel',wheel));
+ },
+ panEditorCamera(dx,dy){
+  const camera=this.cameras.main,oldX=camera.scrollX,oldY=camera.scrollY;
+  camera.setScroll(camera.clampX(oldX+dx),camera.clampY(oldY+dy));
+  for(const a of [this.layoutStart,this.hqPointer,this.projectPanPointer])if(a){a.scrollX+=camera.scrollX-oldX;a.scrollY+=camera.scrollY-oldY;}
+ },
+ updateEditorCamera(delta){
+  if(!editorCameraActive(this)||document.querySelector('#dialog').open)return;
+  const keys=this.keys||{},held=(...names)=>names.some(n=>keys[n]?.isDown);
+  let x=Number(held('D','RIGHT'))-Number(held('A','LEFT')),y=Number(held('S','DOWN'))-Number(held('W','UP'));
+  const p=this.input.activePointer,camera=this.cameras.main;
+  // Keep following a dragged building when the cursor reaches the screen edge.
+  if(this.layoutPointer!=null&&this.layoutSelected&&p?.isDown){const edge=40;if(p.x<camera.x+edge)x-=1;else if(p.x>camera.x+camera.width-edge)x+=1;if(p.y<camera.y+edge)y-=1;else if(p.y>camera.y+camera.height-edge)y+=1;}
+  if(!x&&!y)return;const length=Math.hypot(x,y),distance=600*Math.min(.05,Math.max(0,delta/1000))/camera.zoom;
+  this.panEditorCamera(x/length*distance,y/length*distance);
+  if(this.layoutPointer!=null&&this.layoutSelected&&p?.isDown){const world={x:camera.scrollX+camera.width/2+(p.x-camera.x-camera.width/2)/camera.zoom,y:camera.scrollY+camera.height/2+(p.y-camera.y-camera.height/2)/camera.zoom};this.layoutCandidate={dx:this.layoutOriginal.dx+Math.round((world.x-this.layoutStart.x)/CELL),dy:this.layoutOriginal.dy+Math.round((world.y-this.layoutStart.y)/CELL)};this.drawBuildingCandidate();}
+ }
+};
+
+
+
 
 
 
@@ -5156,7 +5194,7 @@ const buildingLayoutMethods={
   this.layoutGhostKey=null;this.layoutPointer=null;this.layoutSelected=null;this.layoutCandidate=null;
   this.layoutPreview=this.add.graphics().setDepth(40);this.layoutGhost=this.add.container(0,0).setDepth(40.5).setAlpha(.8).setVisible(false);this.layoutLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#fff1b1',backgroundColor:'#18362d',padding:{x:9,y:6}}).setOrigin(.5).setDepth(41).setVisible(false);
   const strip=document.createElement('div');strip.className='building-editor-strip';strip.hidden=true;
-  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';
+  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание или пустую карту · WASD/стрелки — камера · колёсико — масштаб. Между зданиями — одна клетка.';
   const save=document.createElement('button'),cancel=document.createElement('button');save.className=cancel.className='hud-button';save.textContent='ПОДТВЕРДИТЬ';cancel.textContent='ОТМЕНА';save.disabled=true;const exit=document.createElement('button');exit.className='hud-button';exit.textContent='ГОТОВО';exit.addEventListener('click',()=>this.toggleBuildingEditor());strip.append(note,save,cancel,exit);document.querySelector('.base-hud').append(strip);this.layoutStrip=strip;this.layoutNote=note;this.layoutConfirm=save;
   save.addEventListener('click',()=>this.confirmBuildingMove());cancel.addEventListener('click',()=>this.cancelBuildingMove());
   const down=p=>{if(!this.layoutEditing||this.floorNumber||this.layoutPointer!=null)return;this.layoutPointer=p.id;const world=this.cameras.main.getWorldPoint(p.x,p.y);this.layoutStart={x:world.x,y:world.y,screenX:p.x,screenY:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};
@@ -5176,7 +5214,7 @@ const buildingLayoutMethods={
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
   if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null||Object.values(this.baseProjects||{}).some(q=>q.remaining!=null)){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
-  this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(Math.min(.72,this.cameras.main.zoom));
+  this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(clampEditorZoom(this.cameras.main,Math.min(.72,this.cameras.main.zoom)));
  },
  candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  drawBuildingCandidate(){
@@ -5193,7 +5231,7 @@ const buildingLayoutMethods={
   }this.layoutGhost.setPosition(b.x,b.y).setVisible(true);this.layoutGhost.list.forEach(art=>art.setTint(error?0xffa59a:0xffffff));
   this.layoutLabel.setPosition(f.x+f.width/2,f.y-18).setText(BUILDING_LABELS[key]).setVisible(true);
  },
- cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';},
+ cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание или пустую карту · WASD/стрелки — камера · колёсико — масштаб. Между зданиями — одна клетка.';},
  confirmBuildingMove(){
   if(!this.layoutEditing||!this.layoutSelected||!this.layoutCandidate)return;const key=this.layoutSelected,geom=this.candidateGeometry();const error=validateBuildingMove(key,geom,this.world,this.occupiedBuildingGeometries(key),this.rig);if(error){this.layoutNote.textContent=error;return;}
   const campaign=this.snapshotCampaign();if(key==='warehouse')campaign.constructionQuest.offset={...this.layoutCandidate};else if(key==='hq'){campaign.demyanQuest.plot={x:this.demyanQuest.plot.x+this.layoutCandidate.dx,y:this.demyanQuest.plot.y+this.layoutCandidate.dy};delete campaign.buildingLayout.hq;}else campaign.buildingLayout={...campaign.buildingLayout,[key]:{...this.layoutCandidate}};
@@ -5203,6 +5241,7 @@ const buildingLayoutMethods={
   this.leaving=true;this.scene.restart({save:{version:1,progress:campaign},layoutReturn:true});
  }
 };
+
 
 
 
@@ -5308,12 +5347,12 @@ const demyanMethods={
  },
  headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';return validateBuildingMove('hq',geom,this.world,this.occupiedBuildingGeometries('hq').filter(g=>g.kind!=='hq'),this.rig);},
  startHeadquartersPlacement(){
-  document.querySelector('#dialog').close();this.dialogClosed();this.hqSelecting=true;document.querySelector('.base-hud').classList.add('layout-open');this.cameras.main.stopFollow();this.cameras.main.setZoom(.55);
-  const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.textContent='Нажми на место для штаба 9×8. Потяни карту, чтобы осмотреть базу.';note.className='building-editor-note';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);this.hqPlacementStrip=strip;
+  document.querySelector('#dialog').close();this.dialogClosed();this.hqSelecting=true;document.querySelector('.base-hud').classList.add('layout-open');this.cameras.main.stopFollow();this.cameras.main.setZoom(clampEditorZoom(this.cameras.main,.55));
+  const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.textContent='Нажми на место для штаба 9×8. Потяни карту или используй WASD/стрелки · колёсико — масштаб.';note.className='building-editor-note';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);this.hqPlacementStrip=strip;
   const down=p=>{this.hqPointer={x:p.x,y:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY,id:p.id};};
   const move=p=>{const a=this.hqPointer;if(!a||p.id!==a.id||!p.isDown)return;this.cameras.main.setScroll(a.scrollX-(p.x-a.x)/this.cameras.main.zoom,a.scrollY-(p.y-a.y)/this.cameras.main.zoom);};
-  const up=p=>{const a=this.hqPointer;this.hqPointer=null;if(!a||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL);if(x<2||y<2||x>48-HQ_WIDTH||y>48-HQ_HEIGHT){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.demyanQuest.plot={x,y};this.renderHeadquarters();this.persist();note.textContent=this.headquartersError()||'Площадка выбрана. Вернись в меню и начни строительство.';};
-  this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);this.hqPlacementCleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);strip.remove();};this.events.once('shutdown',()=>this.hqPlacementCleanup?.());done.addEventListener('click',()=>this.finishHeadquartersPlacement());
+  const up=p=>{const a=this.hqPointer;this.hqPointer=null;if(!a||a.moved||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL);if(x<2||y<2||x>48-HQ_WIDTH||y>48-HQ_HEIGHT){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.demyanQuest.plot={x,y};this.renderHeadquarters();this.persist();note.textContent=this.headquartersError()||'Площадка выбрана. Вернись в меню и начни строительство.';};
+  this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);this.input.on('pointerupoutside',up);this.hqPlacementCleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);this.input.off('pointerupoutside',up);this.hqPointer=null;strip.remove();};this.events.once('shutdown',()=>this.hqPlacementCleanup?.());done.addEventListener('click',()=>this.finishHeadquartersPlacement());
  },
  finishHeadquartersPlacement(){this.hqPlacementCleanup?.();this.hqPlacementCleanup=null;this.hqSelecting=false;document.querySelector('.base-hud').classList.remove('layout-open');this.cameras.main.startFollow(this.rig,true,.1,.1);this.fit({width:this.scale.width,height:this.scale.height});this.openHeadquartersBuild();},
  openHeadquartersBuild(){
@@ -5357,6 +5396,7 @@ const demyanMethods={
  },
  openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
 };
+
 
 
 
@@ -5412,9 +5452,9 @@ const settlementMethods={
   this.cargo=cargoCount(this.cargoHold);this.renderSettlementProjects();this.refreshHUD();this.persist();document.querySelector('#dialog').close();this.notify('СТРОИТЕЛЬСТВО · '+SETTLEMENT_PROJECTS[key].name.toUpperCase());
  },
  startSettlementPlacement(key){
-  if(!this.knowsBuildingBlueprint(key)||!this.settlementUnlocked()||this.baseProjects[key].built||this.baseProjects[key].remaining!=null)return;document.querySelector('#dialog').close();this.dialogClosed();this.projectSelecting=key;this.cameras.main.stopFollow().setZoom(.55);document.querySelector('.base-hud').classList.add('layout-open');const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.className='building-editor-note';note.textContent='Нажми на площадку для '+SETTLEMENT_PROJECTS[key].name+'. Потяни пустое место, чтобы осмотреть базу.';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);
-  let pointer=null;const down=p=>{pointer={id:p.id,x:p.x,y:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};};const move=p=>{if(!pointer||p.id!==pointer.id||!p.isDown)return;this.cameras.main.setScroll(pointer.scrollX-(p.x-pointer.x)/this.cameras.main.zoom,pointer.scrollY-(p.y-pointer.y)/this.cameras.main.zoom);};const up=p=>{const a=pointer;pointer=null;if(!a||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL),spec=SETTLEMENT_PROJECTS[key];if(x<2||y<2||x+spec.width>48||y+spec.height>48){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.baseProjects[key].plot={x,y};delete this.buildingLayout[key];this.renderSettlementProjects();this.persist();note.textContent=this.settlementPlacementError(key)||'Место подходит. Вернись в меню для начала стройки.';};
-  this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);const cleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);strip.remove();this.projectPlacementCleanup=null;};this.projectPlacementCleanup=cleanup;this.events.once('shutdown',cleanup);done.addEventListener('click',()=>this.finishSettlementPlacement());
+  if(!this.knowsBuildingBlueprint(key)||!this.settlementUnlocked()||this.baseProjects[key].built||this.baseProjects[key].remaining!=null)return;document.querySelector('#dialog').close();this.dialogClosed();this.projectSelecting=key;this.cameras.main.stopFollow().setZoom(clampEditorZoom(this.cameras.main,.55));document.querySelector('.base-hud').classList.add('layout-open');const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.className='building-editor-note';note.textContent='Нажми на площадку для '+SETTLEMENT_PROJECTS[key].name+'. Потяни карту или используй WASD/стрелки · колёсико — масштаб.';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);
+  let pointer=null;const down=p=>{pointer=this.projectPanPointer={id:p.id,x:p.x,y:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};};const move=p=>{if(!pointer||p.id!==pointer.id||!p.isDown)return;this.cameras.main.setScroll(pointer.scrollX-(p.x-pointer.x)/this.cameras.main.zoom,pointer.scrollY-(p.y-pointer.y)/this.cameras.main.zoom);};const up=p=>{const a=pointer;pointer=this.projectPanPointer=null;if(!a||a.moved||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL),spec=SETTLEMENT_PROJECTS[key];if(x<2||y<2||x+spec.width>48||y+spec.height>48){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.baseProjects[key].plot={x,y};delete this.buildingLayout[key];this.renderSettlementProjects();this.persist();note.textContent=this.settlementPlacementError(key)||'Место подходит. Вернись в меню для начала стройки.';};
+  this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);this.input.on('pointerupoutside',up);const cleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);this.input.off('pointerupoutside',up);pointer=this.projectPanPointer=null;strip.remove();this.projectPlacementCleanup=null;};this.projectPlacementCleanup=cleanup;this.events.once('shutdown',cleanup);done.addEventListener('click',()=>this.finishSettlementPlacement());
  },
  finishSettlementPlacement(){this.projectPlacementCleanup?.();this.projectSelecting=null;document.querySelector('.base-hud').classList.remove('layout-open');this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.openSettlementConstruction();}
 };
@@ -5607,6 +5647,7 @@ const bonusCacheMethods={
 
 
 
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
@@ -5664,7 +5705,7 @@ class Base extends globalThis.Phaser.Scene {
     this.clearInput = () => { this.layoutPointer=null;this.joystick?.reset(); this.hold=null; this.touchStick=null; this.speed=0; this.input.keyboard.resetKeys(); this.persist(); };
     window.addEventListener('blur',this.clearInput);
     document.addEventListener('visibilitychange',this.clearInput);
-    this.fit = size => { this.cameras.main.setViewport(0,0,size.width,size.height); this.cameras.main.setZoom(this.layoutEditing?Math.min(.72,gameplayZoom(size.width,size.height)):gameplayZoom(size.width,size.height)); };
+    this.fit = size => { this.cameras.main.setViewport(0,0,size.width,size.height); this.cameras.main.setZoom(editorCameraActive(this)?clampEditorZoom(this.cameras.main,this.cameras.main.zoom):gameplayZoom(size.width,size.height)); };
     this.scale.on('resize',this.fit);
     this.events.once('shutdown',()=>{
       if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
@@ -5682,7 +5723,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeGroundCargo();this.makeBuildingEditor();this.makeEditorCamera();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -6101,7 +6142,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   update(time,delta) {
     if(!this.keys||document.hidden)return;
-    if(this.layoutEditing||this.hqSelecting||this.projectSelecting){this.speed=0;this.cutting=false;return;}
+    if(this.layoutEditing||this.hqSelecting||this.projectSelecting){this.speed=0;this.cutting=false;this.updateEditorCamera(delta);return;}
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
     if(this.discoveryActive||this.busy||this.storyActive)return;
     if(document.querySelector('#dialog').open){
@@ -6290,7 +6331,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,editorCameraMethods,groundCargoMethods,floorClearMethods,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
