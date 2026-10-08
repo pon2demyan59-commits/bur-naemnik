@@ -1,3 +1,4 @@
+import { knowsBuildingBlueprint } from './building-blueprints.js';
 import { CELL } from './base-state.js';
 // Initial testing balance; two parallel projects unlock after HQ briefing.
 export const SETTLEMENT_PROJECTS={
@@ -14,8 +15,8 @@ export function settlementObjectives(projects,construction){return [
  {key:'power',name:'Построить электростанцию',done:projects.power.built},
  {key:'warehouse',name:'Улучшить склад до уровня 2',done:(construction.warehouseLevel||1)>=2}
 ];}
-export function beginSettlementProject(projects,key,unlocked,cargo,stock){
- const q=projects[key],spec=SETTLEMENT_PROJECTS[key];if(!spec||!q||!unlocked||!q.plot||q.built||q.remaining!=null)return false;
+export function beginSettlementProject(projects,key,unlocked,cargo,stock,blueprints=[]){
+ const q=projects[key],spec=SETTLEMENT_PROJECTS[key];if(!knowsBuildingBlueprint(blueprints,key)||!spec||!q||!unlocked||!q.plot||q.built||q.remaining!=null)return false;
  for(const [id,n] of Object.entries(spec.recipe))if((cargo[id]||0)+(stock[id]||0)<n)return false;
  for(const [id,n] of Object.entries(spec.recipe)){const used=Math.min(n,cargo[id]||0);cargo[id]=(cargo[id]||0)-used;stock[id]=(stock[id]||0)-(n-used);if(!cargo[id])delete cargo[id];if(!stock[id])delete stock[id];}
  q.remaining=spec.duration;return true;

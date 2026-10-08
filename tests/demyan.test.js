@@ -30,8 +30,8 @@ test('real evacuation navigation seats three people before Demyan and completes 
 });
 test('headquarters consumes combined cargo and warehouse once and resumes fifteen-second construction',()=>{
  const q=restoreDemyan({rescued:true,returned:true,plot:{x:12,y:15}}),cargo={earth:80,stone:30,iron:5},stock={earth:20,stone:30,iron:5};
- const missing={...cargo,iron:4};assert.equal(beginHeadquarters(q,missing,stock),false);assert.equal(stock.iron,5);
- assert.equal(beginHeadquarters(q,cargo,stock),true);assert.deepEqual(cargo,{});assert.deepEqual(stock,{});assert.equal(beginHeadquarters(q,{...HQ_RECIPE},{}),false);
+ const missing={...cargo,iron:4};assert.equal(beginHeadquarters(q,missing,stock,['hq']),false);assert.equal(stock.iron,5);
+ assert.equal(beginHeadquarters(q,cargo,stock,['hq']),true);assert.deepEqual(cargo,{});assert.deepEqual(stock,{});assert.equal(beginHeadquarters(q,{...HQ_RECIPE},{},['hq']),false);
  for(let i=0;i<100;i++)stepHeadquarters(q,50);const restored=restoreDemyan(JSON.parse(JSON.stringify(q)));assert.equal(restored.remaining,10000);
  let completions=0;for(let i=0;i<210;i++)if(stepHeadquarters(restored,50))completions++;assert.equal(completions,1);assert.equal(restored.hq,true);
  const g=demyanGeometry(restored);assert.equal(g.footprint.width/64*g.footprint.height/64,72);assert.equal(g.body.height+g.deck.height+64,g.footprint.height);

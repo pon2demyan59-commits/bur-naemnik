@@ -1,3 +1,4 @@
+import { knowsBuildingBlueprint } from './building-blueprints.js';
 import { CELL } from './base-state.js';
 export const DEMYAN_SITE={x:35,y:31};
 export const DEMYAN_ENTRANCE=[{x:32,y:29},{x:32,y:30},{x:32,y:31}];
@@ -20,8 +21,8 @@ export function restoreDemyan(v={}){
 }
 export function demyanGeometry(q){if(!q?.plot)return null;const {x,y}=q.plot;return {body:{x:(x+1)*CELL,y:(y+1)*CELL,width:7*CELL,height:6*CELL},deck:{x:(x+1)*CELL,y:(y+7)*CELL,width:7*CELL,height:CELL},footprint:{x:x*CELL,y:y*CELL,width:HQ_WIDTH*CELL,height:HQ_HEIGHT*CELL}};}
 export function canEvacuateDemyan(q,world,spiders){return q.contact&&!q.rescued&&!q.evacuating&&DEMYAN_ENTRANCE.every(p=>!world.blocked(p.x,p.y))&&spiders.length===DEMYAN_GUARDS.length&&spiders.every(s=>s.hp<=0);}
-export function beginHeadquarters(q,cargo,stock){
- if(!q.returned||q.hq||q.remaining!=null||!q.plot)return false;
+export function beginHeadquarters(q,cargo,stock,blueprints=[]){
+ if(!knowsBuildingBlueprint(blueprints,'hq')||!q.returned||q.hq||q.remaining!=null||!q.plot)return false;
  for(const [id,n] of Object.entries(HQ_RECIPE))if((cargo[id]||0)+(stock[id]||0)<n)return false;
  for(const [id,n] of Object.entries(HQ_RECIPE)){const used=Math.min(n,cargo[id]||0);cargo[id]=(cargo[id]||0)-used;stock[id]=(stock[id]||0)-(n-used);if(!cargo[id])delete cargo[id];if(!stock[id])delete stock[id];}
  q.remaining=HQ_MS;return true;

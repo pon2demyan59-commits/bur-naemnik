@@ -1,3 +1,4 @@
+import { knowsBuildingBlueprint } from './building-blueprints.js';
 import { CELL } from './base-state.js';
 import { MATERIALS } from './materials.js';
 // Approved new story; recipe, capacity and duration are prototype balance.
@@ -50,4 +51,4 @@ export function transferWarehouse(q,cargo,id,count,deposit,cargoCapacity=200){
 export function warehouseCapacity(q={}){return WAREHOUSE_CAPACITY*(Number.isInteger(q.warehouseLevel)?Math.max(1,Math.min(100,q.warehouseLevel)):1);}
 // Temporary upgrade price; +100 of every material per level.
 export function warehouseUpgradePrice(q){return Math.ceil(200*Math.pow(1.25,warehouseCapacity(q)/100-1));}
-export function upgradeWarehouse(q,credits){const price=warehouseUpgradePrice(q);if(!q.warehouse||warehouseCapacity(q)>=10000||!Number.isSafeInteger(credits)||credits<price)return {bought:false,credits};q.warehouseLevel=warehouseCapacity(q)/100+1;return {bought:true,credits:credits-price};}
+export function upgradeWarehouse(q,credits,blueprints=[]){const price=warehouseUpgradePrice(q);if(!knowsBuildingBlueprint(blueprints,'warehouse-upgrade')||!q.warehouse||warehouseCapacity(q)>=10000||!Number.isSafeInteger(credits)||credits<price)return {bought:false,credits};q.warehouseLevel=warehouseCapacity(q)/100+1;return {bought:true,credits:credits-price};}

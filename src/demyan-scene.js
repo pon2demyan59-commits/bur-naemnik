@@ -56,7 +56,7 @@ export const demyanMethods={
   if(kind==='demyanBrief'){q.briefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 5\nНОВОЕ ЗАДАНИЕ · ПОСЛЕДНИЙ РУБЕЖ');}
   if(kind==='demyanContact')q.contact=true;
   if(kind==='demyanEvac')q.evacuating=true;
-  if(kind==='demyanReturn'){q.returned=true;this.demyanPassenger?.setVisible(false);this.demyanPerson?.setVisible(true);this.renderHeadquarters();this.notify('ГЛОБАЛЬНАЯ МИССИЯ · ВЫХОД НА ПОВЕРХНОСТЬ\nПОЛУЧЕН ЧЕРТЁЖ ШТАБА · ДОМ АРХИТЕКТОРА');}
+  if(kind==='demyanReturn'){q.returned=true;this.demyanPassenger?.setVisible(false);this.demyanPerson?.setVisible(true);this.renderHeadquarters();this.notify('ГЛОБАЛЬНАЯ МИССИЯ · ВЫХОД НА ПОВЕРХНОСТЬ\nЧЕРТЁЖ ШТАБА ПРОДАЁТСЯ · ДОМ АРХИТЕКТОРА');}
  },
  demyanAction(){
   const q=this.demyanQuest;if(!q)return null;
@@ -99,7 +99,7 @@ export const demyanMethods={
   if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
-  else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
+  else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Купи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
  headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';return validateBuildingMove('hq',geom,this.world,this.occupiedBuildingGeometries('hq').filter(g=>g.kind!=='hq'),this.rig);},
  startHeadquartersPlacement(){
@@ -113,14 +113,14 @@ export const demyanMethods={
  finishHeadquartersPlacement(){this.hqPlacementCleanup?.();this.hqPlacementCleanup=null;this.hqSelecting=false;document.querySelector('.base-hud').classList.remove('layout-open');this.cameras.main.startFollow(this.rig,true,.1,.1);this.fit({width:this.scale.width,height:this.scale.height});this.openHeadquartersBuild();},
  openHeadquartersBuild(){
   this.dialogClosed();const q=this.demyanQuest,panel=document.createElement('div');panel.className='lift-console construction-controls';
-  const title=document.createElement('p');title.className='service-readout';title.textContent='ШТАБ · 9×8 КЛЕТОК · ДЕМЬЯН П.';
+  const title=document.createElement('p');title.className='service-readout';title.textContent='ШТАБ · 9×8 КЛЕТОК · ДЕМЬЯН П. · '+this.credits+' КРЕДИТОВ';
   const note=document.createElement('p');note.className='terminal-note';note.textContent='Выбери площадку на карте. Расчисти все 72 клетки, оставь подход к входу снизу и проход минимум в одну клетку между зданиями. Строительство — 15 секунд. Материалы берутся из груза и склада.';
   const set=document.createElement('button');set.className='metal-button';set.textContent='ВЫБРАТЬ МЕСТО НА КАРТЕ';const status=document.createElement('p');status.className='terminal-note';
   const build=document.createElement('button');build.className='metal-button';build.textContent='ПОСТРОИТЬ ШТАБ';
-  const render=()=>{const err=this.headquartersError();status.textContent=q.remaining!=null?'Строительство началось. Закрой меню, чтобы продолжить.':(err||'Площадка готова')+' · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+((this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0))+'/'+n).join(' · ');build.disabled=!!err||q.remaining!=null||Object.entries(HQ_RECIPE).some(([id,n])=>(this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0)<n);set.disabled=q.remaining!=null;};
+  const render=()=>{const err=this.headquartersError();status.textContent=q.remaining!=null?'Строительство началось. Закрой меню, чтобы продолжить.':(err||'Площадка готова')+' · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+((this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0))+'/'+n).join(' · ');build.disabled=!this.knowsBuildingBlueprint('hq')||!!err||q.remaining!=null||Object.entries(HQ_RECIPE).some(([id,n])=>(this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0)<n);set.disabled=q.remaining!=null;};
   set.addEventListener('click',()=>this.startHeadquartersPlacement());
-  build.addEventListener('click',()=>{if(this.headquartersError()||!beginHeadquarters(q,this.cargoHold,this.constructionQuest.stock)){render();return;}this.cargo=cargoCount(this.cargoHold);this.renderHeadquarters();this.persist();this.refreshHUD();render();});
-  panel.append(title,note,set,status,build);render();showBuildingMenu('construction',panel);
+  build.addEventListener('click',()=>{if(this.headquartersError()||!beginHeadquarters(q,this.cargoHold,this.constructionQuest.stock,this.buildingBlueprints)){render();return;}this.cargo=cargoCount(this.cargoHold);this.renderHeadquarters();this.persist();this.refreshHUD();render();});
+  panel.append(title,note);this.addBuildingBlueprintPurchase(panel,'hq',()=>this.openHeadquartersBuild());panel.append(set,status,build);render();showBuildingMenu('construction',panel);
  },
  renderHeadquarters(){
   if(this.floorNumber||!this.demyanArt)return;this.makeBuildingFoundations?.();const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot&&!q.hq);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;

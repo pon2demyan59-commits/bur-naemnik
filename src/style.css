@@ -556,3 +556,13 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 .weapon-heavy .weapon-barrels,.weapon-rocket .weapon-barrels,.weapon-rail .weapon-barrels{height:23px;top:21px;width:72px;}
 .weapon-flame .weapon-barrels{border-right-color:#ffaf62;}.weapon-electric .weapon-barrels{border-right-color:#80dfff;}.weapon-acid .weapon-barrels{border-right-color:#99ed78;}.weapon-plasma .weapon-barrels{border-right-color:#ceacff;}
 @media(max-width:700px){.service-layout.service-armory{grid-template-columns:1fr;}.service-armory .service-staff{display:none;}.service-armory .service-controls.weapon-console{grid-column:1;}.weapon-browser{grid-template-columns:1fr;}.weapon-list{grid-template-columns:repeat(2,minmax(0,1fr));}.weapon-detail{padding:12px;}#dialog .weapon-choice{padding:8px;}}
+
+/* Compact architect blueprint catalogue. */
+.settlement-layout .service-controls.blueprint-catalog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;}
+.blueprint-catalog>.terminal-note,.blueprint-catalog>.close-dialog{grid-column:1/-1;grid-row:auto;}
+.blueprint-catalog .settlement-project-card{margin:0;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.blueprint-catalog .settlement-project-card h3{margin:0;font-size:17px;}
+.blueprint-catalog .settlement-project-card p{margin:0;font-size:12px;}
+#dialog .blueprint-catalog .settlement-project-card button{font-size:12px;min-height:43px;padding:10px;margin-top:3px;}
+.blueprint-catalog .settlement-project-card .terminal-note{flex:1;}
+@media(max-width:650px){.settlement-layout .service-controls.blueprint-catalog{grid-template-columns:1fr;}}
