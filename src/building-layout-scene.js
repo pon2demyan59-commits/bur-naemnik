@@ -1,3 +1,4 @@
+import { demyanGeometry } from './demyan-state.js';
 import { buildingGeometry, BUILDING_LABELS, validateBuildingMove } from './building-layout-state.js';
 import { CELL } from './base-state.js';
 import { writeSave } from './storage.js';
@@ -6,7 +7,7 @@ export const buildingLayoutMethods={
  buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest);},
  buildingDeck(key){return this.buildingGeom(key).deck;},
  buildingPoint(key){const d=this.buildingDeck(key);return {x:(d.x+d.width/2)/CELL-.5,y:(d.y+d.height/2)/CELL-.5};},
- occupiedBuildingGeometries(except){return ['lift','porodnik','workshop','armory','repair',...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?['warehouse']:[])].filter(k=>k!==except).map(k=>this.buildingGeom(k));},
+ occupiedBuildingGeometries(except){return ['lift','porodnik','workshop','armory','repair',...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?['warehouse']:[])].filter(k=>k!==except).map(k=>this.buildingGeom(k)).concat(this.demyanQuest?.plot?[{...demyanGeometry(this.demyanQuest),kind:'hq'}]:[]);},
  movableBuildings(){return Object.entries({lift:this.liftReady(),porodnik:this.world.porodnikPowered,workshop:this.workshopQuest.ready,armory:this.armoryQuest.ready,repair:this.repairQuest.ready,warehouse:this.constructionQuest?.warehouse}).filter(([,ready])=>ready).map(([key])=>key);},
  makeBuildingEditor(){
   this.layoutGhostKey=null;this.layoutPointer=null;this.layoutSelected=null;this.layoutCandidate=null;
@@ -27,6 +28,7 @@ export const buildingLayoutMethods={
   this.events.once('shutdown',()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);this.input.off('pointerupoutside',up);this.layoutEditing=false;});
  },
  toggleBuildingEditor(){
+  if(this.hqSelecting){this.finishHeadquartersPlacement();return;}
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
   if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
