@@ -1,3 +1,5 @@
+import { DRILL_UPGRADE_LIMIT, drillUpgradePower } from './drill-balance.js';
+import { drawRockFragment, ROCK_COLORS } from './rock-fragments.js';
 import { restoreGroundCargo } from './ground-cargo-state.js';
 import { groundCargoMethods } from './ground-cargo-scene.js';
 import { restoreClearedFloors } from './floor-clear-state.js';
@@ -37,7 +39,7 @@ import { onRepairDeck, queueRepairBrief, restoreRepair, restoreHull, REPAIR_BODY
 import { preparePeopleFrames, makePerson, updatePerson } from './people-view.js';
 import { armoryMethods } from './armory-scene.js';
 import { restoreArmory, ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, ARMORY_STORIES, onArmoryDeck } from './armory-state.js';
-import { stepWorkshopService, restoreWorkshop, EARTH_HEAD_PRICE, buyEarthHead, workshopDrillPower, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
+import { stepWorkshopService, restoreWorkshop, DRILL_HEADS, buyDrillHead, workshopDrillPower, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
 import { WorkshopView } from './workshop-view.js';
 import { PORODNIK_CYCLE_MS, restorePorodnikJob, stepPorodnikJob, PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
@@ -112,6 +114,7 @@ export class Base extends globalThis.Phaser.Scene {
       if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
       window.removeEventListener('blur',this.clearInput); document.removeEventListener('visibilitychange',this.clearInput);
       this.scale.off('resize',this.fit);
+      this.input.keyboard.off('keydown-ESC',this.goMenu,this);this.input.keyboard.off('keydown-E',this.interact,this);this.input.keyboard.off('keydown-SPACE',this.interact,this);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
     this.passenger=this.add.image(-7,0,'people','serega-0').setDisplaySize(16,16).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.passenger.setVisible(this.passenger.visible&&!this.constructionQuest.unlocked);this.rig.add(this.passenger);
@@ -217,15 +220,15 @@ export class Base extends globalThis.Phaser.Scene {
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
     exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
-    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
-    const headTitle=document.createElement('p'),headNote=document.createElement('p'),headBuy=document.createElement('button');
-    headTitle.className='service-readout';headTitle.textContent='НАСАДКИ НА ГОЛОВКУ БУРА';headNote.className='terminal-note';headNote.textContent='Усиленная земляная насадка · Земля разрушается почти мгновенно. Работает постоянно. Улучшения мощности продолжают действовать на остальные породы. Установка — 4 секунды.';headBuy.className='metal-button';
-    const renderHead=()=>{headBuy.textContent=q.earthHead?'УСИЛЕННАЯ ЗЕМЛЯНАЯ · УСТАНОВЛЕНА':'УСИЛЕННАЯ ЗЕМЛЯНАЯ · '+EARTH_HEAD_PRICE+' КРЕДИТОВ';headBuy.disabled=q.earthHead||q.serviceRemaining!=null||this.credits<EARTH_HEAD_PRICE;};
-    headBuy.addEventListener('click',()=>{const result=buyEarthHead(q,this.credits);if(!result.bought)return;this.credits=result.credits;render();renderHead();this.refreshHUD();this.persist();});
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number(((drillUpgradePower(q.upgrades)+(this.collectionBuffs?.drill||0))*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=DRILL_UPGRADE_LIMIT?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +5% К ТЕКУЩЕЙ · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=DRILL_UPGRADE_LIMIT||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    const headTitle=document.createElement('p'),headNote=document.createElement('p'),heads=document.createElement('div');
+    headTitle.className='service-readout';headTitle.textContent='НАСАДКИ НА ВСЕ ПОРОДЫ';headNote.className='terminal-note';headNote.textContent='Каждая насадка ускоряет свою породу в 12,5 раза и работает автоматически. Улучшения мощности усиливают все насадки. После камня цены резко растут: прокачивай мощность, пока копишь на следующий инструмент. Установка — 4 секунды.';heads.className='drill-head-grid';
+    const headButtons=DRILL_HEADS.map(head=>{const card=document.createElement('article'),name=document.createElement('strong'),note=document.createElement('p'),button=document.createElement('button');card.className='drill-head-card';name.textContent=head.name;note.textContent='Бурение ×12,5 · улучшения мощности сохраняются';button.className='floor-button';button.type='button';card.append(name,note,button);heads.append(card);button.addEventListener('click',()=>{const result=buyDrillHead(q,this.credits,head.id);if(!result.bought)return;this.credits=result.credits;render();renderHead();this.refreshHUD();this.persist();});return {head,card,button};});
+    const renderHead=()=>{for(const {head,card,button} of headButtons){const owned=q.drillHeads.includes(head.id);card.classList?.toggle('installed',owned);button.textContent=owned?'УСТАНОВЛЕНА':'КУПИТЬ · '+head.price.toLocaleString('ru-RU')+' КР';button.disabled=owned||q.serviceRemaining!=null||this.credits<head.price;}};
     this.workshopPanelRender=()=>{render();renderHead();};
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;if(q.upgrades===1)this.rewardQuest('firstUpgrade');render();renderHead();this.refreshHUD();this.persist();});
-    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();renderHead();panel.append(text,buy,headTitle,headNote,headBuy,status,exit);
+    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();renderHead();panel.append(text,buy,headTitle,headNote,heads,status,exit);
     showBuildingMenu('workshop',panel);
   }
   makeHUD() {
@@ -284,7 +287,7 @@ export class Base extends globalThis.Phaser.Scene {
       if(this.floorNumber){
         name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
         status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
-      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
+      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number(((drillUpgradePower(q.upgrades)+(this.collectionBuffs?.drill||0))*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
       }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(this.questWorld('workshop'))}/3 · Мастерская: ${objectiveBearing(this.rig,this.buildingPoint('workshop'))}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,this.buildingGeom('lift').center)}`;}
     }
@@ -313,9 +316,9 @@ export class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(this.settlementUnlocked())this.addSettlementTaskList(panel);const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
+    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(this.settlementUnlocked())this.addSettlementTaskList(panel);const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
   }
-  goMenu() {if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
+  goMenu(event) {if(event?.repeat)return;if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||this.discoveryActive||document.querySelector('#dialog').open)return;event?.preventDefault?.();openPauseMenu(this);}
   interact() {
     if(this.discoveryActive||this.demyanQuest.dialogue||this.constructionQuest.dialogue||this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(this.interactBonusCache())return;
@@ -516,8 +519,7 @@ export class Base extends globalThis.Phaser.Scene {
       g.fillStyle(0xffc34f,.95);g.fillRoundedRect(2,2,14,4,2);
       g.fillStyle(0xfff8ce);g.fillRoundedRect(5,3,9,2,1);
       g.generateTexture('fx-spark',18,8);g.clear();
-      g.fillStyle(0xcea679);g.fillTriangle(0,0,7,1,4,7);
-      g.generateTexture('fx-chip',8,8);
+      drawRockFragment(g,'stone',12,12,11);g.generateTexture('fx-chip',24,24);
     }
     g.destroy();
     this.dustEmitter=this.add.particles(0,0,'fx-dust',{
@@ -532,7 +534,7 @@ export class Base extends globalThis.Phaser.Scene {
     }).setDepth(24);
     this.chipEmitter=this.add.particles(0,0,'fx-chip',{
       emitting:false,lifespan:{min:250,max:550},speed:{min:45,max:115},
-      scale:{start:1,end:.3},alpha:{start:.9,end:0},rotate:{min:0,max:360},
+      scale:{start:.65,end:.3},alpha:{start:1,end:0},rotate:{min:0,max:360},
       maxParticles:60,maxAliveParticles:48
     }).setDepth(22);
   }
@@ -642,7 +644,7 @@ export class Base extends globalThis.Phaser.Scene {
         if(!collected)this.leaveBrokenMaterial(x,y,material);this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
-        this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
+        this.chipEmitter.setParticleTint?.(ROCK_COLORS[material]||0xffffff);this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
         this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
         this.refreshHUD();this.checkLift();this.checkPorodnik();this.persist();
       } else if(time-this.lastSave>300)this.persist();

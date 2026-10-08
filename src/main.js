@@ -1,5 +1,5 @@
 import { startViewportSync } from './viewport-sync.js';
-import { showGamePanel, createSettingsPanel } from './game-menus.js';
+import { showGamePanel, createSettingsPanel, bindGameDialogControls } from './game-menus.js';
 import { readSave, readSettings, resetSave } from './storage.js';
 import { Base } from './base-scene.js';
 import { Floor } from './floor-scene.js';
@@ -29,6 +29,8 @@ function openDialog(title, content) {
 }
 document.querySelector('.close-dialog').addEventListener('click',()=>{clickSound();if(dialog.menuBack)dialog.menuBack();else dialog.close();});
 dialog.addEventListener('cancel',event=>{if(dialog.menuBack){event.preventDefault();dialog.menuBack();}});
+
+bindGameDialogControls(dialog);
 function showSettings(){showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings');}
 function requestGameplay() {
   game.scene.stop('Menu');

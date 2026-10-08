@@ -1,3 +1,4 @@
+import { materialDefinition } from './materials.js';
 import { demyanWall, demyanOpenCell } from './demyan-state.js';
 import { BUILDER_SITE, BUILDER_GUARDS } from './construction-state.js';
 import { createMaterialSeed, validMaterialSeed, depositMaterial, legacyDepositMaterial, restoreMaterialOverrides } from './deposits.js';
@@ -65,8 +66,8 @@ export class FloorWorld {
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
   blocked(x,y){if(this.floor===5&&demyanWall(x,y))return true;const item=this.floor===5?demyanOpenCell(x,y):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
   material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
-  hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return this.material(x,y)==='earth'?1:2.5;}
-  drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
+  hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return materialDefinition(this.material(x,y)).canonicalHardness;}
+  drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1-1e-12){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }

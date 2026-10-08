@@ -59,3 +59,16 @@ test('expanded HQ keeps an old edge placement inside the base without losing pro
  const f=demyanGeometry(q).footprint;assert.ok(f.x+f.width<=48*64);assert.ok(f.y+f.height<=48*64);assert.equal(q.hq,true);
  const building=restoreDemyan({rescued:true,returned:true,plot:{x:43,y:43},remaining:8000});assert.equal(building.remaining,8000);assert.deepEqual(building.plot,q.plot);
 });
+
+test('fifth floor keeps the return instruction only until rescued people reach the base',()=>{
+ const nodes=Object.fromEntries(['#quest-name','#radio-text','#quest-status'].map(id=>[id,{textContent:''}]));globalThis.document={querySelector:id=>nodes[id]};
+ const scene={floorNumber:5,demyanQuest:restoreDemyan({briefed:true,contact:true,rescued:true,evacuated:3}),rig:{x:100,y:100}};
+ demyanMethods.refreshDemyanHUD.call(scene);assert.match(nodes['#radio-text'].textContent,/Вернись на базу/);
+ scene.demyanQuest.returned=true;
+ for(const hq of [false,true]){scene.demyanQuest.hq=hq;scene.demyanQuest=restoreDemyan(JSON.parse(JSON.stringify(scene.demyanQuest)));demyanMethods.refreshDemyanHUD.call(scene);assert.equal(nodes['#quest-name'].textContent,'Исследовать этаж');assert.doesNotMatch(nodes['#radio-text'].textContent,/на борту|Вернись на базу/);}
+});
+test('completed rescue cannot resume a stale rescue dialogue after reloading a save',()=>{
+ for(const dialogue of ['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn'])assert.equal(restoreDemyan({rescued:true,returned:true,dialogue}).dialogue,null);
+ assert.equal(restoreDemyan({rescued:true,dialogue:'demyanRescue'}).dialogue,'demyanRescue');
+ assert.equal(restoreDemyan({rescued:true,returned:true,hq:true,dialogue:'hqReady'}).dialogue,'hqReady');
+});

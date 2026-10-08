@@ -31,6 +31,15 @@ function resetSave() {
 }
 
 
+// Balance approved 2026-10-08: ten compound upgrades per material tier.
+const DRILL_UPGRADE_FACTOR=1.05;
+const DRILL_UPGRADE_LIMIT=120;
+const DRILL_UPGRADE_PRICE_STEP=100;
+const DRILL_MATERIAL_ORDER=['earth','stone','iron','copper','bauxite','tin','zinc','nickel','chromium','titanium','gold','tungsten','xenorite'];
+function drillUpgradePower(upgrades=0){return Math.pow(DRILL_UPGRADE_FACTOR,Math.max(0,Math.min(DRILL_UPGRADE_LIMIT,Number.isInteger(upgrades)?upgrades:0)));}
+function materialUpgradeTarget(id){return Math.max(0,DRILL_MATERIAL_ORDER.indexOf(id))*10;}
+function drillMaterialHardness(id){return drillUpgradePower(materialUpgradeTarget(id));}
+
 function gameplayZoom(width, height) {
   return width < 600 || height < 520 ? Math.max(.55, Math.min(.82, height / 384)) : 1.12;
 }
@@ -1209,6 +1218,32 @@ function rollArtifactDrop(floor,random=Math.random){
 function awardArtifactDrop(collection,floor,random=Math.random){const artifact=rollArtifactDrop(floor,random);if(artifact)collection[artifact.id]=(collection[artifact.id]||0)+1;return artifact;}
 
 
+// Cartoon relics: each catalog entry has a stable silhouette, facets and rarity glow.
+const ARTIFACT_PALETTES=['#a9cf91','#79ddae','#5edbd0','#70b9ff','#a894ff','#ee88d9','#ffa76e','#ffe078','#ff837f','#e9daff'];
+const artifactImages=new Map();
+function artifactArtSource(idOrName){
+ const index=ARTIFACTS.findIndex(a=>a.id===idOrName||a.name===idOrName);
+ if(index<0)return './public/assets/quests/discovery-artifact.svg';
+ if(artifactImages.has(index))return artifactImages.get(index);
+ const a=ARTIFACTS[index],tier=Math.floor(index/20),variant=index%20,c=ARTIFACT_PALETTES[tier];
+ const n=a.name.toLocaleLowerCase('ru-RU');
+ let shape;
+ if(/кольцо|петля|венец|корона/.test(n))shape='<ellipse cx="128" cy="127" rx="56" ry="62" fill="none" stroke="url(#metal)" stroke-width="23"/><path d="M78 91l8-27 22 16 20-31 20 31 22-16 8 27" fill="url(#gem)"/>';
+ else if(/сердце|пульс|нерв/.test(n))shape='<path d="M128 190L67 130C35 87 88 47 128 83C168 47 221 87 189 130Z" fill="url(#gem)"/><path d="M72 126h27l13-23 19 44 14-23h37" fill="none" stroke="#fff4c8" stroke-width="5"/>';
+ else if(/глаз|око|линза|зеркало/.test(n))shape='<path d="M55 128Q128 42 201 128Q128 214 55 128Z" fill="url(#metal)"/><circle cx="128" cy="128" r="42" fill="url(#gem)"/><ellipse cx="128" cy="128" rx="12" ry="31" fill="#152930"/><circle cx="116" cy="112" r="9" fill="#fff" opacity=".8"/>';
+ else if(/звезда|солнце|рассвет|свет|искра|маяк/.test(n))shape='<path d="M128 49l20 46 50-5-31 39 20 47-48-17-34 35-1-52-48-21 49-16Z" fill="url(#gem)"/><circle cx="128" cy="126" r="22" fill="#fff1b2"/><path d="M128 49v47M198 90l-49 24M187 176l-43-33M105 194l13-49M56 121l48 5" fill="none" stroke="#fff" opacity=".3"/>';
+ else if(/нить|узел|голос|шёпот|эхо|зов/.test(n))shape='<path d="M70 169C24 69 183 37 177 116C172 178 68 201 81 122C94 44 217 79 185 181" fill="none" stroke="url(#gem)" stroke-width="19" stroke-linecap="round"/><circle cx="70" cy="169" r="13" fill="#fff1b2"/><circle cx="185" cy="181" r="13" fill="#fff1b2"/>';
+ else if(/капля|слеза|сгусток/.test(n))shape='<path d="M128 48C118 86 65 111 71 151C78 211 183 211 187 151C193 111 143 87 128 48Z" fill="url(#gem)"/><path d="M119 89C105 112 88 134 90 151" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".55"/>';
+ else if(/печать|ключ|память/.test(n))shape='<path d="M83 66h90l25 37-15 76-55 25-55-25-15-76Z" fill="url(#metal)"/><path d="M100 89h56l17 24-9 48-36 18-36-18-9-48Z" fill="url(#gem)"/><path d="M128 106v45m-14-31h28m-28 17h28" fill="none" stroke="#fff0b0" stroke-width="7"/>';
+ else if(/мотылёк|кокон|призрак|дыхание/.test(n))shape='<path d="M126 117C51 24 24 131 96 157C48 223 133 201 128 151C123 201 208 223 160 157C232 131 205 24 130 117Z" fill="url(#gem)"/><path d="M128 98v76" fill="none" stroke="url(#metal)" stroke-width="13" stroke-linecap="round"/>';
+ else {const tip=49+(variant%5)*4,left=65+(variant%4)*3;shape=`<path d="M128 ${tip}L184 91 192 151 145 204 85 181 ${left} 113Z" fill="url(#gem)"/><path d="M128 ${tip}l-19 77 36 78 7-94 32-19-75 35-44-13" fill="none" stroke="#fff" opacity=".32" stroke-width="3"/>`;}
+ const shards=Array.from({length:3+tier},(_,i)=>{const angle=(i*137+variant*11)*Math.PI/180,r=83+(i%3)*7,x=128+Math.cos(angle)*r,y=126+Math.sin(angle)*r;return `<path d="M${x.toFixed(1)} ${(y-5).toFixed(1)}l4 5-4 5-4-5Z" fill="${c}" opacity="${.4+(i%3)*.2}"/>`;}).join('');
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><radialGradient id="halo"><stop stop-color="${c}" stop-opacity=".38"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient><linearGradient id="gem" x2=".7" y2="1"><stop stop-color="#f1ffdd"/><stop offset=".35" stop-color="${c}"/><stop offset="1" stop-color="#263747"/></linearGradient><linearGradient id="metal" x2=".8" y2="1"><stop stop-color="#efd8a0"/><stop offset=".45" stop-color="#80785e"/><stop offset="1" stop-color="#384044"/></linearGradient></defs><circle cx="128" cy="126" r="118" fill="url(#halo)"/><ellipse cx="128" cy="216" rx="62" ry="10" fill="#071b20" opacity=".5"/>${shards}<g stroke="#182b31" stroke-width="6" stroke-linejoin="round" transform="rotate(${(variant%5-2)*4} 128 128)">${shape}</g><path d="M${97+variant} 98l8-9 8 9-8 9Z" fill="#fff" opacity=".6"/><circle cx="${100+variant*2}" cy="${165-tier*3}" r="${3+tier*.3}" fill="${c}" stroke="#eefadc" stroke-width="2"/></svg>`;
+ const source='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);artifactImages.set(index,source);return source;
+}
+
+
+
 
 
 
@@ -1229,9 +1264,9 @@ function createCollectionPage(scene){
  const button=(text,action,cls='floor-button')=>{const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=text;b.addEventListener('click',action);return b;};
  function artifactSlot(id,done=false,detail=false){
   const a=artifactInfo.get(id),owned=scene.artifacts[id]||0,has=done||owned>0,slot=document.createElement('div');slot.className='artifact-slot '+(has?'owned':'missing');slot.dataset.rarity=String(a.rarity);
-  const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';
+  const portrait=document.createElement('div');portrait.className='artifact-portrait';const image=document.createElement('img');image.className='artifact-image';image.src=artifactArtSource(id);image.alt='';image.loading='lazy';const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';portrait.append(image,mark);
   const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · может выпасть на любом этаже';copy.append(name,meta);
-  const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(mark,copy,status);return slot;
+  const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(portrait,copy,status);return slot;
  }
  function render(){
   summary.replaceChildren();const progress=document.createElement('strong');progress.textContent='КОЛЛЕКЦИИ · '+scene.closedCollections.length+' / 1000 закрыто';summary.append(progress);const toggle=button(showBuffs?'БАФЫ ▲':'МОИ БАФЫ ▾',()=>{showBuffs=!showBuffs;render();},'collection-buff-toggle');toggle.setAttribute('aria-expanded',String(showBuffs));summary.append(toggle);summary.classList.toggle('buffs-collapsed',!showBuffs);const buffs=collectionBuffTotals(scene.closedCollections);for(const [key,label] of Object.entries(effectLabels)){const value=document.createElement('span');value.textContent=label+': '+formatCollectionBuff(buffs[key]);summary.append(value);}
@@ -1265,7 +1300,7 @@ const collectionMethods={
 const artifactSceneMethods={
  findArtifactInBrokenBlock(){
   const artifact=awardArtifactDrop(this.artifacts,this.floorNumber);if(!artifact)return null;
-  this.showDiscovery({kind:'artifact',name:artifact.name,rarity:artifactRarity(artifact.id)});return artifact;
+  this.showDiscovery({kind:'artifact',id:artifact.id,name:artifact.name,rarity:artifactRarity(artifact.id)});return artifact;
  }
 };
 
@@ -1370,7 +1405,7 @@ class BaseWorld {
   drill(x, y, amount) {
     if (!this.blocked(x, y)) return false;
     const key = id(x,y), damage = (this.damage.get(key) || 0) + amount;
-    if (damage >= 1) { this.cleared.add(key); this.damage.delete(key); return true; }
+    if (damage >= 1-1e-12) { this.cleared.add(key); this.damage.delete(key); return true; }
     this.damage.set(key, damage); return false;
   }
   canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {
@@ -1394,12 +1429,13 @@ const HQ_WIDTH=9,HQ_HEIGHT=8;
 function restoreDemyan(v={}){
  if(!v||typeof v!=='object')v={};
  const rescued=v.rescued===true,returned=rescued&&v.returned===true;
+ const dialogue=DEMYAN_STORIES.includes(v.dialogue)&&!(returned&&['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn'].includes(v.dialogue))?v.dialogue:null;
  return {briefed:v.briefed===true,contact:v.contact===true,evacuating:v.evacuating===true,
  evacuated:Number.isInteger(v.evacuated)?Math.max(0,Math.min(3,v.evacuated)):0,rescued,returned,
  settlementBriefed:returned&&v.hq===true&&v.settlementBriefed===true,settlementDone:returned&&v.hq===true&&v.settlementDone===true,
  hq:returned&&v.hq===true,plot:v.plot&&Number.isInteger(v.plot.x)&&Number.isInteger(v.plot.y)&&v.plot.x>=2&&v.plot.y>=2&&v.plot.x<=43&&v.plot.y<=43?{x:Math.min(48-HQ_WIDTH,v.plot.x),y:Math.min(48-HQ_HEIGHT,v.plot.y)}:null,
  remaining:returned&&!v.hq&&Number.isFinite(v.remaining)?Math.max(0,Math.min(HQ_MS,v.remaining)):null,
- dialogue:DEMYAN_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,v.dialoguePage):0};
+ dialogue,dialoguePage:dialogue&&Number.isInteger(v.dialoguePage)?Math.max(0,v.dialoguePage):0};
 }
 function demyanGeometry(q){if(!q?.plot)return null;const {x,y}=q.plot;return {body:{x:(x+1)*CELL,y:(y+1)*CELL,width:7*CELL,height:6*CELL},deck:{x:(x+1)*CELL,y:(y+7)*CELL,width:7*CELL,height:CELL},footprint:{x:x*CELL,y:y*CELL,width:HQ_WIDTH*CELL,height:HQ_HEIGHT*CELL}};}
 function canEvacuateDemyan(q,world,spiders){return q.contact&&!q.rescued&&!q.evacuating&&DEMYAN_ENTRANCE.every(p=>!world.blocked(p.x,p.y))&&spiders.length===DEMYAN_GUARDS.length&&spiders.every(s=>s.hp<=0);}
@@ -1570,21 +1606,22 @@ const FLOOR_PROP_FRAMES = {
   }
 };
 
+
 // Sprite-sheet slots match docs/canon-miro.txt. Asterion is not a mined block.
 const MATERIALS=[
- {id:'earth',name:'Земля',frames:[0,13],canonicalHardness:1},
- {id:'stone',name:'Камень',frames:[1,14],canonicalHardness:2.5},
- {id:'iron',name:'Железная руда',frames:[2,15],canonicalHardness:3},
- {id:'copper',name:'Медная руда',frames:[3],canonicalHardness:4},
- {id:'bauxite',name:'Алюминиевая руда (боксит)',frames:[4],canonicalHardness:5},
- {id:'tin',name:'Оловянная руда',frames:[5],canonicalHardness:6},
- {id:'zinc',name:'Цинковая руда',frames:[6],canonicalHardness:8},
- {id:'nickel',name:'Никелевая руда',frames:[7],canonicalHardness:12},
- {id:'chromium',name:'Хромовая руда',frames:[8],canonicalHardness:16},
- {id:'titanium',name:'Титановая руда',frames:[9],canonicalHardness:24},
- {id:'tungsten',name:'Вольфрамовая руда',frames:[10],canonicalHardness:40},
- {id:'gold',name:'Золотосодержащая руда',frames:[11],canonicalHardness:30},
- {id:'xenorite',name:'Ксенорит',frames:[12],canonicalHardness:100}
+ {id:'earth',name:'Земля',frames:[0,13],canonicalHardness:drillMaterialHardness('earth'),upgradeTarget:materialUpgradeTarget('earth')},
+ {id:'stone',name:'Камень',frames:[1,14],canonicalHardness:drillMaterialHardness('stone'),upgradeTarget:materialUpgradeTarget('stone')},
+ {id:'iron',name:'Железная руда',frames:[2,15],canonicalHardness:drillMaterialHardness('iron'),upgradeTarget:materialUpgradeTarget('iron')},
+ {id:'copper',name:'Медная руда',frames:[3],canonicalHardness:drillMaterialHardness('copper'),upgradeTarget:materialUpgradeTarget('copper')},
+ {id:'bauxite',name:'Алюминиевая руда (боксит)',frames:[4],canonicalHardness:drillMaterialHardness('bauxite'),upgradeTarget:materialUpgradeTarget('bauxite')},
+ {id:'tin',name:'Оловянная руда',frames:[5],canonicalHardness:drillMaterialHardness('tin'),upgradeTarget:materialUpgradeTarget('tin')},
+ {id:'zinc',name:'Цинковая руда',frames:[6],canonicalHardness:drillMaterialHardness('zinc'),upgradeTarget:materialUpgradeTarget('zinc')},
+ {id:'nickel',name:'Никелевая руда',frames:[7],canonicalHardness:drillMaterialHardness('nickel'),upgradeTarget:materialUpgradeTarget('nickel')},
+ {id:'chromium',name:'Хромовая руда',frames:[8],canonicalHardness:drillMaterialHardness('chromium'),upgradeTarget:materialUpgradeTarget('chromium')},
+ {id:'titanium',name:'Титановая руда',frames:[9],canonicalHardness:drillMaterialHardness('titanium'),upgradeTarget:materialUpgradeTarget('titanium')},
+ {id:'tungsten',name:'Вольфрамовая руда',frames:[10],canonicalHardness:drillMaterialHardness('tungsten'),upgradeTarget:materialUpgradeTarget('tungsten')},
+ {id:'gold',name:'Золотосодержащая руда',frames:[11],canonicalHardness:drillMaterialHardness('gold'),upgradeTarget:materialUpgradeTarget('gold')},
+ {id:'xenorite',name:'Ксенорит',frames:[12],canonicalHardness:drillMaterialHardness('xenorite'),upgradeTarget:materialUpgradeTarget('xenorite')}
 ];
 function materialDefinition(id){return MATERIALS.find(material=>material.id===id)||MATERIALS[0];}
 function materialFrameRect(id,variant,width,height=width){const m=materialDefinition(id),slot=m.frames[Math.floor(variant/4)%m.frames.length];return {x:(slot%4)*width/4,y:Math.floor(slot/4)*height/4,w:width/4,h:height/4};}
@@ -1666,17 +1703,37 @@ function collectGroundCargo(pile,hold,capacity){
  const count=Math.min(pile.count,Math.max(0,capacity-cargoCount(hold)));if(!count)return 0;hold[pile.material]=(hold[pile.material]||0)+count;pile.count-=count;return count;
 }
 
+const ROCK_COLORS={earth:0xc89b6b,stone:0xb6c2be,iron:0xd89778,copper:0xf0af69,bauxite:0xe4c8a1,tin:0xd4e7e6,zinc:0x91d7dd,nickel:0xc7dba3,chromium:0xadddc5,titanium:0xa9cbf4,tungsten:0xa4a7cf,gold:0xffdb6e,xenorite:0xdfadff};
+function rockPolygon(g,points,color,stroke=false){g.fillStyle(color);g.beginPath();g.moveTo(...points[0]);for(const p of points.slice(1))g.lineTo(...p);g.closePath();g.fillPath();if(stroke){g.lineStyle(1.4,0x293d3b,.9);g.strokePath();}}
+function drawRockFragment(g,material,x,y,size=10,variant=0){
+ const tone=ROCK_COLORS[material]||ROCK_COLORS.stone,body=material==='earth'?0xb38a60:0x82948d;
+ const point=(a,b)=>[x+a*size,y+b*size],top=point(-.18,-.82),left=point(-.86,-.3),right=point(.68,-.38),bottom=point(.47,.66),front=point(-.4,.8),center=point(-.07,.05);
+ rockPolygon(g,[left,top,right,bottom,front],body,true);
+ rockPolygon(g,[left,top,right,center],material==='earth'?0xddb57e:0xc3d1c5);
+ rockPolygon(g,[center,right,bottom,front],material==='earth'?0x99704f:0x637b76);
+ g.lineStyle(1.2,0xf2e6c3,.75);g.lineBetween(...left,...top);g.lineBetween(...top,...right);
+ if(material!=='earth'&&material!=='stone'){
+  rockPolygon(g,[point(-.48,-.3),point(-.1,-.58),point(.21,-.28),point(-.08,.1)],tone);
+  rockPolygon(g,[point(.08,.28),point(.39,.09),point(.46,.42),point(.2,.6)],tone);
+  g.lineStyle(1,0xfff5d1,.85);g.lineBetween(x-size*.46,y-size*.3,x-size*.1,y-size*.53);
+ }else {g.lineStyle(1,0x43594d,.65);g.lineBetween(x-size*.15,y-size*.48,x+size*.04,y-size*.12);g.lineBetween(x+size*.04,y-size*.12,x+size*.37,y-size*.16);}
+ if(variant%2){g.fillStyle(tone,.7);g.fillCircle(x-size*.37,y+size*.4,1.1);}
+}
 
 
 
-const pileColors={earth:0xb17c4c,stone:0xabb1a7,iron:0xb37d66,copper:0xe09b5d,bauxite:0xc5bb9b,tin:0xafc6c7,zinc:0x83b6b9,nickel:0x9bb382,chromium:0x9dbaac,titanium:0x8ba6cc,tungsten:0x85869b,gold:0xf6cf67,xenorite:0xba8ee9};
+
+
 const groundCargoMethods={
  makeGroundCargo(){this.groundCargoViews=new Map();this.groundCargoIndex=new Map();this.renderGroundCargo();},
  renderGroundCargo(){
   if(!this.groundCargoViews)return;this.groundCargoIndex=new Map((this.groundCargo||[]).map(p=>[p.y*50+p.x,p]));
   for(const [key,view] of this.groundCargoViews)if(!this.groundCargoIndex.has(key)){view.destroy();this.groundCargoViews.delete(key);}
-  for(const [key,p] of this.groundCargoIndex){if(this.groundCargoViews.has(key))continue;const g=this.add.graphics().setPosition((p.x+.5)*CELL,(p.y+.5)*CELL).setDepth(12);g.fillStyle(0x0a1b1a,.32);g.fillEllipse(0,7,42,24);
-   for(let i=0;i<5;i++){const x=[-15,9,-3,15,-7][i],y=[2,5,-9,-4,11][i];g.fillStyle(pileColors[p.material]||0xb17c4c);g.fillTriangle(x-9,y+7,x+8,y+5,x+2,y-9);g.lineStyle(2,0xffedb0,.4);g.lineBetween(x-9,y+7,x+2,y-9);}this.groundCargoViews.set(key,g);
+  for(const [key,p] of this.groundCargoIndex){if(this.groundCargoViews.has(key))continue;const g=this.add.graphics().setPosition((p.x+.5)*CELL,(p.y+.5)*CELL).setDepth(12);g.fillStyle(0x081d1b,.28);g.fillEllipse(0,9,49,17);
+   // Separated faceted chunks, with pale broken edges and coloured ore inclusions.
+   for(const [i,chunk] of [[-17,3,9],[12,-2,10],[-3,-12,8],[-2,12,7],[20,11,6]].entries())drawRockFragment(g,p.material,...chunk,i);
+   g.fillStyle(0xd9c9a0,.7);for(const [x,y] of [[-23,12],[23,-8],[6,19]])g.fillRect(x,y,2,2);
+   this.groundCargoViews.set(key,g);
   }
  },
  leaveBrokenMaterial(x,y,material){this.groundCargo||=[];leaveGroundCargo(this.groundCargo,x,y,material);this.renderGroundCargo();},
@@ -1985,6 +2042,7 @@ function bunkerFloorTexture(scene) {
 
 
 
+
 const LIFT = {x:33,y:21};
 const LIFT_BLOCKS = [{x:32,y:24},{x:33,y:24},{x:34,y:24}];
 const FLOOR_LIFT = {x:25,y:7};
@@ -2047,8 +2105,8 @@ class FloorWorld {
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
   blocked(x,y){if(this.floor===5&&demyanWall(x,y))return true;const item=this.floor===5?demyanOpenCell(x,y):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
   material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
-  hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return this.material(x,y)==='earth'?1:2.5;}
-  drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
+  hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return materialDefinition(this.material(x,y)).canonicalHardness;}
+  drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1-1e-12){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
   canRescue(){return false;}
   snapshot(){return {location:'floor',floor:this.floor,materialSeed:this.materialSeed,materialGeneration:2,materialOverrides:[...this.materialOverrides],x:this.x,y:this.y,cleared:[...this.cleared],damage:[...this.damage]};}
 }
@@ -2350,8 +2408,13 @@ function stepPorodnikJob(job,delta) {
 
 
 
+
+
 const WORKSHOP_SERVICE_MS=4000;
 const EARTH_HEAD_PRICE=5000;
+const DRILL_HEAD_PRICES={earth:5000,stone:15000,iron:150000,copper:350000,bauxite:800000,tin:1800000,zinc:4000000,nickel:9000000,chromium:20000000,titanium:45000000,tungsten:100000000,gold:220000000,xenorite:500000000};
+const DRILL_HEADS=MATERIALS.map(m=>({...m,price:DRILL_HEAD_PRICES[m.id],multiplier:12.5}));
+function restoreDrillHeads(value,earthHead=false){const heads=Array.isArray(value)?DRILL_HEADS.filter(h=>value.includes(h.id)).map(h=>h.id):[];if(earthHead&&!heads.includes('earth'))heads.unshift('earth');return heads;}
 const TOOLS_SITE={x:18,y:20};
 const MECHANIC_SITE={x:32,y:29};
 const WORKSHOP_BLOCKS=[{x:31,y:34},{x:32,y:34},{x:33,y:34}];
@@ -2359,12 +2422,13 @@ const WORKSHOP_BODY={x:30*CELL,y:30*CELL,width:320,height:192};
 const WORKSHOP_DECK={x:31*CELL,y:33*CELL,width:192,height:128};
 function restoreWorkshop(value={}) {
  if(!value||typeof value!=='object')value={};
+ const drillHeads=restoreDrillHeads(value.drillHeads,value.earthHead===true);
  const kinds=['workshop','mechanic','workshopReturn','workshopReady'];
  return {briefed:value.briefed===true,tools:value.tools===true,mechanic:value.mechanic===true,
  returnBriefed:value.returnBriefed===true,ready:value.ready===true,
- serviceRemaining:value.ready===true&&(value.upgrades>0||value.earthHead===true)&&Number.isFinite(value.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,value.serviceRemaining)):null,
- earthHead:value.earthHead===true,
- upgrades:Number.isInteger(value.upgrades)?Math.max(0,Math.min(100,value.upgrades)):0,
+ serviceRemaining:value.ready===true&&(value.upgrades>0||drillHeads.length>0)&&Number.isFinite(value.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,value.serviceRemaining)):null,
+ drillHeads,earthHead:drillHeads.includes('earth'),
+ upgrades:Number.isInteger(value.upgrades)?Math.max(0,Math.min(DRILL_UPGRADE_LIMIT,value.upgrades)):0,
  dialogue:kinds.includes(value.dialogue)?value.dialogue:null,
  dialoguePage:Number.isInteger(value.dialoguePage)?Math.max(0,Math.min(4,value.dialoguePage)):0};
 }
@@ -2372,17 +2436,19 @@ function nearWorkshopItem(rig,site) {return Math.hypot(rig.x-(site.x+.5)*CELL,ri
 function onWorkshopDeck(rig) {const d=WORKSHOP_DECK;return rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;}
 function workshopBlockCount(world) {return WORKSHOP_BLOCKS.filter(p=>world.blocked(p.x,p.y)).length;}
 function canRestoreWorkshop(q,world) {return q.tools&&q.mechanic&&q.returnBriefed&&workshopBlockCount(world)===0;}
-function workshopPrice(q) {return Math.ceil(100*Math.pow(1.25,q.upgrades));}
+function workshopPrice(q) {return DRILL_UPGRADE_PRICE_STEP*(q.upgrades+1);}
 function buyWorkshopUpgrade(q,credits,allowDuringService=false) {
  const price=workshopPrice(q);
- if(!q.ready||(!allowDuringService&&q.serviceRemaining!=null)||q.upgrades>=100||credits<price)return {bought:false,credits};
+ if(!q.ready||(!allowDuringService&&q.serviceRemaining!=null)||q.upgrades>=DRILL_UPGRADE_LIMIT||credits<price)return {bought:false,credits};
  q.upgrades++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};
 }
-function buyEarthHead(q,credits){
- if(!q.ready||q.earthHead||q.serviceRemaining!=null||credits<EARTH_HEAD_PRICE)return {bought:false,credits};
- q.earthHead=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-EARTH_HEAD_PRICE};
+function buyDrillHead(q,credits,id){
+ const head=DRILL_HEADS.find(h=>h.id===id),owned=restoreDrillHeads(q.drillHeads,q.earthHead);
+ if(!head||!q.ready||owned.includes(id)||q.serviceRemaining!=null||!Number.isSafeInteger(credits)||credits<head.price)return {bought:false,credits};
+ q.drillHeads=[...owned,id];q.earthHead=q.drillHeads.includes('earth');q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-head.price};
 }
-function workshopDrillPower(q,material,buff=0){return (1+q.upgrades*.02+buff)*(q.earthHead&&material==='earth'?12.5:1);}
+function buyEarthHead(q,credits){return buyDrillHead(q,credits,'earth');}
+function workshopDrillPower(q,material,buff=0){const installed=(q.drillHeads||[]).includes(material)||(q.earthHead&&material==='earth');return (drillUpgradePower(q.upgrades)+buff)*(installed?12.5:1);}
 function objectiveBearing(rig,site) {
  const dx=(site.x+.5)*CELL-rig.x,dy=(site.y+.5)*CELL-rig.y;
  const arrows=['→','↘','↓','↙','←','↖','↑','↗'];
@@ -5236,6 +5302,7 @@ const demyanMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
+  if(this.floorNumber===5&&q.returned){name.textContent='Исследовать этаж';radio.textContent='Спасательная миссия завершена. Демьян и люди уже на базе. Продолжай добычу и поиск артефактов.';status.textContent='Этаж 5 · Свободное исследование';return;}
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Купи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
@@ -5354,10 +5421,11 @@ const settlementMethods={
 
 
 
+
 const DISCOVERY_COLORS=['#d6c79c','#99d796','#6ed8cf','#78b7ff','#b798ff','#ef8cd8','#ffad70','#ffe180','#ff837e','#f5ecff'];
 function discoveryDetails(item){
  const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
- if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
+ if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',artSource:artifactArtSource(item.id||item.name),art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
  if(item.kind==='floor-clear')return {eyebrow:'ТЕРРИТОРИЯ ОСВОБОЖДЕНА!',heading:'ПОЛНАЯ РАСЧИСТКА',name:item.name,description:item.description,note:item.note,artPath:'game/headquarters-top.webp',color:'#bee796',rarity:6};
  if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
  return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',artPath:item.kind==='blueprint'?'quests/blueprint.svg':'game/bonus-cache-v2.webp',color:'#ffd780',rarity:5};
@@ -5383,7 +5451,7 @@ const discoveryMethods={
   const sparks=document.createElement('div');sparks.className='discovery-sparks';sparks.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const dot=document.createElement('i');dot.style.setProperty('--i',String(i));dot.style.setProperty('--top',String(15+(i*17)%65)+'%');sparks.append(dot);}
   const eyebrow=document.createElement('p');eyebrow.className='discovery-eyebrow';eyebrow.textContent=spec.eyebrow;
   const heading=document.createElement('h2');heading.id='discovery-heading';heading.textContent=spec.heading;
-  const art=document.createElement('img');art.className='discovery-art';art.src='./public/assets/'+(spec.artPath||'quests/'+spec.art);art.alt='';
+  const art=document.createElement('img');art.className='discovery-art';art.src=spec.artSource||'./public/assets/'+(spec.artPath||'quests/'+spec.art);art.alt=item.kind==='artifact'?spec.name:'';
   const name=document.createElement('strong');name.className='discovery-name';name.textContent=spec.name;
   const rarity=document.createElement('p');rarity.className='discovery-rarity';rarity.textContent=spec.description;
   const note=document.createElement('p');note.className='discovery-note';note.textContent=spec.note;
@@ -5475,7 +5543,7 @@ const bonusCacheMethods={
  findBonusCacheInBrokenBlock(x,y){
   const cache=rollBonusCache(this.floorNumber,x,y);if(!cache)return null;
   this.bonusCaches ||= [];this.bonusCaches.push(cache);const received=collectBonusCache(cache,this);this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.persist();
-  this.showBonusBoxDiscovery('Бонусный тайник',received.length?'Запасы уже добавлены в твой инвентарь.':'Освободи грузовой отсек — тайник останется здесь.',received,bonusLootDetails(cache.items));for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',name:a.name,rarity:a.rarity});return cache;
+  this.showBonusBoxDiscovery('Бонусный тайник',received.length?'Запасы уже добавлены в твой инвентарь.':'Освободи грузовой отсек — тайник останется здесь.',received,bonusLootDetails(cache.items));for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',id:a.id,name:a.name,rarity:a.rarity});return cache;
  },
  bonusCacheAction(){if(!this.floorNumber)return null;return (this.bonusCaches||[]).find(c=>Math.hypot(this.rig.x-(c.x+.5)*CELL,this.rig.y-(c.y+.5)*CELL)<1.5*CELL)||null;},
  interactBonusCache(){
@@ -5485,6 +5553,8 @@ const bonusCacheMethods={
   this.showBonusBoxDiscovery('Запасы из тайника',cache.items.length?'Часть запасов остаётся на месте находки.':'Тайник полностью разобран.',received,bonusLootDetails(cache.items));return true;
  }
 };
+
+
 
 
 
@@ -5600,6 +5670,7 @@ class Base extends globalThis.Phaser.Scene {
       if(!this.leaving)this.persist(); this.joystick?.destroy();this.joystick=null;this.hold=null;this.touchStick=null;
       window.removeEventListener('blur',this.clearInput); document.removeEventListener('visibilitychange',this.clearInput);
       this.scale.off('resize',this.fit);
+      this.input.keyboard.off('keydown-ESC',this.goMenu,this);this.input.keyboard.off('keydown-E',this.interact,this);this.input.keyboard.off('keydown-SPACE',this.interact,this);
       this.input.keyboard.removeCapture(['UP','DOWN','LEFT','RIGHT','SPACE']);
     });
     this.passenger=this.add.image(-7,0,'people','serega-0').setDisplaySize(16,16).setVisible(this.floorNumber?!!this.campaign.base?.rescued:this.world.rescued);this.passenger.setVisible(this.passenger.visible&&!this.constructionQuest.unlocked);this.rig.add(this.passenger);
@@ -5705,15 +5776,15 @@ class Base extends globalThis.Phaser.Scene {
     const panel=document.createElement('div');panel.className='lift-console';
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
     exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
-    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
-    const headTitle=document.createElement('p'),headNote=document.createElement('p'),headBuy=document.createElement('button');
-    headTitle.className='service-readout';headTitle.textContent='НАСАДКИ НА ГОЛОВКУ БУРА';headNote.className='terminal-note';headNote.textContent='Усиленная земляная насадка · Земля разрушается почти мгновенно. Работает постоянно. Улучшения мощности продолжают действовать на остальные породы. Установка — 4 секунды.';headBuy.className='metal-button';
-    const renderHead=()=>{headBuy.textContent=q.earthHead?'УСИЛЕННАЯ ЗЕМЛЯНАЯ · УСТАНОВЛЕНА':'УСИЛЕННАЯ ЗЕМЛЯНАЯ · '+EARTH_HEAD_PRICE+' КРЕДИТОВ';headBuy.disabled=q.earthHead||q.serviceRemaining!=null||this.credits<EARTH_HEAD_PRICE;};
-    headBuy.addEventListener('click',()=>{const result=buyEarthHead(q,this.credits);if(!result.bought)return;this.credits=result.credits;render();renderHead();this.refreshHUD();this.persist();});
+    const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number(((drillUpgradePower(q.upgrades)+(this.collectionBuffs?.drill||0))*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=DRILL_UPGRADE_LIMIT?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +5% К ТЕКУЩЕЙ · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=DRILL_UPGRADE_LIMIT||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
+    const headTitle=document.createElement('p'),headNote=document.createElement('p'),heads=document.createElement('div');
+    headTitle.className='service-readout';headTitle.textContent='НАСАДКИ НА ВСЕ ПОРОДЫ';headNote.className='terminal-note';headNote.textContent='Каждая насадка ускоряет свою породу в 12,5 раза и работает автоматически. Улучшения мощности усиливают все насадки. После камня цены резко растут: прокачивай мощность, пока копишь на следующий инструмент. Установка — 4 секунды.';heads.className='drill-head-grid';
+    const headButtons=DRILL_HEADS.map(head=>{const card=document.createElement('article'),name=document.createElement('strong'),note=document.createElement('p'),button=document.createElement('button');card.className='drill-head-card';name.textContent=head.name;note.textContent='Бурение ×12,5 · улучшения мощности сохраняются';button.className='floor-button';button.type='button';card.append(name,note,button);heads.append(card);button.addEventListener('click',()=>{const result=buyDrillHead(q,this.credits,head.id);if(!result.bought)return;this.credits=result.credits;render();renderHead();this.refreshHUD();this.persist();});return {head,card,button};});
+    const renderHead=()=>{for(const {head,card,button} of headButtons){const owned=q.drillHeads.includes(head.id);card.classList?.toggle('installed',owned);button.textContent=owned?'УСТАНОВЛЕНА':'КУПИТЬ · '+head.price.toLocaleString('ru-RU')+' КР';button.disabled=owned||q.serviceRemaining!=null||this.credits<head.price;}};
     this.workshopPanelRender=()=>{render();renderHead();};
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
     buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;if(q.upgrades===1)this.rewardQuest('firstUpgrade');render();renderHead();this.refreshHUD();this.persist();});
-    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();renderHead();panel.append(text,buy,headTitle,headNote,headBuy,status,exit);
+    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();renderHead();panel.append(text,buy,headTitle,headNote,heads,status,exit);
     showBuildingMenu('workshop',panel);
   }
   makeHUD() {
@@ -5772,7 +5843,7 @@ class Base extends globalThis.Phaser.Scene {
       if(this.floorNumber){
         name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
         status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
-      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
+      }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number(((drillUpgradePower(q.upgrades)+(this.collectionBuffs?.drill||0))*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
       }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(this.questWorld('workshop'))}/3 · Мастерская: ${objectiveBearing(this.rig,this.buildingPoint('workshop'))}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,this.buildingGeom('lift').center)}`;}
     }
@@ -5801,9 +5872,9 @@ class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(this.settlementUnlocked())this.addSettlementTaskList(panel);const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
+    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(this.settlementUnlocked())this.addSettlementTaskList(panel);const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
   }
-  goMenu() {if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
+  goMenu(event) {if(event?.repeat)return;if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||this.discoveryActive||document.querySelector('#dialog').open)return;event?.preventDefault?.();openPauseMenu(this);}
   interact() {
     if(this.discoveryActive||this.demyanQuest.dialogue||this.constructionQuest.dialogue||this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(this.interactBonusCache())return;
@@ -6004,8 +6075,7 @@ class Base extends globalThis.Phaser.Scene {
       g.fillStyle(0xffc34f,.95);g.fillRoundedRect(2,2,14,4,2);
       g.fillStyle(0xfff8ce);g.fillRoundedRect(5,3,9,2,1);
       g.generateTexture('fx-spark',18,8);g.clear();
-      g.fillStyle(0xcea679);g.fillTriangle(0,0,7,1,4,7);
-      g.generateTexture('fx-chip',8,8);
+      drawRockFragment(g,'stone',12,12,11);g.generateTexture('fx-chip',24,24);
     }
     g.destroy();
     this.dustEmitter=this.add.particles(0,0,'fx-dust',{
@@ -6020,7 +6090,7 @@ class Base extends globalThis.Phaser.Scene {
     }).setDepth(24);
     this.chipEmitter=this.add.particles(0,0,'fx-chip',{
       emitting:false,lifespan:{min:250,max:550},speed:{min:45,max:115},
-      scale:{start:1,end:.3},alpha:{start:.9,end:0},rotate:{min:0,max:360},
+      scale:{start:.65,end:.3},alpha:{start:1,end:0},rotate:{min:0,max:360},
       maxParticles:60,maxAliveParticles:48
     }).setDepth(22);
   }
@@ -6130,7 +6200,7 @@ class Base extends globalThis.Phaser.Scene {
         if(!collected)this.leaveBrokenMaterial(x,y,material);this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
-        this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
+        this.chipEmitter.setParticleTint?.(ROCK_COLORS[material]||0xffffff);this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
         this.sparkEmitter.emitParticleAt(middle(x),middle(y),14);
         this.refreshHUD();this.checkLift();this.checkPorodnik();this.persist();
       } else if(time-this.lastSave>300)this.persist();
@@ -6280,10 +6350,10 @@ function createSettingsPanel(){
  radioRow.append(radioCaption,radioToggle);panel.append(radioRow,status);return panel;
 }
 function openPauseMenu(scene){
- const dialog=document.querySelector('#dialog');scene.dialogClosed();scene.persist();
+ const dialog=document.querySelector('#dialog');if(dialog.open||scene.pauseMenuActive)return;scene.pauseMenuActive=true;scene.dialogClosed();scene.persist();
  scene.scene.pause();scene.input.enabled=false;
- const resume=()=>{dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
- const abort=()=>{dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
+ const resume=()=>{scene.pauseMenuActive=false;dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
+ const abort=()=>{scene.pauseMenuActive=false;dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
  dialog.addEventListener('close',resume,{once:true});scene.events.once('shutdown',abort);
  const render=()=>{
   const panel=document.createElement('div');panel.className='pause-panel';
@@ -6300,6 +6370,26 @@ function openPauseMenu(scene){
   showGamePanel('ПАУЗА',panel,'pause');
  };
  render();
+}
+
+// A single native dialog owns its Escape action. Phaser must not handle that same event.
+function bindGameDialogControls(dialog,doc=document){
+ const keydown=event=>{
+  if(!dialog.open)return;
+  if(event.code==='Escape'){
+   event.preventDefault();event.stopImmediatePropagation();if(event.repeat)return;
+   if(dialog.menuBack)dialog.menuBack();else dialog.close();return;
+  }
+  if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE'].includes(event.code)&&!['INPUT','TEXTAREA','SELECT'].includes(event.target?.tagName))event.stopImmediatePropagation();
+ };
+ const close=()=>{
+  // Native close events are queued: an in-place submenu may already be open.
+  if(dialog.open)return;dialog.menuBack=null;
+  const focus=doc.activeElement;
+  if(focus===doc.querySelector('#base-menu')||focus===doc.querySelector('#base-inventory')||dialog.contains(focus))focus?.blur?.();
+ };
+ doc.addEventListener('keydown',keydown,true);dialog.addEventListener('close',close);
+ return ()=>{doc.removeEventListener('keydown',keydown,true);dialog.removeEventListener('close',close);};
 }
 
 
@@ -6333,6 +6423,8 @@ function openDialog(title, content) {
 }
 document.querySelector('.close-dialog').addEventListener('click',()=>{clickSound();if(dialog.menuBack)dialog.menuBack();else dialog.close();});
 dialog.addEventListener('cancel',event=>{if(dialog.menuBack){event.preventDefault();dialog.menuBack();}});
+
+bindGameDialogControls(dialog);
 function showSettings(){showGamePanel('НАСТРОЙКИ',createSettingsPanel(),'settings');}
 function requestGameplay() {
   game.scene.stop('Menu');
@@ -6461,6 +6553,8 @@ if(game?.scale&&game?.events)startViewportSync(game,document.querySelector('#can
 
 
 
+
+
 function campaignObjective(p={}){
  const c=p.constructionQuest||{};if(c.warehouse)return 'Склад построен';if(c.remaining!=null)return 'Строительство склада';if(c.unlocked)return 'Построить первый склад';if(c.briefed)return c.rescued?'Вернуть мастера на базу':'Найти строительного мастера';
  const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{};
@@ -6481,7 +6575,7 @@ function campaignSummary(p={}){
  const cargo=restoreCargo(p.cargoHold,p.cargo,collectionCargoCapacity(p.closedCollections));
  return {location:p.location==='floor'?'Этаж '+(p.floor||1):'Бункер №72 · база',objective:campaignObjective(p),
   credits:p.credits||0,cargo:cargoCount(cargo),hull:Number.isFinite(p.hull)?Math.ceil(p.hull):DRILL_MAX_HP,
-  power:Number((100+(p.workshopQuest?.upgrades||0)*2+collectionBuffTotals(p.closedCollections).drill*100).toFixed(3))};
+  power:Number(((drillUpgradePower(p.workshopQuest?.upgrades)+collectionBuffTotals(p.closedCollections).drill)*100).toFixed(3))};
 }
 function panelSection(panel,title){const section=document.createElement('section');section.className='terminal-section';const h=document.createElement('h3');h.textContent=title;section.append(h);panel.append(section);return section;}
 function infoRow(section,label,value){const row=document.createElement('div');row.className='terminal-row';const name=document.createElement('span'),amount=document.createElement('strong');name.textContent=label;amount.textContent=value;row.append(name,amount);section.append(row);return row;}
@@ -6526,7 +6620,7 @@ function createDrillPanel(p={}){
  const panel=document.createElement('section');panel.className='drill-page';const buffs=collectionBuffTotals(p.closedCollections),summary=campaignSummary(p),capacity=collectionCargoCapacity(p.closedCollections),power=summary.power/100;
  const hero=document.createElement('div');hero.className='drill-hero';const art=document.createElement('img');art.src='./public/assets/game/drill-compact.webp';art.alt='Бур';const title=document.createElement('h3');title.textContent='ПАСПОРТ БУРА · БУНКЕР №72';hero.append(art,title);panel.append(hero);
  const hull=panelSection(panel,'Состояние и груз');infoRow(hull,'Прочность',summary.hull+' / '+DRILL_MAX_HP);infoRow(hull,'Грузовой отсек',summary.cargo+' / '+capacity);infoRow(hull,'Свободное место',capacity-summary.cargo);infoRow(hull,'Кредиты',summary.credits);infoRow(hull,'Местоположение',summary.location);
- const mining=panelSection(panel,'Бурение и движение');infoRow(mining,'Насадка на головку',p.workshopQuest?.earthHead?'Усиленная земляная':'Стандартная');infoRow(mining,'Мощность',summary.power+'%');infoRow(mining,'Улучшения мощности',(p.workshopQuest?.upgrades||0)+' / 100 · +2% за улучшение');infoRow(mining,'Скорость бурения',Number(power.toFixed(3))+' прочности/с');infoRow(mining,'Земля · целый блок',Number((1/(power*(p.workshopQuest?.earthHead?12.5:1))).toFixed(3))+' с');infoRow(mining,'Камень · целый блок',Number((2/power).toFixed(3))+' с');infoRow(mining,'Максимальная скорость',Number((280*(1+buffs.speed)/64).toFixed(3))+' клеток/с');
+ const mining=panelSection(panel,'Бурение и движение');infoRow(mining,'Насадка на головку',restoreDrillHeads(p.workshopQuest?.drillHeads,p.workshopQuest?.earthHead).map(id=>DRILL_HEADS.find(h=>h.id===id).name).join(', ')||'Стандартная');infoRow(mining,'Мощность',summary.power+'%');infoRow(mining,'Улучшения мощности',(p.workshopQuest?.upgrades||0)+' / '+DRILL_UPGRADE_LIMIT+' · +5% к текущей мощности');infoRow(mining,'Скорость бурения',Number(power.toFixed(3))+' прочности/с');infoRow(mining,'Земля · целый блок',Number((1/workshopDrillPower({upgrades:0,...p.workshopQuest},'earth',buffs.drill)).toFixed(3))+' с');infoRow(mining,'Камень · целый блок',Number((MATERIALS.find(m=>m.id==='stone').canonicalHardness/workshopDrillPower({upgrades:0,...p.workshopQuest},'stone',buffs.drill)).toFixed(3))+' с');infoRow(mining,'Максимальная скорость',Number((280*(1+buffs.speed)/64).toFixed(3))+' клеток/с');
  const weapon=panelSection(panel,'Оружие');infoRow(weapon,'Установлено',p.armoryQuest?.installed?weaponDefinition(p.armoryQuest.equippedWeapon).name:'Нет');if(p.armoryQuest?.installed){infoRow(weapon,'Улучшения',(p.armoryQuest.weaponLevel||0)+' / 100');infoRow(weapon,'Урон за выстрел',Number(weaponStats(p.armoryQuest,buffs.weapon).damage.toFixed(3)));infoRow(weapon,'Дальность',weaponDefinition(p.armoryQuest.equippedWeapon).range+' клетки');infoRow(weapon,'Частота',Number((1000/weaponDefinition(p.armoryQuest.equippedWeapon).interval).toFixed(2))+' выстрел/с');}
  const effects=panelSection(panel,'Действующие бафы коллекций');for(const [key,label] of Object.entries({drill:'Мощность бура',weapon:'Урон оружия',speed:'Скорость движения',defense:'Снижение входящего урона',cargo:'Вместимость груза',sale:'Доход от продажи'}))infoRow(effects,label,'+'+Number((buffs[key]*100).toFixed(3))+'%');
  const base=panelSection(panel,'База');infoRow(base,'Мастерская',p.workshopQuest?.ready?'Работает':'Не восстановлена');infoRow(base,'Оружейная',p.armoryQuest?.ready?'Работает':'Не восстановлена');infoRow(base,'Ремонтный цех',p.repairQuest?.ready?'Работает':'Не восстановлен');infoRow(base,'Склад',p.constructionQuest?.warehouse?'Уровень '+(p.constructionQuest.warehouseLevel||1)+' · '+warehouseCapacity(p.constructionQuest)+' каждого материала':'Не открыт');

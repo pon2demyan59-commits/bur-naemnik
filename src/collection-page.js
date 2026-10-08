@@ -1,3 +1,4 @@
+import { artifactArtSource } from './artifact-art.js';
 import { COLLECTIONS, COLLECTION_EFFECTS, RARITY_NAMES } from './collection-catalog.js';
 import { ARTIFACTS } from './artifact-catalog.js';
 import { collectionProgress, collectionBuffTotals, prepareCollectionClose } from './collection-state.js';
@@ -19,9 +20,9 @@ export function createCollectionPage(scene){
  const button=(text,action,cls='floor-button')=>{const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=text;b.addEventListener('click',action);return b;};
  function artifactSlot(id,done=false,detail=false){
   const a=artifactInfo.get(id),owned=scene.artifacts[id]||0,has=done||owned>0,slot=document.createElement('div');slot.className='artifact-slot '+(has?'owned':'missing');slot.dataset.rarity=String(a.rarity);
-  const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';
+  const portrait=document.createElement('div');portrait.className='artifact-portrait';const image=document.createElement('img');image.className='artifact-image';image.src=artifactArtSource(id);image.alt='';image.loading='lazy';const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';portrait.append(image,mark);
   const copy=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small');name.textContent=a.name;meta.textContent=RARITY_NAMES[a.rarity-1]+' · может выпасть на любом этаже';copy.append(name,meta);
-  const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(mark,copy,status);return slot;
+  const status=document.createElement('span');status.className='artifact-owned';status.textContent=done?'Зачтён':has?'Есть '+owned+' · нужно 1':'Нет · нужно 1';slot.append(portrait,copy,status);return slot;
  }
  function render(){
   summary.replaceChildren();const progress=document.createElement('strong');progress.textContent='КОЛЛЕКЦИИ · '+scene.closedCollections.length+' / 1000 закрыто';summary.append(progress);const toggle=button(showBuffs?'БАФЫ ▲':'МОИ БАФЫ ▾',()=>{showBuffs=!showBuffs;render();},'collection-buff-toggle');toggle.setAttribute('aria-expanded',String(showBuffs));summary.append(toggle);summary.classList.toggle('buffs-collapsed',!showBuffs);const buffs=collectionBuffTotals(scene.closedCollections);for(const [key,label] of Object.entries(effectLabels)){const value=document.createElement('span');value.textContent=label+': '+formatCollectionBuff(buffs[key]);summary.append(value);}

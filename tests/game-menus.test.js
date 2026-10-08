@@ -45,3 +45,17 @@ test('building consoles use canonical staff portraits and retain interactive con
   assert.equal(dialog.menuBack,null);
  }
 });
+
+test('repeated pause requests cannot attach a second resume handler or transparent menu',()=>{
+ const {dialog}=menuDOM();let pauses=0,resumes=0;const scene={input:{enabled:true},dialogClosed(){},persist(){},scene:{pause(){pauses++;},resume(){resumes++;}},events:{once(){},off(){}}};
+ openPauseMenu(scene);openPauseMenu(scene);assert.equal(pauses,1);assert.equal(dialog.listeners.close.length,1);dialog.close();assert.equal(resumes,1);assert.equal(scene.pauseMenuActive,false);
+ openPauseMenu(scene);dialog.close();assert.equal(resumes,2);
+});
+test('Escape returns from a submenu once, then closes pause, and HUD focus cannot reopen it with Space',async()=>{
+ const {bindGameDialogControls}=await import('../src/game-menus.js');const {dialog}=menuDOM();let handler,back=0,blocked=0,blurred=0;const hud={blur(){blurred++;}};
+ const doc={activeElement:hud,addEventListener(type,fn){handler=fn;},removeEventListener(){},querySelector:id=>id==='#base-menu'?hud:null};dialog.contains=()=>false;
+ const cleanup=bindGameDialogControls(dialog,doc);dialog.showModal();dialog.menuBack=()=>{back++;dialog.menuBack=null;};
+ const event={code:'Escape',preventDefault(){blocked++;},stopImmediatePropagation(){blocked++;}};
+ handler(event);assert.equal(back,1);assert.equal(dialog.open,true);handler({...event,repeat:true});assert.equal(dialog.open,true);handler(event);assert.equal(dialog.open,false);assert.equal(blurred,1);assert.equal(dialog.menuBack,null);assert.equal(blocked,6);
+ handler(event);assert.equal(blocked,6);cleanup();
+});

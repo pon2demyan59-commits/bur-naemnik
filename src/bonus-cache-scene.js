@@ -14,7 +14,7 @@ export const bonusCacheMethods={
  findBonusCacheInBrokenBlock(x,y){
   const cache=rollBonusCache(this.floorNumber,x,y);if(!cache)return null;
   this.bonusCaches ||= [];this.bonusCaches.push(cache);const received=collectBonusCache(cache,this);this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.persist();
-  this.showBonusBoxDiscovery('Бонусный тайник',received.length?'Запасы уже добавлены в твой инвентарь.':'Освободи грузовой отсек — тайник останется здесь.',received,bonusLootDetails(cache.items));for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',name:a.name,rarity:a.rarity});return cache;
+  this.showBonusBoxDiscovery('Бонусный тайник',received.length?'Запасы уже добавлены в твой инвентарь.':'Освободи грузовой отсек — тайник останется здесь.',received,bonusLootDetails(cache.items));for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',id:a.id,name:a.name,rarity:a.rarity});return cache;
  },
  bonusCacheAction(){if(!this.floorNumber)return null;return (this.bonusCaches||[]).find(c=>Math.hypot(this.rig.x-(c.x+.5)*CELL,this.rig.y-(c.y+.5)*CELL)<1.5*CELL)||null;},
  interactBonusCache(){

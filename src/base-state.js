@@ -43,7 +43,7 @@ export class BaseWorld {
   drill(x, y, amount) {
     if (!this.blocked(x, y)) return false;
     const key = id(x,y), damage = (this.damage.get(key) || 0) + amount;
-    if (damage >= 1) { this.cleared.add(key); this.damage.delete(key); return true; }
+    if (damage >= 1-1e-12) { this.cleared.add(key); this.damage.delete(key); return true; }
     this.damage.set(key, damage); return false;
   }
   canRescue(px=(this.x+.5)*CELL,py=(this.y+.5)*CELL) {

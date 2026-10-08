@@ -1,14 +1,17 @@
+import { drawRockFragment } from './rock-fragments.js';
 import { CELL } from './base-state.js';
 import { collectGroundCargo, leaveGroundCargo } from './ground-cargo-state.js';
 import { cargoCount } from './cargo-state.js';
-const pileColors={earth:0xb17c4c,stone:0xabb1a7,iron:0xb37d66,copper:0xe09b5d,bauxite:0xc5bb9b,tin:0xafc6c7,zinc:0x83b6b9,nickel:0x9bb382,chromium:0x9dbaac,titanium:0x8ba6cc,tungsten:0x85869b,gold:0xf6cf67,xenorite:0xba8ee9};
 export const groundCargoMethods={
  makeGroundCargo(){this.groundCargoViews=new Map();this.groundCargoIndex=new Map();this.renderGroundCargo();},
  renderGroundCargo(){
   if(!this.groundCargoViews)return;this.groundCargoIndex=new Map((this.groundCargo||[]).map(p=>[p.y*50+p.x,p]));
   for(const [key,view] of this.groundCargoViews)if(!this.groundCargoIndex.has(key)){view.destroy();this.groundCargoViews.delete(key);}
-  for(const [key,p] of this.groundCargoIndex){if(this.groundCargoViews.has(key))continue;const g=this.add.graphics().setPosition((p.x+.5)*CELL,(p.y+.5)*CELL).setDepth(12);g.fillStyle(0x0a1b1a,.32);g.fillEllipse(0,7,42,24);
-   for(let i=0;i<5;i++){const x=[-15,9,-3,15,-7][i],y=[2,5,-9,-4,11][i];g.fillStyle(pileColors[p.material]||0xb17c4c);g.fillTriangle(x-9,y+7,x+8,y+5,x+2,y-9);g.lineStyle(2,0xffedb0,.4);g.lineBetween(x-9,y+7,x+2,y-9);}this.groundCargoViews.set(key,g);
+  for(const [key,p] of this.groundCargoIndex){if(this.groundCargoViews.has(key))continue;const g=this.add.graphics().setPosition((p.x+.5)*CELL,(p.y+.5)*CELL).setDepth(12);g.fillStyle(0x081d1b,.28);g.fillEllipse(0,9,49,17);
+   // Separated faceted chunks, with pale broken edges and coloured ore inclusions.
+   for(const [i,chunk] of [[-17,3,9],[12,-2,10],[-3,-12,8],[-2,12,7],[20,11,6]].entries())drawRockFragment(g,p.material,...chunk,i);
+   g.fillStyle(0xd9c9a0,.7);for(const [x,y] of [[-23,12],[23,-8],[6,19]])g.fillRect(x,y,2,2);
+   this.groundCargoViews.set(key,g);
   }
  },
  leaveBrokenMaterial(x,y,material){this.groundCargo||=[];leaveGroundCargo(this.groundCargo,x,y,material);this.renderGroundCargo();},

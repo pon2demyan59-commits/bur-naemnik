@@ -1,9 +1,10 @@
+import { artifactArtSource } from './artifact-art.js';
 import { RARITY_NAMES } from './collection-catalog.js';
 import { readSettings } from './storage.js';
 export const DISCOVERY_COLORS=['#d6c79c','#99d796','#6ed8cf','#78b7ff','#b798ff','#ef8cd8','#ffad70','#ffe180','#ff837e','#f5ecff'];
 export function discoveryDetails(item){
  const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
- if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
+ if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',artSource:artifactArtSource(item.id||item.name),art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
  if(item.kind==='floor-clear')return {eyebrow:'ТЕРРИТОРИЯ ОСВОБОЖДЕНА!',heading:'ПОЛНАЯ РАСЧИСТКА',name:item.name,description:item.description,note:item.note,artPath:'game/headquarters-top.webp',color:'#bee796',rarity:6};
  if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
  return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',artPath:item.kind==='blueprint'?'quests/blueprint.svg':'game/bonus-cache-v2.webp',color:'#ffd780',rarity:5};
@@ -29,7 +30,7 @@ export const discoveryMethods={
   const sparks=document.createElement('div');sparks.className='discovery-sparks';sparks.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const dot=document.createElement('i');dot.style.setProperty('--i',String(i));dot.style.setProperty('--top',String(15+(i*17)%65)+'%');sparks.append(dot);}
   const eyebrow=document.createElement('p');eyebrow.className='discovery-eyebrow';eyebrow.textContent=spec.eyebrow;
   const heading=document.createElement('h2');heading.id='discovery-heading';heading.textContent=spec.heading;
-  const art=document.createElement('img');art.className='discovery-art';art.src='./public/assets/'+(spec.artPath||'quests/'+spec.art);art.alt='';
+  const art=document.createElement('img');art.className='discovery-art';art.src=spec.artSource||'./public/assets/'+(spec.artPath||'quests/'+spec.art);art.alt=item.kind==='artifact'?spec.name:'';
   const name=document.createElement('strong');name.className='discovery-name';name.textContent=spec.name;
   const rarity=document.createElement('p');rarity.className='discovery-rarity';rarity.textContent=spec.description;
   const note=document.createElement('p');note.className='discovery-note';note.textContent=spec.note;

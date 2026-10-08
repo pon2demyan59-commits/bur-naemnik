@@ -6,7 +6,7 @@ import { FloorWorld } from '../src/lift-state.js';
 test('all thirteen mined materials have separate sheet frames, fully inside the sixteen-cell atlas',()=>{
  assert.equal(MATERIALS.length,13);assert.equal(new Set(MATERIALS.map(m=>m.frames[0])).size,13);
  for(const m of MATERIALS)for(let v=0;v<16;v++){const r=materialFrameRect(m.id,v,640);assert.equal(r.w,160);assert.equal(r.h,160);assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=640&&r.y+r.h<=640);}
- assert.equal(MATERIALS.find(m=>m.id==='xenorite').canonicalHardness,100);assert.equal(MATERIALS.some(m=>m.id==='asterion'),false);
+ assert.equal(MATERIALS.find(m=>m.id==='xenorite').canonicalHardness,Math.pow(1.05,120));assert.equal(MATERIALS.some(m=>m.id==='asterion'),false);
 });
 function fakeScene(){
  const textures=new Map();const context=new Proxy({drawImage(){},createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}});

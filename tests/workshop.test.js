@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { BaseWorld, CELL } from '../src/base-state.js';
 import { FloorWorld } from '../src/lift-state.js';
-import { restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, canRestoreWorkshop, buyWorkshopUpgrade, workshopPrice } from '../src/workshop-state.js';
+import { restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, canRestoreWorkshop, buyWorkshopUpgrade, workshopPrice, workshopDrillPower } from '../src/workshop-state.js';
 import { driveFits } from '../src/drive-controller.js';
 import { STORY_LINES, storyPresentation } from '../src/story-content.js';
 globalThis.Phaser={Scene:class {}};
@@ -38,12 +38,12 @@ test('workshop requires both delivered items and cleared entrance; body stays so
  assert.equal(driveFits(WORKSHOP_BODY.x+160,WORKSHOP_BODY.y+80,solid),false);
  const rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64};assert.equal(driveFits(rig.x,rig.y,solid),true);assert.equal(onWorkshopDeck(rig),true);
 });
-test('first upgrade needs an open workshop and sufficient credits, gives additive two percent and persists',()=>{
+test('first upgrade needs an open workshop and sufficient credits, gives compound five percent and persists',()=>{
  const q=restoreWorkshop();assert.equal(workshopPrice(q),100);assert.equal(buyWorkshopUpgrade(q,1000).bought,false);
  q.ready=true;assert.deepEqual(buyWorkshopUpgrade(q,99),{bought:false,credits:99});
- const first=buyWorkshopUpgrade(q,100);assert.deepEqual(first,{bought:true,credits:0});assert.equal(q.upgrades,1);assert.equal(1+q.upgrades*.02,1.02);
- assert.equal(workshopPrice(q),125);assert.equal(restoreWorkshop(JSON.parse(JSON.stringify(q))).upgrades,1);
- q.upgrades=100;assert.equal(buyWorkshopUpgrade(q,Number.MAX_SAFE_INTEGER).bought,false);
+ const first=buyWorkshopUpgrade(q,100);assert.deepEqual(first,{bought:true,credits:0});assert.equal(q.upgrades,1);assert.equal(workshopDrillPower(q,'earth'),1.05);
+ assert.equal(workshopPrice(q),200);assert.equal(restoreWorkshop(JSON.parse(JSON.stringify(q))).upgrades,1);
+ q.upgrades=120;assert.equal(buyWorkshopUpgrade(q,Number.MAX_SAFE_INTEGER).bought,false);
  assert.equal(restoreWorkshop(null).upgrades,0);
 });
 test('pending quest dialogue restores its phrase across scenes and does not skip base return',()=>{
@@ -78,7 +78,7 @@ test('several workshop purchases share a service session, charge current prices 
   const result=buyWorkshopUpgrade(q,credits,true);assert.equal(result.bought,true);credits=result.credits;
   stepWorkshopService(q,rig,.05,()=>false,WORKSHOP_DECK,true);
  }
- assert.equal(q.upgrades,3);assert.equal(credits,618);
+ assert.equal(q.upgrades,3);assert.equal(credits,400);
  q=restoreWorkshop(JSON.parse(JSON.stringify(q)));
  for(let i=0;i<80;i++){
   const next=stepWorkshopService(q,rig,.05,()=>false,WORKSHOP_DECK,true);
@@ -86,7 +86,7 @@ test('several workshop purchases share a service session, charge current prices 
  }
  assert.equal(q.serviceRemaining,null);assert.equal(q.upgrades,3);
  assert.equal(buyWorkshopUpgrade(q,0,true).bought,false);
- q.upgrades=100;assert.equal(buyWorkshopUpgrade(q,Number.MAX_SAFE_INTEGER,true).bought,false);
+ q.upgrades=120;assert.equal(buyWorkshopUpgrade(q,Number.MAX_SAFE_INTEGER,true).bought,false);
 });
 test('workshop panel stays open for successive clicks and its service progresses while the dialog is open',async()=>{
  const {stepWorkshopService}=await import('../src/workshop-state.js');
@@ -98,13 +98,13 @@ test('workshop panel stays open for successive clicks and its service progresses
  scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=scene.showDiscovery=()=>{};scene.notify=()=>{};
  scene.openWorkshop();const text=body.children[0].children[0].children[3];const controls=body.children[0].children[1].children,buy=controls[0],status=controls.at(-2),exit=controls.at(-1);
  buy.listeners.click();buy.listeners.click();
- assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,825);
- assert.match(text.textContent,/104%/);assert.match(buy.textContent,/157/);assert.equal(exit.disabled,true);
+ assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,750);
+ assert.match(text.textContent,/110.25%/);assert.match(buy.textContent,/300/);assert.equal(exit.disabled,true);
  scene.keys={};scene.syncAction=scene.drawLiftGlow=()=>{};scene.lift={update(){}};
  scene.updateWorkshopService=()=>stepWorkshopService(scene.workshopQuest,scene.rig,.05,()=>false,WORKSHOP_DECK,true);
  for(let i=0;i<80;i++)scene.update(i*50,50);
  assert.equal(dialog.open,true);assert.equal(exit.disabled,false);assert.match(status.textContent,/выйти/);
- buy.listeners.click();assert.equal(scene.workshopQuest.upgrades,3);assert.equal(scene.credits,668);
+ buy.listeners.click();assert.equal(scene.workshopQuest.upgrades,3);assert.equal(scene.credits,450);
  for(let i=0;i<80;i++)scene.update(i*50,50);
  exit.listeners.click();assert.equal(dialog.open,false);assert.equal(scene.workshopPanelRender,null);
 });

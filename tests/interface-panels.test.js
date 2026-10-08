@@ -4,7 +4,7 @@ import {campaignSummary,campaignObjective,createInventoryPanel,createHelpPanel,c
 test('menu summary follows the actual mission and handles legacy cargo saves',()=>{
  assert.equal(campaignObjective({}),'Голос за завалом');
  const p={location:'floor',floor:3,cargo:7,credits:45,hull:12.2,workshopQuest:{upgrades:4},repairQuest:{briefed:true}};
- assert.deepEqual(campaignSummary(p),{location:'Этаж 3',objective:'Найти комплект и спасти Илью',credits:45,cargo:7,hull:13,power:108});
+ assert.deepEqual(campaignSummary(p),{location:'Этаж 3',objective:'Найти комплект и спасти Илью',credits:45,cargo:7,hull:13,power:121.551});
  assert.equal(campaignObjective({...p,repairQuest:{wave:'done'}}),'Первая атака отбита');
 });
 function fakeDOM(){
@@ -24,4 +24,4 @@ test('guide explains current combat, repeat upgrades and permanent lift access',
  assert.match(content,/доступным навсегда/);assert.match(content,/больше не появляются на базе/);
 });
 
-test('drill passport reports actual upgrades, weapon and warehouse capacity',()=>{const flatten=fakeDOM(),text=flatten(createDrillPanel({workshopQuest:{upgrades:10},armoryQuest:{installed:true,weaponLevel:5},constructionQuest:{warehouse:true,warehouseLevel:3}}));assert.match(text,/Мощность 120%/);assert.match(text,/Урон за выстрел 1.1/);assert.match(text,/300 каждого материала/);assert.match(text,/Частота 1 выстрел/);});
+test('drill passport reports actual upgrades, weapon and warehouse capacity',()=>{const flatten=fakeDOM(),text=flatten(createDrillPanel({workshopQuest:{upgrades:10},armoryQuest:{installed:true,weaponLevel:5},constructionQuest:{warehouse:true,warehouseLevel:3}}));assert.match(text,/Мощность 162.889%/);assert.match(text,/Урон за выстрел 1.1/);assert.match(text,/300 каждого материала/);assert.match(text,/Частота 1 выстрел/);});

@@ -52,10 +52,10 @@ export function createSettingsPanel(){
  radioRow.append(radioCaption,radioToggle);panel.append(radioRow,status);return panel;
 }
 export function openPauseMenu(scene){
- const dialog=document.querySelector('#dialog');scene.dialogClosed();scene.persist();
+ const dialog=document.querySelector('#dialog');if(dialog.open||scene.pauseMenuActive)return;scene.pauseMenuActive=true;scene.dialogClosed();scene.persist();
  scene.scene.pause();scene.input.enabled=false;
- const resume=()=>{dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
- const abort=()=>{dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
+ const resume=()=>{scene.pauseMenuActive=false;dialog.menuBack=null;scene.input.enabled=true;scene.dialogClosed();scene.scene.resume();scene.events.off('shutdown',abort);};
+ const abort=()=>{scene.pauseMenuActive=false;dialog.removeEventListener('close',resume);dialog.menuBack=null;if(dialog.open)dialog.close();};
  dialog.addEventListener('close',resume,{once:true});scene.events.once('shutdown',abort);
  const render=()=>{
   const panel=document.createElement('div');panel.className='pause-panel';
@@ -72,4 +72,24 @@ export function openPauseMenu(scene){
   showGamePanel('ПАУЗА',panel,'pause');
  };
  render();
+}
+
+// A single native dialog owns its Escape action. Phaser must not handle that same event.
+export function bindGameDialogControls(dialog,doc=document){
+ const keydown=event=>{
+  if(!dialog.open)return;
+  if(event.code==='Escape'){
+   event.preventDefault();event.stopImmediatePropagation();if(event.repeat)return;
+   if(dialog.menuBack)dialog.menuBack();else dialog.close();return;
+  }
+  if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE'].includes(event.code)&&!['INPUT','TEXTAREA','SELECT'].includes(event.target?.tagName))event.stopImmediatePropagation();
+ };
+ const close=()=>{
+  // Native close events are queued: an in-place submenu may already be open.
+  if(dialog.open)return;dialog.menuBack=null;
+  const focus=doc.activeElement;
+  if(focus===doc.querySelector('#base-menu')||focus===doc.querySelector('#base-inventory')||dialog.contains(focus))focus?.blur?.();
+ };
+ doc.addEventListener('keydown',keydown,true);dialog.addEventListener('close',close);
+ return ()=>{doc.removeEventListener('keydown',keydown,true);dialog.removeEventListener('close',close);};
 }
