@@ -3035,9 +3035,7 @@ const constructionMethods={
    this.builderAtBase=makePerson(this,x+76,y,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
    this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
    this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
-   this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
    this.warehouseHouse=this.add.image(0,0,'warehouse-house').setOrigin(0).setDisplaySize(3*CELL,3*CELL).setDepth(5).setVisible(false);
-   this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);
    this.renderConstruction();
   }
  },
@@ -3077,10 +3075,10 @@ const constructionMethods={
  },
  renderConstruction(){
   this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
-  this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);this.architectSign?.setVisible(q.unlocked);
-  this.warehouseSign?.setVisible(q.warehouse);this.warehouseHouse?.setVisible(q.warehouse);if(!q.unlocked)return;
+  this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);
+  this.warehouseHouse?.setVisible(q.warehouse);if(!q.unlocked)return;
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
-  if(q.warehouse){this.warehouseHouse?.setPosition(b.x,b.y);this.warehouseSign?.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y-12);return;}
+  if(q.warehouse){this.warehouseHouse?.setPosition(b.x,b.y);return;}
   g.fillStyle(0x87c5aa,.12);g.fillRect(b.x,b.y,b.width,b.height+CELL);g.lineStyle(3,q.warehouse?0x6a8276:0xeec874,.8);g.strokeRect(b.x,b.y,b.width,b.height);
   if(!q.warehouse&&q.remaining==null)return;
   g.fillStyle(0x182d2b,.45);g.fillRoundedRect(b.x-5,b.y+8,b.width+12,b.height+4,9);
