@@ -34,7 +34,7 @@ export const repairMethods={
   if(this.floorNumber)return;
   if(!q.briefed&&this.armoryQuest.installed){this.startStory('repairBrief');return;}
   if(q.kit&&q.rescued&&!q.returnBriefed){this.startStory('repairReturn');return;}
-  if(!q.ready&&canRestoreRepair(q,this.world)){
+  if(!q.ready&&canRestoreRepair(q,this.questWorld('repair'))){
    q.ready=true;this.repairShop.powered(true);this.repairPassenger.setVisible(false);this.persist();this.startStory('repairReady');return;
   }
   if(q.ready&&q.wave==='idle')this.startStory('waveBrief');
@@ -66,7 +66,7 @@ export const repairMethods={
   }
   if(this.floorNumber)return;
   if(q.ready){name.textContent=q.wave==='done'?'База выстояла':'Ремонтный цех работает';radio.textContent=q.wave==='done'?'Первая атака отбита. Дальше нужно укреплять периметр и строить оборону. Илья чинит бур в ремонтном цехе.':'Илья запустил оборудование. Заезжай в цех, чтобы восстановить прочность.';status.textContent='Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'))+' · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;}
-  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота цеха слева от «Породника».';status.textContent='Ворота: '+(3-repairBlockCount(this.world))+'/3 · Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'));}
+  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота ремонтного цеха.';status.textContent='Ворота: '+(3-repairBlockCount(this.questWorld('repair')))+'/3 · Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'));}
   else{name.textContent='Третий этаж: первый бой';radio.textContent='Константину нужен ремонтный комплект. На третьем этаже остался ремонтник Илья К. Пушка установлена — можно спускаться.';status.textContent='Получена ключ-карта третьего этажа';}
  }
 };

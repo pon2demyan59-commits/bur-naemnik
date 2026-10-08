@@ -38,7 +38,7 @@ export const armoryMethods={
   if(this.floorNumber)return;
   if(!q.briefed&&this.workshopQuest.upgrades>0&&this.workshopQuest.ready){this.startStory('armoryBrief');return;}
   if(q.rescued&&q.blueprint&&!q.returnBriefed){this.startStory('armoryReturn');return;}
-  if(!q.ready&&canRestoreArmory(q,this.world)){q.ready=true;this.armory.powered(true);this.armorerPassenger?.setVisible(false);this.persist();this.startStory('armoryReady');}
+  if(!q.ready&&canRestoreArmory(q,this.questWorld('armory'))){q.ready=true;this.armory.powered(true);this.armorerPassenger?.setVisible(false);this.persist();this.startStory('armoryReady');}
  },
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig,this.buildingDeck('armory')))return;
@@ -70,7 +70,7 @@ export const armoryMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');if(!name)return;
   if(this.floorNumber===2){name.textContent='За оборванной связью';radio.textContent=q.rescued&&q.blueprint?'Оружейник и чертёж на борту. Возвращайся на базу через лифт.':q.rescued?'Оружейник спасён. Найди чертёж в заваленном шкафу и возвращайся на базу.':'Константин потерял связь с товарищем. Найди оружейника на втором этаже.';status.textContent=q.rescued&&q.blueprint?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Оружейник: ${q.rescued?'✓':objectiveBearing(this.rig,ARMORER_SITE)} · Чертёж: ${q.blueprint?'✓':q.rescued?objectiveBearing(this.rig,BLUEPRINT_SITE):'место неизвестно'}`;}
   else if(q.ready){name.textContent=q.installed?'Бур вооружён':'Первая пушка';radio.textContent=q.installed?'Оружейная работает. Следующий этап — ремонтный комплект и спасение ремонтника на третьем этаже.':'Заезжай в оружейную. Установи подаренную пушку на бур.';status.textContent=`Пушка: ${q.installed?'установлена':'в грузовом креплении'} · Мощность: ${Number((100+q.weaponLevel*2+(this.collectionBuffs?.weapon||0)*100).toFixed(3))}% · Кредиты: ${this.credits}`;}
-  else if(q.rescued&&q.blueprint){name.textContent='Восстановить оружейную';radio.textContent='Оружейник и чертёж на базе. Расчисти ворота — Серёга восстановит помещение.';status.textContent=`Ворота: ${3-armoryBlockCount(this.world)}/3 · Оружейная: ${objectiveBearing(this.rig,{x:41,y:33})}`;}
+  else if(q.rescued&&q.blueprint){name.textContent='Восстановить оружейную';radio.textContent='Оружейник и чертёж на базе. Расчисти ворота — Серёга восстановит помещение.';status.textContent=`Ворота: ${3-armoryBlockCount(this.questWorld('armory'))}/3 · Оружейная: ${objectiveBearing(this.rig,this.buildingPoint('armory'))}`;}
   else{name.textContent='За оборванной связью';radio.textContent='Спустись на второй этаж. Найди товарища Константина и чертёж первой пушки.';status.textContent='Получена ключ-карта второго этажа';}
  }
 };

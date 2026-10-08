@@ -2629,7 +2629,7 @@ const repairMethods={
   if(this.floorNumber)return;
   if(!q.briefed&&this.armoryQuest.installed){this.startStory('repairBrief');return;}
   if(q.kit&&q.rescued&&!q.returnBriefed){this.startStory('repairReturn');return;}
-  if(!q.ready&&canRestoreRepair(q,this.world)){
+  if(!q.ready&&canRestoreRepair(q,this.questWorld('repair'))){
    q.ready=true;this.repairShop.powered(true);this.repairPassenger.setVisible(false);this.persist();this.startStory('repairReady');return;
   }
   if(q.ready&&q.wave==='idle')this.startStory('waveBrief');
@@ -2661,7 +2661,7 @@ const repairMethods={
   }
   if(this.floorNumber)return;
   if(q.ready){name.textContent=q.wave==='done'?'База выстояла':'Ремонтный цех работает';radio.textContent=q.wave==='done'?'Первая атака отбита. Дальше нужно укреплять периметр и строить оборону. Илья чинит бур в ремонтном цехе.':'Илья запустил оборудование. Заезжай в цех, чтобы восстановить прочность.';status.textContent='Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'))+' · Прочность: '+Math.ceil(this.hull)+'/'+DRILL_MAX_HP;}
-  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота цеха слева от «Породника».';status.textContent='Ворота: '+(3-repairBlockCount(this.world))+'/3 · Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'));}
+  else if(q.kit&&q.rescued){name.textContent='Восстановить ремонтный цех';radio.textContent='Илья и комплект доставлены. Расчисти ворота ремонтного цеха.';status.textContent='Ворота: '+(3-repairBlockCount(this.questWorld('repair')))+'/3 · Цех: '+objectiveBearing(this.rig,this.buildingPoint('repair'));}
   else{name.textContent='Третий этаж: первый бой';radio.textContent='Константину нужен ремонтный комплект. На третьем этаже остался ремонтник Илья К. Пушка установлена — можно спускаться.';status.textContent='Получена ключ-карта третьего этажа';}
  }
 };
@@ -2885,7 +2885,7 @@ const armoryMethods={
   if(this.floorNumber)return;
   if(!q.briefed&&this.workshopQuest.upgrades>0&&this.workshopQuest.ready){this.startStory('armoryBrief');return;}
   if(q.rescued&&q.blueprint&&!q.returnBriefed){this.startStory('armoryReturn');return;}
-  if(!q.ready&&canRestoreArmory(q,this.world)){q.ready=true;this.armory.powered(true);this.armorerPassenger?.setVisible(false);this.persist();this.startStory('armoryReady');}
+  if(!q.ready&&canRestoreArmory(q,this.questWorld('armory'))){q.ready=true;this.armory.powered(true);this.armorerPassenger?.setVisible(false);this.persist();this.startStory('armoryReady');}
  },
  openArmory() {
   const q=this.armoryQuest;if(!q.ready||q.serviceRemaining!=null||!onArmoryDeck(this.rig,this.buildingDeck('armory')))return;
@@ -2917,7 +2917,7 @@ const armoryMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');if(!name)return;
   if(this.floorNumber===2){name.textContent='За оборванной связью';radio.textContent=q.rescued&&q.blueprint?'Оружейник и чертёж на борту. Возвращайся на базу через лифт.':q.rescued?'Оружейник спасён. Найди чертёж в заваленном шкафу и возвращайся на базу.':'Константин потерял связь с товарищем. Найди оружейника на втором этаже.';status.textContent=q.rescued&&q.blueprint?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Оружейник: ${q.rescued?'✓':objectiveBearing(this.rig,ARMORER_SITE)} · Чертёж: ${q.blueprint?'✓':q.rescued?objectiveBearing(this.rig,BLUEPRINT_SITE):'место неизвестно'}`;}
   else if(q.ready){name.textContent=q.installed?'Бур вооружён':'Первая пушка';radio.textContent=q.installed?'Оружейная работает. Следующий этап — ремонтный комплект и спасение ремонтника на третьем этаже.':'Заезжай в оружейную. Установи подаренную пушку на бур.';status.textContent=`Пушка: ${q.installed?'установлена':'в грузовом креплении'} · Мощность: ${Number((100+q.weaponLevel*2+(this.collectionBuffs?.weapon||0)*100).toFixed(3))}% · Кредиты: ${this.credits}`;}
-  else if(q.rescued&&q.blueprint){name.textContent='Восстановить оружейную';radio.textContent='Оружейник и чертёж на базе. Расчисти ворота — Серёга восстановит помещение.';status.textContent=`Ворота: ${3-armoryBlockCount(this.world)}/3 · Оружейная: ${objectiveBearing(this.rig,{x:41,y:33})}`;}
+  else if(q.rescued&&q.blueprint){name.textContent='Восстановить оружейную';radio.textContent='Оружейник и чертёж на базе. Расчисти ворота — Серёга восстановит помещение.';status.textContent=`Ворота: ${3-armoryBlockCount(this.questWorld('armory'))}/3 · Оружейная: ${objectiveBearing(this.rig,this.buildingPoint('armory'))}`;}
   else{name.textContent='За оборванной связью';radio.textContent='Спустись на второй этаж. Найди товарища Константина и чертёж первой пушки.';status.textContent='Получена ключ-карта второго этажа';}
  }
 };
@@ -2992,14 +2992,14 @@ const constructionMethods={
  prepareArchitectHouse(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
   this.migrateArchitectFootprint();
-  const footprints=[ARCHITECT_FOOTPRINT,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&this.demyanQuest.plot?[demyanGeometry(this.demyanQuest).footprint]:[])];for(const f of footprints)for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
+  const footprints=[buildingGeometry(this.buildingLayout||{},'architect').footprint,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&this.demyanQuest.plot?[demyanGeometry(this.demyanQuest).footprint]:[])];for(const f of footprints)for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
  },
  grantStarterWarehouse(announce=true){
   const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
-  const others=['lift','porodnik','workshop','armory','repair'].map(key=>buildingGeometry(this.buildingLayout,key).footprint);
+  const others=['lift','porodnik','workshop','armory','repair'].map(key=>buildingGeometry(this.buildingLayout,key).footprint).concat(this.demyanQuest?.plot?[demyanGeometry(this.demyanQuest).footprint]:[]);
   const original={plot:q.plot,offset:q.offset};const candidates=[original,...WAREHOUSE_PLOTS.map((_,plot)=>({plot,offset:{dx:0,dy:0}}))];
   for(let y=12;y<=44;y++)for(let x=2;x<=44;x++)candidates.push({plot:0,offset:{dx:x-WAREHOUSE_PLOTS[0].x,dy:y-WAREHOUSE_PLOTS[0].y}});
-  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(g.footprint,f))&&!rectanglesOverlap(g.footprint,ARCHITECT_FOOTPRINT)&&!rectanglesOverlap(g.footprint,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
+  const position=candidates.find(c=>{const g=buildingGeometry({},'warehouse',{...q,...c});return !others.some(f=>rectanglesOverlap(buildingClearance(g.footprint),f))&&!rectanglesOverlap(buildingClearance(g.footprint),buildingGeometry(this.buildingLayout||{},'architect').footprint)&&!rectanglesOverlap(buildingClearance(g.footprint),{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})&&g.footprint.x>=2*CELL&&g.footprint.y>=2*CELL&&g.footprint.x+g.footprint.width<=48*CELL&&g.footprint.y+g.footprint.height<=48*CELL;});
   if(!position)return false;q.plot=position.plot;q.offset=position.offset;q.warehouse=true;q.remaining=null;
   const b=warehouseBody(q);for(let y=b.y/CELL;y<(b.y+b.height)/CELL+1;y++)for(let x=b.x/CELL;x<(b.x+b.width)/CELL;x++){this.world.cleared.add(y*50+x);this.world.damage.delete(y*50+x);this.terrain?.paintCell(x,y);}
   this.renderConstruction();
@@ -3007,19 +3007,19 @@ const constructionMethods={
  },
  migrateArchitectFootprint(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
-  const q=this.constructionQuest,head=this.demyanQuest;
+  const q=this.constructionQuest,head=this.demyanQuest,architect=buildingGeometry(this.buildingLayout||{},'architect').footprint;
   const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
   const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
   for(const key of keys){
-   const original=geometry(key);const bounds=original.footprint;const hqConflict=key==='hq'&&(keys.filter(k=>k!=='hq').some(k=>rectanglesOverlap(bounds,geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL);if(!hqConflict&&!rectanglesOverlap(bounds,ARCHITECT_FOOTPRINT))continue;
+   const original=geometry(key);const bounds=original.footprint;const conflict=keys.filter(k=>k!==key).some(k=>rectanglesOverlap(buildingClearance(bounds),geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL;if(!conflict&&!rectanglesOverlap(buildingClearance(bounds),architect))continue;
    const others=keys.filter(k=>k!==key).map(k=>geometry(k).footprint),f=original.footprint,w=Math.ceil(f.width/CELL),h=Math.ceil(f.height/CELL),choices=[];
-   for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};if(rectanglesOverlap(candidate,ARCHITECT_FOOTPRINT)||rectanglesOverlap(candidate,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(candidate,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
+   for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};const passage=buildingClearance(candidate);if(rectanglesOverlap(passage,architect)||rectanglesOverlap(passage,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(passage,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
    const position=choices.sort((a,b)=>a.score-b.score)[0];if(!position)continue;
    const dx=position.x-f.x/CELL,dy=position.y-f.y/CELL;
    if(key==='hq')head.plot={x:head.plot.x+dx,y:head.plot.y+dy};
    else if(key==='warehouse')q.offset={dx:(q.offset?.dx||0)+dx,dy:(q.offset?.dy||0)+dy};
    else this.buildingLayout[key]={dx:(this.buildingLayout[key]?.dx||0)+dx,dy:(this.buildingLayout[key]?.dy||0)+dy};
-   for(let cy=position.y;cy<position.y+h;cy++)for(let cx=position.x;cx<position.x+w;cx++){this.world.cleared.add(cy*50+cx);this.world.damage.delete(cy*50+cx);}
+   for(let cy=Math.max(2,position.y-1);cy<Math.min(48,position.y+h+1);cy++)for(let cx=Math.max(2,position.x-1);cx<Math.min(48,position.x+w+1);cx++){this.world.cleared.add(cy*50+cx);this.world.damage.delete(cy*50+cx);}
   }
  },
  makeConstructionObjects(){
@@ -3031,10 +3031,10 @@ const constructionMethods={
    this.builderBeacon=this.add.text(this.builderPerson.x,this.builderPerson.y-62,'… ТУК-ТУК',{fontFamily:'Arial',fontSize:'14px',color:'#ffe39b',backgroundColor:'#18382e',padding:{x:7,y:4}}).setOrigin(.5).setDepth(11).setVisible(false);
   }else if(!this.floorNumber){
    this.constructionArt=this.add.graphics().setDepth(5);
-   const d=CONSTRUCTION_DESK,x=(d.x+.5)*CELL,y=(d.y+.5)*CELL;
+   const deck=buildingGeometry(this.buildingLayout||{},'architect').deck,x=deck.x+deck.width/2,y=deck.y+deck.height/2;
    this.builderAtBase=makePerson(this,x+76,y,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
    this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
-   this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
+   this.architectHouse=this.add.image(buildingGeometry(this.buildingLayout||{},'architect').footprint.x,buildingGeometry(this.buildingLayout||{},'architect').footprint.y,'architect-house').setOrigin(0).setDisplaySize(buildingGeometry(this.buildingLayout||{},'architect').footprint.width,buildingGeometry(this.buildingLayout||{},'architect').footprint.height).setDepth(5).setVisible(q.unlocked);
    this.warehouseHouse=this.add.image(0,0,'warehouse-house').setOrigin(0).setDisplaySize(3*CELL,3*CELL).setDepth(5).setVisible(false);
    this.renderConstruction();
   }
@@ -3044,7 +3044,7 @@ const constructionMethods={
   if(this.floorNumber===4&&q.briefed&&!q.rescued&&nearWorkshopItem(this.rig,BUILDER_SITE))return canRescueBuilder(q,this.world,this.spiders||[])?'builder':'builderBlocked';
   if(this.floorNumber)return null;
   if(q.warehouse&&inDeck(this.rig,warehouseDeck(q)))return 'warehouse';
-  if(q.unlocked&&inDeck(this.rig,ARCHITECT_DECK))return 'construction';return null;
+  if(q.unlocked&&inDeck(this.rig,buildingGeometry(this.buildingLayout||{},'architect').deck))return 'construction';return null;
  },
  interactConstruction(){
   const action=this.constructionAction();
@@ -3074,7 +3074,7 @@ const constructionMethods={
   }
  },
  renderConstruction(){
-  this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
+  this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;this.makeBuildingFoundations?.();g.clear();
   this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);
   this.warehouseHouse?.setVisible(q.warehouse);if(!q.unlocked)return;
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
@@ -3147,26 +3147,35 @@ function claimQuestReward(ids,id,credits){const amount=QUEST_REWARDS[id];if(!amo
 
 
 
-const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад'};
-function restoreBuildingLayout(value={}){const out={};for(const key of ['lift','porodnik','workshop','armory','repair']){const p=value?.[key];if(p&&Number.isInteger(p.dx)&&Number.isInteger(p.dy)&&Math.abs(p.dx)<=45&&Math.abs(p.dy)<=45)out[key]={dx:p.dx,dy:p.dy};}return out;}
+
+const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад',architect:'Дом архитектора',hq:'Штаб'};
+function restoreBuildingLayout(value={}){const out={};for(const key of Object.keys(BUILDING_LABELS)){const p=value?.[key];if(p&&Number.isInteger(p.dx)&&Number.isInteger(p.dy)&&Math.abs(p.dx)<=45&&Math.abs(p.dy)<=45)out[key]={dx:p.dx,dy:p.dy};}return out;}
+function registerBuildingType(key,label,geometry){BUILDING_LABELS[key]=label;BUILDING_GEOMETRIES[key]=geometry;}
+const BUILDING_GEOMETRIES={};
 const shifted=(rect,dx,dy)=>({...rect,x:rect.x+dx*CELL,y:rect.y+dy*CELL});
-function buildingGeometry(layout={},key,construction={plot:0}){
+function buildingGeometry(layout={},key,construction={plot:0},head={}){
  const o=key==='warehouse'?(construction.offset||{}):(layout[key]||{}),dx=o.dx||0,dy=o.dy||0;
+ if(key==='hq')return demyanGeometry({...head,plot:head.plot?{x:head.plot.x+dx,y:head.plot.y+dy}:null});
+ if(BUILDING_GEOMETRIES[key])return BUILDING_GEOMETRIES[key]({layout,construction,head,offset:{dx,dy},CELL});
  if(key==='lift'){const center={x:LIFT.x+dx,y:LIFT.y+dy},g=liftGeometry(center);return {center,body:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL},deck:g.deck,colliders:g.colliders,footprint:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL}};}
  let body,deck,collider;
  if(key==='warehouse'){body=warehouseBody(construction);deck=warehouseDeck(construction);collider=body;}
- else{const specs={porodnik:[PORODNIK_MACHINE,PORODNIK_DECK,PORODNIK_COLLIDER],workshop:[WORKSHOP_BODY,WORKSHOP_DECK],armory:[ARMORY_BODY,ARMORY_DECK],repair:[REPAIR_BODY,REPAIR_DECK]};const spec=specs[key];if(!spec)throw Error('Unknown building');body=shifted(spec[0],dx,dy);deck=shifted(spec[1],dx,dy);collider=shifted(spec[2]||spec[0],dx,dy);}
+ else{const specs={porodnik:[PORODNIK_MACHINE,PORODNIK_DECK,PORODNIK_COLLIDER],workshop:[WORKSHOP_BODY,WORKSHOP_DECK],armory:[ARMORY_BODY,ARMORY_DECK],repair:[REPAIR_BODY,REPAIR_DECK],architect:[ARCHITECT_BODY,ARCHITECT_DECK]};const spec=specs[key];if(!spec)throw Error('Unknown building');body=shifted(spec[0],dx,dy);deck=shifted(spec[1],dx,dy);collider=shifted(spec[2]||spec[0],dx,dy);}
  const x=Math.min(body.x,deck.x),y=Math.min(body.y,deck.y),right=Math.max(body.x+body.width,deck.x+deck.width),bottom=Math.max(body.y+body.height,deck.y+deck.height);
  return {body,deck,collider,footprint:{x,y,width:right-x,height:bottom-y}};
 }
 const rectanglesOverlap=(a,b)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
+const buildingClearance=f=>({x:f.x-CELL,y:f.y-CELL,width:f.width+2*CELL,height:f.height+2*CELL});
 function validateBuildingMove(key,geometry,world,others,rig){
  const f=geometry.footprint;
  if(f.x<2*CELL||f.y<2*CELL||f.x+f.width>48*CELL||f.y+f.height>48*CELL)return 'Слишком близко к стене бункера';
  for(let y=Math.floor(f.y/CELL);y<Math.ceil((f.y+f.height)/CELL);y++)for(let x=Math.floor(f.x/CELL);x<Math.ceil((f.x+f.width)/CELL);x++)if(world.blocked(x,y))return 'Сначала расчисти место буром';
  if(others.some(g=>rectanglesOverlap(f,g.footprint)))return 'Здесь другая постройка или её площадка';
- const fixed=[{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL},ARCHITECT_FOOTPRINT];
- if(fixed.some(r=>rectanglesOverlap(f,r)))return 'Оставь свободным вход и дом архитектора';
+ const passage=buildingClearance(f);
+ if(others.some(g=>rectanglesOverlap(passage,g.footprint)))return 'Оставь проход минимум в одну клетку между зданиями';
+ const entrance={x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL};
+ if(rectanglesOverlap(passage,entrance))return 'Оставь свободным вход в бункер';
+ for(let y=Math.floor(passage.y/CELL);y<Math.ceil((passage.y+passage.height)/CELL);y++)for(let x=Math.floor(passage.x/CELL);x<Math.ceil((passage.x+passage.width)/CELL);x++)if(x>=2&&y>=2&&x<48&&y<48&&world.blocked(x,y))return 'Расчисти проход шириной одну клетку вокруг здания';
  if(rig&&rectanglesOverlap(key==='lift'?f:geometry.body,{x:rig.x-30,y:rig.y-30,width:60,height:60}))return 'Бур стоит на месте постройки';
  return null;
 }
@@ -3175,23 +3184,33 @@ function validateBuildingMove(key,geometry,world,others,rig){
 
 
 
-
 const buildingLayoutMethods={
- buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest);},
+ buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest,this.demyanQuest);},
  buildingDeck(key){return this.buildingGeom(key).deck;},
  buildingPoint(key){const d=this.buildingDeck(key);return {x:(d.x+d.width/2)/CELL-.5,y:(d.y+d.height/2)/CELL-.5};},
- occupiedBuildingGeometries(except){return ['lift','porodnik','workshop','armory','repair',...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?['warehouse']:[])].filter(k=>k!==except).map(k=>this.buildingGeom(k)).concat(this.demyanQuest?.plot?[{...demyanGeometry(this.demyanQuest),kind:'hq'}]:[]);},
- movableBuildings(){return Object.entries({lift:this.liftReady(),porodnik:this.world.porodnikPowered,workshop:this.workshopQuest.ready,armory:this.armoryQuest.ready,repair:this.repairQuest.ready,warehouse:this.constructionQuest?.warehouse}).filter(([,ready])=>ready).map(([key])=>key);},
+ occupiedBuildingGeometries(except){return this.existingBuildings().filter(k=>k!==except).map(k=>({...this.buildingGeom(k),kind:k}));},
+ existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
+ movableBuildings(){return this.existingBuildings().filter(k=>k!=='hq'||this.demyanQuest.hq);},
+ questWorld(key){const o=this.buildingLayout?.[key]||{};return {blocked:(x,y)=>this.world.blocked(x+(o.dx||0),y+(o.dy||0))};},
+ makeBuildingFoundations(){
+  if(this.floorNumber)return;const footprints=this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest.hq).map(key=>this.buildingGeom(key).footprint),signature=JSON.stringify(footprints);if(signature===this.foundationSignature&&this.buildingFoundations?.scene)return;this.buildingFoundations?.destroy();this.foundationSignature=signature;const g=this.add.graphics().setDepth(3.2);
+  for(const f of footprints){
+   g.lineStyle(8,0x172b2b,.32);g.strokeRoundedRect(f.x-7,f.y-7,f.width+14,f.height+14,8);
+   g.lineStyle(4,0x737a6b,.9);g.strokeRoundedRect(f.x-4,f.y-4,f.width+8,f.height+8,7);
+   g.lineStyle(1,0xc2ad79,.65);g.strokeRoundedRect(f.x-1,f.y-1,f.width+2,f.height+2,5);
+   for(const x of [f.x-3,f.x+f.width+3])for(const y of [f.y-3,f.y+f.height+3]){g.fillStyle(0x394c48);g.fillRoundedRect(x-6,y-6,12,12,3);g.fillStyle(0xbba577);g.fillCircle(x,y,2);}
+  }this.buildingFoundations=g;
+ },
  makeBuildingEditor(){
   this.layoutGhostKey=null;this.layoutPointer=null;this.layoutSelected=null;this.layoutCandidate=null;
   this.layoutPreview=this.add.graphics().setDepth(40);this.layoutGhost=this.add.container(0,0).setDepth(40.5).setAlpha(.8).setVisible(false);this.layoutLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#fff1b1',backgroundColor:'#18362d',padding:{x:9,y:6}}).setOrigin(.5).setDepth(41).setVisible(false);
   const strip=document.createElement('div');strip.className='building-editor-strip';strip.hidden=true;
-  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание. Пустое место — перемещение камеры.';
+  const note=document.createElement('span');note.className='building-editor-note';note.setAttribute('role','status');note.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';
   const save=document.createElement('button'),cancel=document.createElement('button');save.className=cancel.className='hud-button';save.textContent='ПОДТВЕРДИТЬ';cancel.textContent='ОТМЕНА';save.disabled=true;const exit=document.createElement('button');exit.className='hud-button';exit.textContent='ГОТОВО';exit.addEventListener('click',()=>this.toggleBuildingEditor());strip.append(note,save,cancel,exit);document.querySelector('.base-hud').append(strip);this.layoutStrip=strip;this.layoutNote=note;this.layoutConfirm=save;
   save.addEventListener('click',()=>this.confirmBuildingMove());cancel.addEventListener('click',()=>this.cancelBuildingMove());
   const down=p=>{if(!this.layoutEditing||this.floorNumber||this.layoutPointer!=null)return;this.layoutPointer=p.id;const world=this.cameras.main.getWorldPoint(p.x,p.y);this.layoutStart={x:world.x,y:world.y,screenX:p.x,screenY:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};
    const key=this.movableBuildings().reverse().find(k=>{const f=this.buildingGeom(k).footprint;return world.x>=f.x&&world.x<=f.x+f.width&&world.y>=f.y&&world.y<=f.y+f.height;});
-   if(key){this.layoutSelected=key;this.layoutOriginal=key==='warehouse'?{...(this.constructionQuest.offset||{dx:0,dy:0})}:{...(this.buildingLayout[key]||{dx:0,dy:0})};this.layoutCandidate={...this.layoutOriginal};this.drawBuildingCandidate();}
+   if(key){this.layoutSelected=key;this.layoutOriginal=key==='warehouse'?{...(this.constructionQuest.offset||{dx:0,dy:0})}:key==='hq'?{dx:0,dy:0}:{...(this.buildingLayout[key]||{dx:0,dy:0})};this.layoutCandidate={...this.layoutOriginal};this.drawBuildingCandidate();}
    else this.layoutSelected=null;
   };
   const move=p=>{if(!this.layoutEditing||p.id!==this.layoutPointer||!p.isDown)return;if(!this.layoutSelected){this.cameras.main.setScroll(this.layoutStart.scrollX-(p.x-this.layoutStart.screenX)/this.cameras.main.zoom,this.layoutStart.scrollY-(p.y-this.layoutStart.screenY)/this.cameras.main.zoom);return;}
@@ -3203,11 +3222,11 @@ const buildingLayoutMethods={
  toggleBuildingEditor(){
   if(this.hqSelecting){this.finishHeadquartersPlacement();return;}
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
-  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
+  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
   this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(Math.min(.72,this.cameras.main.zoom));
  },
- candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest);},
+ candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest);},
  drawBuildingCandidate(){
   const geometry=this.candidateGeometry();if(!geometry)return;const key=this.layoutSelected,g=this.layoutPreview,f=geometry.footprint;
   const error=validateBuildingMove(key,geometry,this.world,this.occupiedBuildingGeometries(key),this.rig);this.layoutError=error;this.layoutConfirm.disabled=!!error;this.layoutNote.textContent=error||'Место свободно. Подтверди перенос или потяни ещё.';
@@ -3216,15 +3235,18 @@ const buildingLayoutMethods={
   const b=geometry.body;g.fillStyle(0x516e60,.8);g.fillRoundedRect(b.x+7,b.y+7,b.width-14,b.height-14,12);g.lineStyle(4,0xd7bc76);g.strokeRoundedRect(b.x+7,b.y+7,b.width-14,b.height-14,12);
   if(this.layoutGhostKey!==key){this.layoutGhost.removeAll(true);this.layoutGhostKey=key;const image=(texture,frame,x,y,w,h)=>{const art=this.add.image(x,y,texture,frame).setOrigin(0).setDisplaySize(w,h);this.layoutGhost.add(art);};
    if(['workshop','armory','repair'].includes(key)){const texture=key==='repair'?'repair-shop':key;image(texture,'roof',0,0,b.width,b.height);const d=geometry.deck;image(texture,'bay',d.x-b.x,d.y-b.y,d.width,d.height);}
+   if(['warehouse','architect','hq'].includes(key)){const texture={warehouse:'warehouse-house',architect:'architect-house',hq:'headquarters'}[key];image(texture,undefined,0,0,b.width,key==='hq'?b.height+CELL:f.height);}
    if(key==='porodnik'){image('porodnik','machine',0,0,b.width,b.height);const d=geometry.deck;image('porodnik','parking',d.x-b.x,d.y-b.y,d.width,d.height);}
    if(key==='lift')for(const art of [this.lift.platform,this.lift.ramp,...this.lift.parts])image('freight-lift',art.frame.name,art.x-b.x,art.y-b.y,art.displayWidth,art.displayHeight);
   }this.layoutGhost.setPosition(b.x,b.y).setVisible(true);this.layoutGhost.list.forEach(art=>art.setTint(error?0xffa59a:0xffffff));
   this.layoutLabel.setPosition(f.x+f.width/2,f.y-18).setText(BUILDING_LABELS[key]).setVisible(true);
  },
- cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание. Пустое место — перемещение камеры.';},
+ cancelBuildingMove(){this.layoutSelected=null;this.layoutCandidate=null;this.layoutPointer=null;this.layoutPreview?.clear();this.layoutGhost?.setVisible(false);this.layoutLabel?.setVisible(false);if(this.layoutConfirm)this.layoutConfirm.disabled=true;if(this.layoutNote)this.layoutNote.textContent='Потяни здание. Между постройками — минимум одна свободная клетка.';},
  confirmBuildingMove(){
   if(!this.layoutEditing||!this.layoutSelected||!this.layoutCandidate)return;const key=this.layoutSelected,geom=this.candidateGeometry();const error=validateBuildingMove(key,geom,this.world,this.occupiedBuildingGeometries(key),this.rig);if(error){this.layoutNote.textContent=error;return;}
-  const campaign=this.snapshotCampaign();if(key==='warehouse')campaign.constructionQuest.offset={...this.layoutCandidate};else campaign.buildingLayout={...campaign.buildingLayout,[key]:{...this.layoutCandidate}};
+  const campaign=this.snapshotCampaign();if(key==='warehouse')campaign.constructionQuest.offset={...this.layoutCandidate};else if(key==='hq'){campaign.demyanQuest.plot={x:this.demyanQuest.plot.x+this.layoutCandidate.dx,y:this.demyanQuest.plot.y+this.layoutCandidate.dy};delete campaign.buildingLayout.hq;}else campaign.buildingLayout={...campaign.buildingLayout,[key]:{...this.layoutCandidate}};
+  campaign.cleared ||= [];
+  const area=buildingClearance(geom.footprint);for(let y=Math.floor(area.y/CELL);y<Math.ceil((area.y+area.height)/CELL);y++)for(let x=Math.floor(area.x/CELL);x<Math.ceil((area.x+area.width)/CELL);x++)if(x>=2&&y>=2&&x<48&&y<48&&!campaign.cleared.includes(y*50+x))campaign.cleared.push(y*50+x);
   if(!writeSave(campaign)){this.layoutNote.textContent='Не удалось сохранить. Постройка осталась на прежнем месте.';return;}
   this.leaving=true;this.scene.restart({save:{version:1,progress:campaign},layoutReturn:true});
  }
@@ -3328,7 +3350,7 @@ const demyanMethods={
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
- headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';const others=this.occupiedBuildingGeometries().filter(g=>g.kind!=='hq');const error=validateBuildingMove('hq',geom,this.world,others,this.rig);if(error)return error;const f=geom.footprint,buffer={x:f.x-2*CELL,y:f.y-2*CELL,width:f.width+4*CELL,height:f.height+4*CELL};if([...others.map(g=>g.footprint),ARCHITECT_FOOTPRINT].some(f=>rectanglesOverlap(buffer,f)))return 'Оставь проход шириной две клетки между зданиями';return null;},
+ headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';return validateBuildingMove('hq',geom,this.world,this.occupiedBuildingGeometries('hq').filter(g=>g.kind!=='hq'),this.rig);},
  startHeadquartersPlacement(){
   document.querySelector('#dialog').close();this.dialogClosed();this.hqSelecting=true;document.querySelector('.base-hud').classList.add('layout-open');this.cameras.main.stopFollow();this.cameras.main.setZoom(.55);
   const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.textContent='Нажми на место для штаба 9×8. Потяни карту, чтобы осмотреть базу.';note.className='building-editor-note';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);this.hqPlacementStrip=strip;
@@ -3341,7 +3363,7 @@ const demyanMethods={
  openHeadquartersBuild(){
   this.dialogClosed();const q=this.demyanQuest,panel=document.createElement('div');panel.className='lift-console construction-controls';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ШТАБ · 9×8 КЛЕТОК · ДЕМЬЯН П.';
-  const note=document.createElement('p');note.className='terminal-note';note.textContent='Выбери площадку на карте. Расчисти все 72 клетки, оставь подход к входу снизу и проходы между зданиями. Строительство — 15 секунд. Материалы берутся из груза и склада.';
+  const note=document.createElement('p');note.className='terminal-note';note.textContent='Выбери площадку на карте. Расчисти все 72 клетки, оставь подход к входу снизу и проход минимум в одну клетку между зданиями. Строительство — 15 секунд. Материалы берутся из груза и склада.';
   const set=document.createElement('button');set.className='metal-button';set.textContent='ВЫБРАТЬ МЕСТО НА КАРТЕ';const status=document.createElement('p');status.className='terminal-note';
   const build=document.createElement('button');build.className='metal-button';build.textContent='ПОСТРОИТЬ ШТАБ';
   const render=()=>{const err=this.headquartersError();status.textContent=q.remaining!=null?'Строительство началось. Закрой меню, чтобы продолжить.':(err||'Площадка готова')+' · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+((this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0))+'/'+n).join(' · ');build.disabled=!!err||q.remaining!=null||Object.entries(HQ_RECIPE).some(([id,n])=>(this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0)<n);set.disabled=q.remaining!=null;};
@@ -3350,7 +3372,7 @@ const demyanMethods={
   panel.append(title,note,set,status,build);render();showBuildingMenu('construction',panel);
  },
  renderHeadquarters(){
-  if(this.floorNumber||!this.demyanArt)return;const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot&&!q.hq);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;
+  if(this.floorNumber||!this.demyanArt)return;this.makeBuildingFoundations?.();const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot&&!q.hq);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;
   const geom=demyanGeometry(q),b=geom.body,f=geom.footprint;
   if(!q.hq){preview.lineStyle(3,0xd7bc79,.8);preview.strokeRect(f.x,f.y,f.width,f.height);preview.lineStyle(1,0xd7bc79,.4);for(let i=1;i<HQ_WIDTH;i++)preview.lineBetween(f.x+i*CELL,f.y,f.x+i*CELL,f.y+f.height);for(let i=1;i<HQ_HEIGHT;i++)preview.lineBetween(f.x,f.y+i*CELL,f.x+f.width,f.y+i*CELL);}
   this.hqLabel?.setPosition(b.x+b.width/2,f.y-12).setText(q.hq?'ШТАБ · ДЕМЬЯН П.':q.remaining!=null?'ШТАБ · СТРОИТЕЛЬСТВО':'ПЛОЩАДКА ШТАБА · 9×8');
@@ -3572,7 +3594,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber){this.inventory.fiber+=this.carriedLoot.fiber;this.inventory.heads+=this.carriedLoot.heads;this.carriedLoot={fiber:0,heads:0};}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;
-    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=CONSTRUCTION_DESK.x;this.world.y=CONSTRUCTION_DESK.y;}
+    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('architect').body)){const d=this.buildingDeck('architect');this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
@@ -3581,7 +3603,7 @@ class Base extends globalThis.Phaser.Scene {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
     if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
-    this.makeMap();
+    this.makeMap();this.makeBuildingFoundations();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
@@ -3706,7 +3728,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.world.porodnikPowered)return;
     if(!q.briefed){this.startStory('workshop');return;}
     if(q.tools&&q.mechanic&&!q.returnBriefed){this.startStory('workshopReturn');return;}
-    if(!q.ready&&canRestoreWorkshop(q,this.world)){
+    if(!q.ready&&canRestoreWorkshop(q,this.questWorld('workshop'))){
       q.ready=true;this.workshop.powered(true);this.mechanicPassenger.setVisible(false);
       this.persist();this.startStory('workshopReady');
     }
@@ -3749,7 +3771,7 @@ class Base extends globalThis.Phaser.Scene {
       ()=>!this.layoutEditing&&!this.busy&&!this.storyActive&&!document.querySelector('#dialog').open);
 
   }
-  liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.world)===0;}
+  liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.questWorld('lift'))===0;}
   syncAction() {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const repairItem=this.repairFloorAction(),atRepair=!this.floorNumber&&this.repairQuest.ready&&onRepairDeck(this.rig,this.buildingDeck('repair'));
@@ -3771,12 +3793,12 @@ class Base extends globalThis.Phaser.Scene {
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?` РАЦИЯ · ЭТАЖ ${this.floorNumber}`:' РАЦИЯ · БАЗА';
     document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
-    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(this.questWorld('lift'))}/3 · Ключ-карта 1-го этажа получена`;
     if(!this.floorNumber&&w.porodnikPowered){
       document.querySelector('#quest-name').textContent='«Породник» работает';
       document.querySelector('#radio-text').textContent='Заезжай на площадку и выгружай породу. Лифт готов к спуску.';
       document.querySelector('#quest-status').textContent='Приёмник готов к работе';
-    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5`;}
+    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(this.questWorld('porodnik'))}/5`;}
     if(this.porodnikLed)this.porodnikLed.setFillStyle(w.porodnikPowered?0x74ee87:0xffac46);
     const q=this.workshopQuest;
     if(q?.briefed) {
@@ -3785,7 +3807,7 @@ class Base extends globalThis.Phaser.Scene {
         name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
         status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
       }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
-      }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
+      }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(this.questWorld('workshop'))}/3 · Мастерская: ${objectiveBearing(this.rig,this.buildingPoint('workshop'))}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,this.buildingGeom('lift').center)}`;}
     }
     this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshConstructionHUD();this.refreshDemyanHUD();this.refreshKeycards();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
@@ -3915,7 +3937,7 @@ class Base extends globalThis.Phaser.Scene {
     if(status&&status.textContent!==text)status.textContent=text;
   }
   checkPorodnik() {
-    if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.world)>0)return;
+    if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.questWorld('porodnik'))>0)return;
     this.world.porodnikPowered=true;this.rewardQuest('porodnik');this.refreshHUD();this.persist();
     this.notify('СЕРЁГА ВОССТАНОВИЛ ПИТАНИЕ · «ПОРОДНИК» РАБОТАЕТ');
   }
@@ -4086,8 +4108,10 @@ class Base extends globalThis.Phaser.Scene {
   drawLiftGlow(time) {
     this.blockGlow.clear();if(this.floorNumber===5&&!this.demyanQuest.rescued){const pulse=.55+.25*Math.sin(time*.004);for(const p of DEMYAN_ENTRANCE)if(this.world.blocked(p.x,p.y)){this.blockGlow.fillStyle(0xffd66c,.18);this.blockGlow.fillRect(p.x*CELL,p.y*CELL,CELL,CELL);this.blockGlow.lineStyle(4,0xffe28b,pulse);this.blockGlow.strokeRect(p.x*CELL+3,p.y*CELL+3,CELL-6,CELL-6);}return;}if(this.floorNumber||!this.world.rescued)return;
     const blocks=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?REPAIR_BLOCKS:this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?ARMORY_BLOCKS:this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?WORKSHOP_BLOCKS:this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
+    const key=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?'repair':this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?'armory':this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?'workshop':this.liftReady()?'porodnik':'lift',o=this.buildingLayout[key]||{};
+    const shiftedBlocks=blocks.map(p=>({x:p.x+(o.dx||0),y:p.y+(o.dy||0)}));
     const pulse=.35+.15*Math.sin(time*.0035);
-    for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
+    for(const p of shiftedBlocks)if(this.world.blocked(p.x,p.y)) {
       this.blockGlow.fillStyle(0xffcc6c,pulse*.22);this.blockGlow.fillRoundedRect(p.x*CELL+3,p.y*CELL+3,58,58,8);
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
@@ -4095,7 +4119,7 @@ class Base extends globalThis.Phaser.Scene {
   solidCell(x,y) { return (this.floorNumber===4&&!this.constructionQuest.rescued&&x===BUILDER_SITE.x&&y===BUILDER_SITE.y)||(this.floorNumber===3&&!this.repairQuest.rescued&&x===REPAIRMAN_SITE.x&&y===REPAIRMAN_SITE.y)||(this.floorNumber===2&&!this.armoryQuest.rescued&&x===ARMORER_SITE.x&&y===ARMORER_SITE.y)||(this.floorNumber===1&&!this.workshopQuest.mechanic&&x===MECHANIC_SITE.x&&y===MECHANIC_SITE.y)||!this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
-    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[ARCHITECT_BODY]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[])])];
+    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
     return solid;
   }
   advanceVehicle(time,dt,direction) {

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import { buildingGeometry, restoreBuildingLayout, validateBuildingMove } from '../src/building-layout-state.js';
+import { buildingGeometry, restoreBuildingLayout, registerBuildingType, validateBuildingMove } from '../src/building-layout-state.js';
 import { restoreConstruction, warehouseBody, warehouseDeck } from '../src/construction-state.js';
 import { restoreArmory, buyWeaponUpgrade, installWeapon, onArmoryDeck } from '../src/armory-state.js';
 import { stepWorkshopService } from '../src/workshop-state.js';
@@ -41,4 +41,32 @@ test('old completed quests do not pay retroactively; unfinished saved dialogue s
 });
 test('building edit confirmation is atomic when save storage is unavailable',()=>{
  const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{base:{rescued:true},workshopQuest:{ready:true}}}});s.layoutEditing=true;s.layoutSelected='workshop';s.layoutCandidate={dx:-18,dy:-13};s.world.blocked=()=>false;s.rig={x:1000,y:1800,angle:0};s.layoutNote={};s.snapshotCampaign=()=>({buildingLayout:{},constructionQuest:{}});let restarted=false;s.scene={restart:()=>restarted=true};globalThis.localStorage={setItem(){throw Error('blocked');}};s.confirmBuildingMove();assert.equal(restarted,false);assert.deepEqual(s.buildingLayout,{});assert.match(s.layoutNote.textContent,/сохранить/);
+});
+test('architect and HQ move with their service entrances and survive restoration',()=>{
+ const a=buildingGeometry({architect:{dx:-15,dy:-8}},'architect');assert.equal(a.body.x,6*64);assert.equal(a.deck.y,18*64);
+ assert.deepEqual(restoreBuildingLayout({architect:{dx:-15,dy:-8},hq:{dx:2,dy:3}}),{architect:{dx:-15,dy:-8},hq:{dx:2,dy:3}});
+ const q={hq:true,plot:{x:28,y:23}},old=buildingGeometry({},'hq',{},q),m=buildingGeometry({hq:{dx:-16,dy:14}},'hq',{},q);
+ for(const part of ['body','deck','footprint']){assert.equal(m[part].x,old[part].x-16*64);assert.equal(m[part].y,old[part].y+14*64);}assert.deepEqual(q.plot,{x:28,y:23});
+});
+test('placement allows exactly one clear cell, rejects touching buildings and obstructed passages',()=>{
+ const f={x:8*64,y:15*64,width:3*64,height:3*64},g={body:f,deck:f,footprint:f},clear={blocked:()=>false};
+ assert.match(validateBuildingMove('warehouse',g,clear,[{footprint:{...f,x:11*64}}],null),/одну клетку/);
+ assert.equal(validateBuildingMove('warehouse',g,clear,[{footprint:{...f,x:12*64}}],null),null);
+ assert.match(validateBuildingMove('warehouse',g,{blocked:(x,y)=>x===7&&y===16},[],null),/проход/);
+});
+test('all eight existing structures are movable; unresolved base quests follow moved gates',()=>{
+ const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{constructionQuest:{rescued:true,unlocked:true,warehouse:true},demyanQuest:{briefed:true,contact:true,rescued:true,returned:true,hq:true,plot:{x:28,y:23}},buildingLayout:{workshop:{dx:2,dy:3}}}}});
+ assert.deepEqual(new Set(s.movableBuildings()),new Set(['lift','porodnik','workshop','armory','repair','warehouse','architect','hq']));
+ s.world.blocked=(x,y)=>x===35&&y===37;assert.equal(s.questWorld('workshop').blocked(33,34),true);assert.equal(s.questWorld('workshop').blocked(35,37),false);
+});
+test('HQ confirmation persists its plot and preserves warehouse stock and upgrades across reload',()=>{
+ const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{constructionQuest:{rescued:true,unlocked:true,warehouse:true,warehouseLevel:3,stock:{iron:73}},demyanQuest:{briefed:true,contact:true,rescued:true,returned:true,hq:true,plot:{x:28,y:23}},workshopQuest:{ready:true,upgrades:4}}}});
+ s.layoutEditing=true;s.layoutSelected='hq';s.layoutCandidate={dx:-16,dy:14};s.world.blocked=()=>false;s.rig={x:1000,y:500,angle:0};s.layoutNote={};let data;
+ globalThis.localStorage={setItem(){}};s.scene={restart:value=>data=value};s.confirmBuildingMove();assert.ok(data);assert.deepEqual(data.save.progress.demyanQuest.plot,{x:12,y:37});assert.equal(data.save.progress.constructionQuest.warehouseLevel,3);assert.equal(data.save.progress.constructionQuest.stock.iron,73);assert.equal(data.save.progress.workshopQuest.upgrades,4);
+ const restored=new Base();restored.sys={settings:{key:'Base'}};restored.init(data);assert.equal(restored.buildingGeom('hq').footprint.x,12*64);assert.equal(restored.buildingGeom('hq').footprint.y,37*64);
+});
+
+test('registered future buildings share movement geometry, save restoration and placement rules',()=>{
+ registerBuildingType('futurePower','Электростанция',({offset,CELL})=>{const body={x:(8+offset.dx)*CELL,y:(15+offset.dy)*CELL,width:3*CELL,height:2*CELL},deck={...body,y:body.y+body.height,height:CELL};return {body,deck,footprint:{...body,height:3*CELL}};});
+ const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{buildingLayout:{futurePower:{dx:4,dy:2}}}}});s.rig={x:1000,y:500,angle:0};assert.ok(s.movableBuildings().includes('futurePower'));assert.equal(s.buildingGeom('futurePower').body.x,12*64);assert.deepEqual(s.snapshotCampaign().buildingLayout.futurePower,{dx:4,dy:2});
 });

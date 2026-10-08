@@ -60,7 +60,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber){this.inventory.fiber+=this.carriedLoot.fiber;this.inventory.heads+=this.carriedLoot.heads;this.carriedLoot={fiber:0,heads:0};}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;
-    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=CONSTRUCTION_DESK.x;this.world.y=CONSTRUCTION_DESK.y;}
+    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('architect').body)){const d=this.buildingDeck('architect');this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
@@ -69,7 +69,7 @@ export class Base extends globalThis.Phaser.Scene {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
     if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
-    this.makeMap();
+    this.makeMap();this.makeBuildingFoundations();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
@@ -194,7 +194,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.world.porodnikPowered)return;
     if(!q.briefed){this.startStory('workshop');return;}
     if(q.tools&&q.mechanic&&!q.returnBriefed){this.startStory('workshopReturn');return;}
-    if(!q.ready&&canRestoreWorkshop(q,this.world)){
+    if(!q.ready&&canRestoreWorkshop(q,this.questWorld('workshop'))){
       q.ready=true;this.workshop.powered(true);this.mechanicPassenger.setVisible(false);
       this.persist();this.startStory('workshopReady');
     }
@@ -237,7 +237,7 @@ export class Base extends globalThis.Phaser.Scene {
       ()=>!this.layoutEditing&&!this.busy&&!this.storyActive&&!document.querySelector('#dialog').open);
 
   }
-  liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.world)===0;}
+  liftReady() {return this.floorNumber?true:this.world.rescued&&liftBlockCount(this.questWorld('lift'))===0;}
   syncAction() {
     const action=document.querySelector('#rescue-action');if(!action||!this.rig)return;
     const repairItem=this.repairFloorAction(),atRepair=!this.floorNumber&&this.repairQuest.ready&&onRepairDeck(this.rig,this.buildingDeck('repair'));
@@ -259,12 +259,12 @@ export class Base extends globalThis.Phaser.Scene {
     document.querySelector('.radio-title').lastChild.textContent=this.floorNumber?` РАЦИЯ · ЭТАЖ ${this.floorNumber}`:' РАЦИЯ · БАЗА';
     document.querySelector('#quest-name').textContent=this.floorNumber?'Первый спуск':!w.rescued?'Голос за завалом':ready?'Расчистить «Породник»':'Расчистить лифт';
     document.querySelector('#radio-text').textContent=this.floorNumber?'Первый этаж. Вернуться на базу можно через грузовой лифт.':!w.rescued?(w.heard?STORY_LINES.radio[0]:'Ты очнулся один. Бур завёлся. Рация оживает.'):ready?'Лифт освобождён. Следующее задание: расчистить «Породник».':STORY_LINES.rescue[3];
-    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(w)}/3 · Ключ-карта 1-го этажа получена`;
+    document.querySelector('#quest-status').textContent=this.floorNumber?'Карта 1-го этажа использована для доступа · База доступна':!w.rescued?`Расчищено: ${w.cleared.size} · Подъедь к Серёге вплотную`:ready?'Расчисти завал у приёмника · Серёга восстановит питание':`Расчистить лифт: ${3-liftBlockCount(this.questWorld('lift'))}/3 · Ключ-карта 1-го этажа получена`;
     if(!this.floorNumber&&w.porodnikPowered){
       document.querySelector('#quest-name').textContent='«Породник» работает';
       document.querySelector('#radio-text').textContent='Заезжай на площадку и выгружай породу. Лифт готов к спуску.';
       document.querySelector('#quest-status').textContent='Приёмник готов к работе';
-    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(w)}/5`;}
+    }else if(!this.floorNumber&&ready){document.querySelector('#quest-status').textContent=`Приёмник: ${5-porodnikBlockCount(this.questWorld('porodnik'))}/5`;}
     if(this.porodnikLed)this.porodnikLed.setFillStyle(w.porodnikPowered?0x74ee87:0xffac46);
     const q=this.workshopQuest;
     if(q?.briefed) {
@@ -273,7 +273,7 @@ export class Base extends globalThis.Phaser.Scene {
         name.textContent='Инструменты для мастерской';radio.textContent=q.tools&&q.mechanic?'Инструменты и механик на борту. Возвращайся на базу через лифт.':'Найди ящик с инструментами и спаси Константина Б.';
         status.textContent=q.tools&&q.mechanic?`Лифт: ${objectiveBearing(this.rig,FLOOR_LIFT)}`:`Инструменты: ${q.tools?'✓':objectiveBearing(this.rig,TOOLS_SITE)} · Константин: ${q.mechanic?'✓':objectiveBearing(this.rig,MECHANIC_SITE)}`;
       }else if(q.ready){name.textContent=q.upgrades?'Бур готов к следующему спуску':'Первое улучшение бура';radio.textContent=q.upgrades?'Константин улучшил бур. Следующая история — спасение оружейника на втором этаже.':'Заезжай в мастерскую. Константин улучшит мощность за кредиты.';status.textContent=`Мощность: ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}% · Груз: ${this.cargo}/${this.cargoCapacity()} · Кредиты: ${this.credits}`;
-      }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(w)}/3 · Мастерская: ${objectiveBearing(this.rig,{x:32,y:34})}`;
+      }else if(q.tools&&q.mechanic){name.textContent='Расчистить мастерскую';radio.textContent='Инструменты и механик доставлены. Серёга ждёт у мастерской.';status.textContent=`Ворота: ${3-workshopBlockCount(this.questWorld('workshop'))}/3 · Мастерская: ${objectiveBearing(this.rig,this.buildingPoint('workshop'))}`;
       }else{name.textContent='Инструменты для мастерской';radio.textContent='На первом этаже нужны инструменты. Там остался механик Константин Б.';status.textContent=`Инструменты: ${q.tools?'✓':'не найдены'} · Механик: ${q.mechanic?'спасён':'не найден'} · Лифт: ${objectiveBearing(this.rig,this.buildingGeom('lift').center)}`;}
     }
     this.refreshArmoryHUD();this.refreshRepairHUD();this.refreshConstructionHUD();this.refreshDemyanHUD();this.refreshKeycards();this.refreshCombatHUD();this.lift.powered(ready);this.syncAction();
@@ -403,7 +403,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(status&&status.textContent!==text)status.textContent=text;
   }
   checkPorodnik() {
-    if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.world)>0)return;
+    if(this.floorNumber||this.world.porodnikPowered||!this.world.porodnikBriefed||porodnikBlockCount(this.questWorld('porodnik'))>0)return;
     this.world.porodnikPowered=true;this.rewardQuest('porodnik');this.refreshHUD();this.persist();
     this.notify('СЕРЁГА ВОССТАНОВИЛ ПИТАНИЕ · «ПОРОДНИК» РАБОТАЕТ');
   }
@@ -574,8 +574,10 @@ export class Base extends globalThis.Phaser.Scene {
   drawLiftGlow(time) {
     this.blockGlow.clear();if(this.floorNumber===5&&!this.demyanQuest.rescued){const pulse=.55+.25*Math.sin(time*.004);for(const p of DEMYAN_ENTRANCE)if(this.world.blocked(p.x,p.y)){this.blockGlow.fillStyle(0xffd66c,.18);this.blockGlow.fillRect(p.x*CELL,p.y*CELL,CELL,CELL);this.blockGlow.lineStyle(4,0xffe28b,pulse);this.blockGlow.strokeRect(p.x*CELL+3,p.y*CELL+3,CELL-6,CELL-6);}return;}if(this.floorNumber||!this.world.rescued)return;
     const blocks=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?REPAIR_BLOCKS:this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?ARMORY_BLOCKS:this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?WORKSHOP_BLOCKS:this.liftReady()?(this.world.porodnikBriefed&&!this.world.porodnikPowered?PORODNIK_BLOCKS:[]):LIFT_BLOCKS;
+    const key=this.repairQuest?.returnBriefed&&!this.repairQuest.ready?'repair':this.armoryQuest?.returnBriefed&&!this.armoryQuest.ready?'armory':this.workshopQuest?.returnBriefed&&!this.workshopQuest.ready?'workshop':this.liftReady()?'porodnik':'lift',o=this.buildingLayout[key]||{};
+    const shiftedBlocks=blocks.map(p=>({x:p.x+(o.dx||0),y:p.y+(o.dy||0)}));
     const pulse=.35+.15*Math.sin(time*.0035);
-    for(const p of blocks)if(this.world.blocked(p.x,p.y)) {
+    for(const p of shiftedBlocks)if(this.world.blocked(p.x,p.y)) {
       this.blockGlow.fillStyle(0xffcc6c,pulse*.22);this.blockGlow.fillRoundedRect(p.x*CELL+3,p.y*CELL+3,58,58,8);
       this.blockGlow.lineStyle(3,0xffd078,pulse+.2);this.blockGlow.strokeRoundedRect(p.x*CELL+4,p.y*CELL+4,56,56,8);
     }
@@ -583,7 +585,7 @@ export class Base extends globalThis.Phaser.Scene {
   solidCell(x,y) { return (this.floorNumber===4&&!this.constructionQuest.rescued&&x===BUILDER_SITE.x&&y===BUILDER_SITE.y)||(this.floorNumber===3&&!this.repairQuest.rescued&&x===REPAIRMAN_SITE.x&&y===REPAIRMAN_SITE.y)||(this.floorNumber===2&&!this.armoryQuest.rescued&&x===ARMORER_SITE.x&&y===ARMORER_SITE.y)||(this.floorNumber===1&&!this.workshopQuest.mechanic&&x===MECHANIC_SITE.x&&y===MECHANIC_SITE.y)||!this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
   driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
-    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[ARCHITECT_BODY]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[])])];
+    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
     return solid;
   }
   advanceVehicle(time,dt,direction) {
