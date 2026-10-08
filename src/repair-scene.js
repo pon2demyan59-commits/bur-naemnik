@@ -23,7 +23,7 @@ export const repairMethods={
  },
  collectRepairItem(kind){
   const q=this.repairQuest;
-  if(kind==='repairKit'&&!q.kit){q.kit=true;this.repairKitArt.setVisible(false);this.notify('РЕМОНТНЫЙ КОМПЛЕКТ НА БОРТУ');}
+  if(kind==='repairKit'&&!q.kit){q.kit=true;this.repairKitArt.setVisible(false);this.showDiscovery({kind:'crate',name:'Ящик с ремонтным комплектом',description:'Оборудование ремонтного цеха',note:'Комплект на борту. Доставь его на базу.'});}
   if(kind==='repairman'&&!q.rescued){q.rescued=true;this.repairman.setVisible(false);this.repairPassenger.setVisible(true);this.startStory('repairman');}
   this.refreshHUD();this.persist();
  },

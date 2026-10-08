@@ -29,7 +29,7 @@ export const armoryMethods={
  collectArmoryItem(kind) {
   const q=this.armoryQuest;
   if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
-  if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.notify('НАЙДЕН ЧЕРТЁЖ · ПЕРВАЯ ПУШКА');}
+  if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.showDiscovery({kind:'blueprint',name:'Первая пушка',description:'Чертёж оружия для бура',note:'Чертёж сохранён. Вернись на базу, чтобы восстановить оружейную.'});}
   this.refreshHUD();this.persist();
  },
  checkArmory() {

@@ -1253,11 +1253,10 @@ const collectionMethods={
 };
 
 
-
 const artifactSceneMethods={
  findArtifactInBrokenBlock(){
   const artifact=awardArtifactDrop(this.artifacts,this.floorNumber);if(!artifact)return null;
-  this.notify('АРТЕФАКТ НАЙДЕН · '+artifact.name+' · '+RARITY_NAMES[artifactRarity(artifact.id)-1]);return artifact;
+  this.showDiscovery({kind:'artifact',name:artifact.name,rarity:artifactRarity(artifact.id)});return artifact;
  }
 };
 
@@ -2013,7 +2012,7 @@ const STORY_LINES = {
     {speaker:'Строительный мастер',text:'Ещё спрашиваешь. Чертежи при мне. Подвези до лифта — дальше разберёмся.'}
   ],
   builderReturn:[
-    {speaker:'Серёга Т',text:'Вот теперь можно строить. Стол подготовил, инструмент тоже.'},
+    {speaker:'Серёга Т',text:'Вот теперь можно строить. Дом архитектора подготовил, инструмент тоже.'},
     {speaker:'Строительный мастер',text:'Бур у тебя вместо карманов, что ли? Начнём со склада. Держи первый чертёж.'},
     {speaker:'Строительный мастер',text:'Первый склад уже подготовлен. Пользуйся им бесплатно — материалы пригодятся для следующих построек.'},
     {speaker:'Герой',text:'А потом займёмся защитой базы.'}
@@ -2598,7 +2597,7 @@ const repairMethods={
  },
  collectRepairItem(kind){
   const q=this.repairQuest;
-  if(kind==='repairKit'&&!q.kit){q.kit=true;this.repairKitArt.setVisible(false);this.notify('РЕМОНТНЫЙ КОМПЛЕКТ НА БОРТУ');}
+  if(kind==='repairKit'&&!q.kit){q.kit=true;this.repairKitArt.setVisible(false);this.showDiscovery({kind:'crate',name:'Ящик с ремонтным комплектом',description:'Оборудование ремонтного цеха',note:'Комплект на борту. Доставь его на базу.'});}
   if(kind==='repairman'&&!q.rescued){q.rescued=true;this.repairman.setVisible(false);this.repairPassenger.setVisible(true);this.startStory('repairman');}
   this.refreshHUD();this.persist();
  },
@@ -2855,7 +2854,7 @@ const armoryMethods={
  collectArmoryItem(kind) {
   const q=this.armoryQuest;
   if(kind==='armorer'&&!q.rescued){q.rescued=true;q.gifted=true;this.armorer.setVisible(false);this.armorerMarker.setVisible(false);this.blueprintArt.setVisible(true);this.blueprintMarker.setVisible(true);this.armorerPassenger?.setVisible(true);this.startStory('armorer');}
-  if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.notify('НАЙДЕН ЧЕРТЁЖ · ПЕРВАЯ ПУШКА');}
+  if(kind==='blueprint'&&q.rescued&&!q.blueprint){q.blueprint=true;this.blueprintArt.setVisible(false);this.blueprintMarker.setVisible(false);this.showDiscovery({kind:'blueprint',name:'Первая пушка',description:'Чертёж оружия для бура',note:'Чертёж сохранён. Вернись на базу, чтобы восстановить оружейную.'});}
   this.refreshHUD();this.persist();
  },
  checkArmory() {
@@ -2908,10 +2907,10 @@ const BUILDER_SITE={x:35,y:30};
 const BUILDER_ENTRANCE=[{x:34,y:28},{x:35,y:28},{x:36,y:28}];
 const BUILDER_GUARDS=[{x:34,y:30},{x:36,y:30},{x:35,y:32}];
 const BUILDER_STORIES=['builderBrief','builderSignal','builderRescue','builderReturn','warehouseReady'];
-const CONSTRUCTION_DESK={x:22,y:24};
-const ARCHITECT_BODY={x:21*CELL,y:23*CELL,width:3*CELL,height:1.5*CELL};
-const ARCHITECT_DECK={x:21*CELL,y:24.5*CELL,width:3*CELL,height:.5*CELL};
-const ARCHITECT_FOOTPRINT={x:21*CELL,y:23*CELL,width:3*CELL,height:2*CELL};
+const CONSTRUCTION_DESK={x:25,y:29};
+const ARCHITECT_BODY={x:21*CELL,y:23*CELL,width:8*CELL,height:6*CELL};
+const ARCHITECT_DECK={x:21*CELL,y:29*CELL,width:8*CELL,height:CELL};
+const ARCHITECT_FOOTPRINT={x:21*CELL,y:23*CELL,width:8*CELL,height:7*CELL};
 const WAREHOUSE_PLOTS=[{x:24,y:18,name:'У лифта'},{x:13,y:23,name:'Западная площадка'},{x:24,y:37,name:'Южная площадка'},{x:39,y:18,name:'Восточная площадка'}];
 const WAREHOUSE_RECIPE={earth:80,stone:20};
 const WAREHOUSE_MS=10000,WAREHOUSE_CAPACITY=100;
@@ -2965,10 +2964,12 @@ function upgradeWarehouse(q,credits){const price=warehouseUpgradePrice(q);if(!q.
 
 
 
+
 const inDeck=(rig,d)=>rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.height;
 const constructionMethods={
  prepareArchitectHouse(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
+  this.migrateArchitectFootprint();
   const f=ARCHITECT_FOOTPRINT;for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
  },
  grantStarterWarehouse(announce=true){
@@ -2982,6 +2983,23 @@ const constructionMethods={
   this.renderConstruction();
   if(announce&&this.rig)this.rewardQuest('warehouseReady');else{const reward=claimQuestReward(this.questRewards,'warehouseReady',this.credits);this.credits=reward.credits;}return true;
  },
+ migrateArchitectFootprint(){
+  if(this.floorNumber||!this.constructionQuest?.unlocked)return;
+  const q=this.constructionQuest,head=this.demyanQuest;
+  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
+  const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
+  for(const key of keys){
+   const original=geometry(key);if(!rectanglesOverlap(original.footprint,ARCHITECT_FOOTPRINT))continue;
+   const others=keys.filter(k=>k!==key).map(k=>geometry(k).footprint),f=original.footprint,w=Math.ceil(f.width/CELL),h=Math.ceil(f.height/CELL),choices=[];
+   for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};if(rectanglesOverlap(candidate,ARCHITECT_FOOTPRINT)||rectanglesOverlap(candidate,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(candidate,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
+   const position=choices.sort((a,b)=>a.score-b.score)[0];if(!position)continue;
+   const dx=position.x-f.x/CELL,dy=position.y-f.y/CELL;
+   if(key==='hq')head.plot={x:head.plot.x+dx,y:head.plot.y+dy};
+   else if(key==='warehouse')q.offset={dx:(q.offset?.dx||0)+dx,dy:(q.offset?.dy||0)+dy};
+   else this.buildingLayout[key]={dx:(this.buildingLayout[key]?.dx||0)+dx,dy:(this.buildingLayout[key]?.dy||0)+dy};
+   for(let cy=position.y;cy<position.y+h;cy++)for(let cx=position.x;cx<position.x+w;cx++){this.world.cleared.add(cy*50+cx);this.world.damage.delete(cy*50+cx);}
+  }
+ },
  makeConstructionObjects(){
   const q=this.constructionQuest;
   if(this.floorNumber===4){
@@ -2992,8 +3010,8 @@ const constructionMethods={
   }else if(!this.floorNumber){
    this.constructionArt=this.add.graphics().setDepth(5);
    const d=CONSTRUCTION_DESK,x=(d.x+.5)*CELL,y=(d.y+.5)*CELL;
-   this.builderAtBase=makePerson(this,x+76,y+32,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
-   this.builderSerega=makePerson(this,x-76,y+32,'serega').setVisible(q.unlocked);
+   this.builderAtBase=makePerson(this,x+76,y,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
+   this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
    this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
    this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
    this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);
@@ -3224,7 +3242,7 @@ const demyanMethods={
    this.demyanGun=this.add.graphics();this.demyanGun.fillStyle(0x152423);this.demyanGun.fillRoundedRect(-8,-5,36,9,2);this.demyanGun.fillStyle(0x859485);this.demyanGun.fillRect(22,-3,18,4);this.demyanPerson.add(this.demyanGun);
    this.evacuees=Array.from({length:3},(_,i)=>{const p={x:(34.5+i)*CELL,y:29.5*CELL,root:makePerson(this,(34.5+i)*CELL,29.5*CELL,i===2?'ilya':'serega'),path:[]};p.root.setVisible(i>=q.evacuated&&!q.rescued);return p;});
   }else if(!this.floorNumber){
-   this.demyanPerson=makePerson(this,22.5*CELL,26.5*CELL,'armorer').setVisible(q.returned);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
+   this.demyanPerson=makePerson(this,23.5*CELL,30.5*CELL,'armorer').setVisible(q.returned);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
    this.hqLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#ffe3a6',backgroundColor:'#223b35',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);this.renderHeadquarters();
   }
   this.demyanPassenger=this.add.image(-6,-13,'people','armorer-0').setDisplaySize(17,17).setTint(0xb1b99d).setVisible(q.rescued&&!q.returned);this.rig.add(this.demyanPassenger);
@@ -3326,6 +3344,59 @@ const demyanMethods={
 
 
 
+const DISCOVERY_COLORS=['#d6c79c','#99d796','#6ed8cf','#78b7ff','#b798ff','#ef8cd8','#ffad70','#ffe180','#ff837e','#f5ecff'];
+function discoveryDetails(item){
+ const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
+ if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
+ if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
+ return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',color:'#ffd780',rarity:5};
+}
+const discoveryMethods={
+ showDiscovery(item){
+  this.discoveryQueue ||= [];this.discoveryQueue.push({...item});
+  if(!this.discoveryActive)this.openNextDiscovery();
+ },
+ showKeycardDiscovery(floor){
+  this.discoveryCards ||= [];if(this.discoveryCards.includes(floor))return false;
+  this.discoveryCards.push(floor);this.persist();this.showDiscovery({kind:'keycard',floor});return true;
+ },
+ showBonusBoxDiscovery(name='Бонусный ящик',contents='Содержимое получено'){
+  this.showDiscovery({kind:'crate',name,description:'Бонусный ящик',note:contents});
+ },
+ openNextDiscovery(){
+  const item=this.discoveryQueue?.shift();if(!item){this.discoveryActive=false;return;}
+  const spec=discoveryDetails(item);this.discoveryActive=true;this.dialogClosed();this.speed=0;this.persist();
+  const previousFocus=document.activeElement,dialog=document.createElement('dialog');dialog.className='discovery-dialog';dialog.setAttribute('aria-labelledby','discovery-heading');dialog.style.setProperty('--discovery-color',spec.color);
+  const card=document.createElement('section');card.className='discovery-card';card.dataset.rarity=String(spec.rarity);
+  const beams=document.createElement('div');beams.className='discovery-beams';beams.setAttribute('aria-hidden','true');
+  const sparks=document.createElement('div');sparks.className='discovery-sparks';sparks.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const dot=document.createElement('i');dot.style.setProperty('--i',String(i));dot.style.setProperty('--top',String(15+(i*17)%65)+'%');sparks.append(dot);}
+  const eyebrow=document.createElement('p');eyebrow.className='discovery-eyebrow';eyebrow.textContent=spec.eyebrow;
+  const heading=document.createElement('h2');heading.id='discovery-heading';heading.textContent=spec.heading;
+  const art=document.createElement('img');art.className='discovery-art';art.src='./public/assets/quests/'+spec.art;art.alt='';
+  const name=document.createElement('strong');name.className='discovery-name';name.textContent=spec.name;
+  const rarity=document.createElement('p');rarity.className='discovery-rarity';rarity.textContent=spec.description;
+  const note=document.createElement('p');note.className='discovery-note';note.textContent=spec.note;
+  const button=document.createElement('button');button.type='button';button.className='discovery-continue';button.textContent='ПРОДОЛЖИТЬ';
+  card.append(beams,sparks,eyebrow,heading,art,name,rarity,note,button);dialog.append(card);document.querySelector('#ui').append(dialog);let closed=false;
+  const cleanup=()=>{document.removeEventListener('keydown',keyboard,true);dialog.removeEventListener('cancel',cancel);dialog.remove();};
+  const finish=()=>{if(closed)return;closed=true;cleanup();this.events.off('shutdown',abort);this.discoveryActive=false;
+   if(this.discoveryQueue.length){this.openNextDiscovery();return;}
+   this.input.enabled=true;this.scene.resume();this.dialogClosed();if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});
+  };
+  const keyboard=e=>{if(['Enter','Space','KeyE'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)finish();}else if(['Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation();}};
+  const cancel=e=>e.preventDefault();const abort=()=>{closed=true;cleanup();this.discoveryActive=false;this.discoveryQueue=[];};
+  document.addEventListener('keydown',keyboard,true);dialog.addEventListener('cancel',cancel);button.addEventListener('click',finish);this.events.once('shutdown',abort);
+  dialog.showModal();button.focus({preventScroll:true});this.input.enabled=false;this.scene.pause();this.playDiscoveryFanfare(spec.rarity);
+ },
+ playDiscoveryFanfare(rarity){
+  const ctx=this.sound?.context;if(!readSettings().sound||!ctx||ctx.state!=='running')return;
+  [392,493.88,587.33,783.99].forEach((hz,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),at=ctx.currentTime+i*.11;osc.type='triangle';osc.frequency.value=hz*(rarity>=8?1.25:1);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.035,at+.015);gain.gain.exponentialRampToValueAtTime(.001,at+.5);osc.connect(gain);gain.connect(ctx.destination);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(at);osc.stop(at+.55);});
+ }
+};
+
+
+
+
 
 
 
@@ -3367,7 +3438,7 @@ class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
     const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
-    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
+    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
@@ -3383,7 +3454,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber){this.inventory.fiber+=this.carriedLoot.fiber;this.inventory.heads+=this.carriedLoot.heads;this.carriedLoot={fiber:0,heads:0};}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;
-    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=22;this.world.y=25;}
+    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=25;this.world.y=29;}
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
@@ -3506,7 +3577,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   collectWorkshopItem(kind) {
     const q=this.workshopQuest;
-    if(kind==='tools'&&!q.tools){q.tools=true;this.toolsArt.setVisible(false);this.toolsMarker.setVisible(false);this.notify('ЯЩИК С ИНСТРУМЕНТАМИ ПОЛУЧЕН');}
+    if(kind==='tools'&&!q.tools){q.tools=true;this.toolsArt.setVisible(false);this.toolsMarker.setVisible(false);this.showDiscovery({kind:'crate',name:'Ящик с инструментами',description:'Оборудование для мастерской',note:'Доставь инструменты на базу вместе с механиком.'});}
     if(kind==='mechanic'&&!q.mechanic){q.mechanic=true;this.mechanic.setVisible(false);this.mechanicMarker.setVisible(false);this.mechanicPassenger.setVisible(true);this.startStory('mechanic');}
     this.refreshHUD();this.persist();
   }
@@ -3610,7 +3681,7 @@ class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -3623,7 +3694,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   goMenu() {if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
-    if(this.demyanQuest.dialogue||this.constructionQuest.dialogue||this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.discoveryActive||this.demyanQuest.dialogue||this.constructionQuest.dialogue||this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
     if(this.interactConstruction())return;
     if(this.interactDemyan())return;
     const repairItem=this.repairFloorAction();
@@ -3738,7 +3809,7 @@ class Base extends globalThis.Phaser.Scene {
     this.world.heard=true;this.world.dialogue='radio';this.world.dialoguePage=0;this.refreshHUD();this.startStory('radio');
   }
   startStory(kind) {
-    if(this.layoutEditing||this.busy||this.storyActive||!STORY_LINES[kind])return;
+    if(this.discoveryActive||this.layoutEditing||this.busy||this.storyActive||!STORY_LINES[kind])return;
     const holder=DEMYAN_STORIES.includes(kind)?this.demyanQuest:BUILDER_STORIES.includes(kind)?this.constructionQuest:REPAIR_STORIES.includes(kind)?this.repairQuest:ARMORY_STORIES.includes(kind)?this.armoryQuest:['workshop','mechanic','workshopReturn','workshopReady'].includes(kind)?this.workshopQuest:this.world;
     this.storyActive=true;this.speed=0;this.dialogClosed();holder.dialogue=kind;this.persist();
     showStoryDialogue(this,{kind,lines:STORY_LINES[kind],page:holder.dialoguePage,
@@ -3757,6 +3828,7 @@ class Base extends globalThis.Phaser.Scene {
         if(kind==='workshopReady')this.notify('МАСТЕРСКАЯ ВОССТАНОВЛЕНА · МЕХАНИК КОНСТАНТИН Б');
         if(kind==='porodnik')this.notify('НОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ПОРОДНИК»');
         if(kind==='rescue')this.notify('ПОЛУЧЕНА КЛЮЧ-КАРТА · ЭТАЖ 1\nНОВОЕ ЗАДАНИЕ · «РАСЧИСТИТЬ ЛИФТ»');
+        const foundFloor={rescue:1,armoryBrief:2,repairBrief:3,builderBrief:4,demyanBrief:5}[kind];if(foundFloor)this.showKeycardDiscovery(foundFloor);
         this.checkLift();this.checkPorodnik();this.checkRepair();this.checkConstruction();this.checkDemyan();
       }
     });
@@ -3849,7 +3921,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.keys||document.hidden)return;
     if(this.layoutEditing||this.hqSelecting){this.speed=0;this.cutting=false;return;}
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
-    if(this.busy||this.storyActive)return;
+    if(this.discoveryActive||this.busy||this.storyActive)return;
     if(document.querySelector('#dialog').open){
       if(this.workshopPanelRender){
         this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
@@ -3873,7 +3945,7 @@ class Base extends globalThis.Phaser.Scene {
     const pressed=[['left',k.LEFT],['left',k.A],['right',k.RIGHT],['right',k.D],['up',k.UP],['up',k.W],['down',k.DOWN],['down',k.S]].filter(([,key])=>key.isDown).sort((a,b)=>b[1].timeDown-a[1].timeDown);
     const direction=this.touchStick || this.hold || pressed[0]?.[0] || null;
     this.cutting=false;
-    this.advanceVehicle(time,dt,direction);
+    this.advanceVehicle(time,dt,direction);if(this.discoveryActive)return;
     this.animateVehicle(time,dt);this.updateCombat(Math.min(delta,50));this.updateDemyan(Math.min(delta,50));if(this.busy||this.leaving||this.storyActive)return;this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();
   }
   updateWorkshopService(time,dt,q=this.workshopQuest,deck=null) {
@@ -4025,7 +4097,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
@@ -4248,7 +4320,7 @@ else game = new Phaser.Game({
   type: location.protocol === 'file:' ? Phaser.CANVAS : Phaser.AUTO, parent: 'canvas-host', backgroundColor: '#0c1a1b',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   loader: { imageLoadType: 'HTMLImageElement' },
-  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
+  render: { antialias: true }, audio: { noAudio: false }, scene: [Boot, Title, Menu, Base, Floor],
 });
 
 

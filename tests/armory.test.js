@@ -27,7 +27,7 @@ test('armory quest starts after workshop cycle and requires rescued gunsmith, bl
 });
 test('gunsmith rescue gifts only once, reveals blueprint and persists both across travel',()=>{
  const scene=new Base();scene.floorNumber=2;scene.world=new FloorWorld({},2);scene.workshopQuest=restoreWorkshop({ready:true,upgrades:1});scene.armoryQuest=restoreArmory({briefed:true});scene.campaign={};scene.rig={x:1000,y:1000,angle:90};
- const sprite={setVisible(){}};for(const k of ['armorer','armorerMarker','blueprintArt','blueprintMarker','armorerPassenger'])scene[k]=sprite;scene.refreshHUD=()=>{};scene.persist=()=>{};scene.notify=()=>{};let stories=0;scene.startStory=()=>stories++;
+ const sprite={setVisible(){}};for(const k of ['armorer','armorerMarker','blueprintArt','blueprintMarker','armorerPassenger'])scene[k]=sprite;scene.refreshHUD=()=>{};scene.persist=()=>{};scene.showDiscovery=()=>{};scene.notify=()=>{};let stories=0;scene.startStory=()=>stories++;
  scene.collectArmoryItem('blueprint');assert.equal(scene.armoryQuest.blueprint,false);scene.collectArmoryItem('armorer');scene.collectArmoryItem('armorer');assert.equal(stories,1);scene.collectArmoryItem('blueprint');
  const q=restoreArmory(JSON.parse(JSON.stringify(scene.snapshotCampaign())).armoryQuest);assert.equal(q.gifted,true);assert.equal(q.rescued,true);assert.equal(q.blueprint,true);assert.equal(storyPresentation('armorer',0).portrait,'armorer-portrait.webp');
 });

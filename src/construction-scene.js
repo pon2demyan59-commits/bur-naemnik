@@ -1,3 +1,4 @@
+import { demyanGeometry } from './demyan-state.js';
 import { buildingGeometry, rectanglesOverlap } from './building-layout-state.js';
 import { claimQuestReward } from './quest-rewards.js';
 import { FLOOR_LIFT } from './lift-state.js';
@@ -12,6 +13,7 @@ const inDeck=(rig,d)=>rig.x>=d.x&&rig.x<=d.x+d.width&&rig.y>=d.y&&rig.y<=d.y+d.h
 export const constructionMethods={
  prepareArchitectHouse(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
+  this.migrateArchitectFootprint();
   const f=ARCHITECT_FOOTPRINT;for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
  },
  grantStarterWarehouse(announce=true){
@@ -25,6 +27,23 @@ export const constructionMethods={
   this.renderConstruction();
   if(announce&&this.rig)this.rewardQuest('warehouseReady');else{const reward=claimQuestReward(this.questRewards,'warehouseReady',this.credits);this.credits=reward.credits;}return true;
  },
+ migrateArchitectFootprint(){
+  if(this.floorNumber||!this.constructionQuest?.unlocked)return;
+  const q=this.constructionQuest,head=this.demyanQuest;
+  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
+  const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
+  for(const key of keys){
+   const original=geometry(key);if(!rectanglesOverlap(original.footprint,ARCHITECT_FOOTPRINT))continue;
+   const others=keys.filter(k=>k!==key).map(k=>geometry(k).footprint),f=original.footprint,w=Math.ceil(f.width/CELL),h=Math.ceil(f.height/CELL),choices=[];
+   for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};if(rectanglesOverlap(candidate,ARCHITECT_FOOTPRINT)||rectanglesOverlap(candidate,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(candidate,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
+   const position=choices.sort((a,b)=>a.score-b.score)[0];if(!position)continue;
+   const dx=position.x-f.x/CELL,dy=position.y-f.y/CELL;
+   if(key==='hq')head.plot={x:head.plot.x+dx,y:head.plot.y+dy};
+   else if(key==='warehouse')q.offset={dx:(q.offset?.dx||0)+dx,dy:(q.offset?.dy||0)+dy};
+   else this.buildingLayout[key]={dx:(this.buildingLayout[key]?.dx||0)+dx,dy:(this.buildingLayout[key]?.dy||0)+dy};
+   for(let cy=position.y;cy<position.y+h;cy++)for(let cx=position.x;cx<position.x+w;cx++){this.world.cleared.add(cy*50+cx);this.world.damage.delete(cy*50+cx);}
+  }
+ },
  makeConstructionObjects(){
   const q=this.constructionQuest;
   if(this.floorNumber===4){
@@ -35,8 +54,8 @@ export const constructionMethods={
   }else if(!this.floorNumber){
    this.constructionArt=this.add.graphics().setDepth(5);
    const d=CONSTRUCTION_DESK,x=(d.x+.5)*CELL,y=(d.y+.5)*CELL;
-   this.builderAtBase=makePerson(this,x+76,y+32,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
-   this.builderSerega=makePerson(this,x-76,y+32,'serega').setVisible(q.unlocked);
+   this.builderAtBase=makePerson(this,x+76,y,'serega').setVisible(q.unlocked);this.builderAtBase.workerArt.setTint(0xa7cde9);this.builderAtBase.workerPrevious.setTint(0xa7cde9);
+   this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
    this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
    this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
    this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);

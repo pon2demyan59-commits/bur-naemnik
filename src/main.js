@@ -139,7 +139,7 @@ else game = new Phaser.Game({
   type: location.protocol === 'file:' ? Phaser.CANVAS : Phaser.AUTO, parent: 'canvas-host', backgroundColor: '#0c1a1b',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   loader: { imageLoadType: 'HTMLImageElement' },
-  render: { antialias: true }, audio: { noAudio: true }, scene: [Boot, Title, Menu, Base, Floor],
+  render: { antialias: true }, audio: { noAudio: false }, scene: [Boot, Title, Menu, Base, Floor],
 });
 
 

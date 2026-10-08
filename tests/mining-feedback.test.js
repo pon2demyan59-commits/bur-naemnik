@@ -29,7 +29,7 @@ test('broken block reports material and rolls artifacts once even with full carg
   drill(x){blocks.delete(x);return true;}
  };
  s.rig={x:23.5*64,y:26.5*64,angle:0,setPosition(x,y){this.x=x;this.y=y;return this;},setAngle(a){this.angle=a;return this;}};
- s.artifacts={};s.notify=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={earth:199};s.cargo=199;
+ s.artifacts={};s.notify=()=>{};s.showDiscovery=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={earth:199};s.cargo=199;
  s.driveSolids=()=>()=>false;
  const noop=()=>{};
  s.drillBar={clear:noop,fillStyle:noop,fillRoundedRect:noop};
@@ -49,7 +49,7 @@ test('diagonal joystick pressure turns to the block face and collects ore throug
  const s=new Base(),blocks=new Set([24]);let pickups=0;
  s.world={x:23,y:26,heard:true,damage:new Map(),inside:()=>true,blocked:x=>blocks.has(x),material:()=> 'stone',drill(x){blocks.delete(x);return true;}};
  s.rig={x:23.5*64,y:26.5*64,angle:45,setPosition(x,y){this.x=x;this.y=y;return this;},setAngle(a){this.angle=a;return this;}};
- s.artifacts={};s.notify=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={};s.cargo=0;
+ s.artifacts={};s.notify=()=>{};s.showDiscovery=()=>{};s.floorNumber=1;s.speed=0;s.workshopQuest={upgrades:0};s.cargoHold={};s.cargo=0;
  s.driveSolids=()=>x=>blocks.has(x);
  const noop=()=>{};s.drillBar={clear:noop,fillStyle:noop,fillRoundedRect:noop};s.terrain={paintCell:noop,refreshAround:noop};s.dustEmitter=s.chipEmitter=s.sparkEmitter={emitParticleAt:noop};
  s.refreshHUD=s.checkLift=s.checkPorodnik=s.persist=noop;s.showCargoPickup=()=>pickups++;

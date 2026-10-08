@@ -27,7 +27,7 @@ export const demyanMethods={
    this.demyanGun=this.add.graphics();this.demyanGun.fillStyle(0x152423);this.demyanGun.fillRoundedRect(-8,-5,36,9,2);this.demyanGun.fillStyle(0x859485);this.demyanGun.fillRect(22,-3,18,4);this.demyanPerson.add(this.demyanGun);
    this.evacuees=Array.from({length:3},(_,i)=>{const p={x:(34.5+i)*CELL,y:29.5*CELL,root:makePerson(this,(34.5+i)*CELL,29.5*CELL,i===2?'ilya':'serega'),path:[]};p.root.setVisible(i>=q.evacuated&&!q.rescued);return p;});
   }else if(!this.floorNumber){
-   this.demyanPerson=makePerson(this,22.5*CELL,26.5*CELL,'armorer').setVisible(q.returned);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
+   this.demyanPerson=makePerson(this,23.5*CELL,30.5*CELL,'armorer').setVisible(q.returned);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
    this.hqLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#ffe3a6',backgroundColor:'#223b35',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);this.renderHeadquarters();
   }
   this.demyanPassenger=this.add.image(-6,-13,'people','armorer-0').setDisplaySize(17,17).setTint(0xb1b99d).setVisible(q.rescued&&!q.returned);this.rig.add(this.demyanPassenger);

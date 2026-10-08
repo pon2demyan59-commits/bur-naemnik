@@ -23,7 +23,7 @@ test('tools and mechanic have reachable excavatable sites and survive return tra
  }
  const scene=new Base();scene.floorNumber=1;scene.world=floor;scene.workshopQuest=restoreWorkshop({briefed:true});scene.campaign={base:{rescued:true,porodnikPowered:true}};scene.cargo=12;scene.credits=35;scene.rig={x:1200,y:1500,angle:-90};
  const hidden={setVisible(){}};scene.toolsArt=hidden;scene.toolsMarker=hidden;scene.mechanic=hidden;scene.mechanicMarker=hidden;scene.mechanicPassenger=hidden;
- scene.notify=()=>{};scene.refreshHUD=()=>{};scene.persist=()=>{};let stories=0;scene.startStory=()=>stories++;
+ scene.showDiscovery=()=>{};scene.notify=()=>{};scene.refreshHUD=()=>{};scene.persist=()=>{};let stories=0;scene.startStory=()=>stories++;
  scene.collectWorkshopItem('tools');scene.collectWorkshopItem('tools');scene.collectWorkshopItem('mechanic');scene.collectWorkshopItem('mechanic');assert.equal(stories,1);
  const save=JSON.parse(JSON.stringify(scene.snapshotCampaign()));const q=restoreWorkshop(save.workshopQuest);
  assert.equal(q.tools,true);assert.equal(q.mechanic,true);assert.equal(save.cargo,12);assert.equal(save.credits,35);assert.equal(save.base.porodnikPowered,true);
@@ -95,7 +95,7 @@ test('workshop panel stays open for successive clicks and its service progresses
  dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;dialog.listeners.close?.();};
  globalThis.document={hidden:false,createElement:element,querySelector:id=>({'#dialog':dialog,'#dialog-body':body,'#dialog-title':title}[id])};
  const scene=new Base();scene.workshopQuest=restoreWorkshop({ready:true});scene.credits=1000;
- scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=scene.notify=()=>{};
+ scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=scene.showDiscovery=()=>{};scene.notify=()=>{};
  scene.openWorkshop();const text=body.children[0].children[0].children[3];const [buy,status,exit]=body.children[0].children[1].children;
  buy.listeners.click();buy.listeners.click();
  assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,825);
