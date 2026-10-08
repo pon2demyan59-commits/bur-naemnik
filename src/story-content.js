@@ -154,7 +154,7 @@ export const STORY_LINES = {
 export function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
-  if(speaker==='Демьян П.'||speaker==='Неизвестный'||speaker==='Координатор')return {text:entry.text,speaker,role:speaker==='Демьян П.'?'НАЧАЛЬНИК ШТАБА':speaker==='Координатор'?'РАДИОСВЯЗЬ':'НЕИЗВЕСТНЫЙ ПОЗЫВНОЙ',portrait:speaker==='Демьян П.'?'demyan-portrait.svg':'radio-signal.svg'};
+  if(speaker==='Демьян П.'||speaker==='Неизвестный'||speaker==='Координатор')return {text:entry.text,speaker,role:speaker==='Демьян П.'?'НАЧАЛЬНИК ШТАБА':speaker==='Координатор'?'РАДИОСВЯЗЬ':'НЕИЗВЕСТНЫЙ ПОЗЫВНОЙ',portrait:speaker==='Демьян П.'?'demyan-portrait.webp':'radio-signal.svg'};
   return {text:typeof entry==='string'?entry:entry.text,speaker,
     role:speaker==='Строительный мастер'?'СТРОИТЕЛЬНЫЙ МАСТЕР':speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
     portrait:speaker==='Строительный мастер'?'builder-portrait-v2.webp':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};

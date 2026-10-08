@@ -1322,16 +1322,17 @@ const DEMYAN_GUARDS=[{x:30,y:28},{x:30,y:30},{x:30,y:32},{x:28,y:29},{x:28,y:31}
 const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady'];
 const HQ_RECIPE={earth:100,stone:60,iron:10};
 const HQ_MS=15000;
+const HQ_WIDTH=9,HQ_HEIGHT=8;
 function restoreDemyan(v={}){
  if(!v||typeof v!=='object')v={};
  const rescued=v.rescued===true,returned=rescued&&v.returned===true;
  return {briefed:v.briefed===true,contact:v.contact===true,evacuating:v.evacuating===true,
  evacuated:Number.isInteger(v.evacuated)?Math.max(0,Math.min(3,v.evacuated)):0,rescued,returned,
- hq:returned&&v.hq===true,plot:v.plot&&Number.isInteger(v.plot.x)&&Number.isInteger(v.plot.y)&&v.plot.x>=2&&v.plot.y>=2&&v.plot.x<=43&&v.plot.y<=43?{x:v.plot.x,y:v.plot.y}:null,
+ hq:returned&&v.hq===true,plot:v.plot&&Number.isInteger(v.plot.x)&&Number.isInteger(v.plot.y)&&v.plot.x>=2&&v.plot.y>=2&&v.plot.x<=43&&v.plot.y<=43?{x:Math.min(48-HQ_WIDTH,v.plot.x),y:Math.min(48-HQ_HEIGHT,v.plot.y)}:null,
  remaining:returned&&!v.hq&&Number.isFinite(v.remaining)?Math.max(0,Math.min(HQ_MS,v.remaining)):null,
  dialogue:DEMYAN_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,v.dialoguePage):0};
 }
-function demyanGeometry(q){if(!q?.plot)return null;const {x,y}=q.plot;return {body:{x:x*CELL,y:y*CELL,width:5*CELL,height:4*CELL},deck:{x:x*CELL,y:(y+4)*CELL,width:5*CELL,height:CELL},footprint:{x:x*CELL,y:y*CELL,width:5*CELL,height:5*CELL}};}
+function demyanGeometry(q){if(!q?.plot)return null;const {x,y}=q.plot;return {body:{x:(x+1)*CELL,y:(y+1)*CELL,width:7*CELL,height:6*CELL},deck:{x:(x+1)*CELL,y:(y+7)*CELL,width:7*CELL,height:CELL},footprint:{x:x*CELL,y:y*CELL,width:HQ_WIDTH*CELL,height:HQ_HEIGHT*CELL}};}
 function canEvacuateDemyan(q,world,spiders){return q.contact&&!q.rescued&&!q.evacuating&&DEMYAN_ENTRANCE.every(p=>!world.blocked(p.x,p.y))&&spiders.length===DEMYAN_GUARDS.length&&spiders.every(s=>s.hp<=0);}
 function beginHeadquarters(q,cargo,stock){
  if(!q.returned||q.hq||q.remaining!=null||!q.plot)return false;
@@ -2118,7 +2119,7 @@ const STORY_LINES = {
 function storyPresentation(kind,page) {
   const entry=STORY_LINES[kind][page];
   const speaker=typeof entry==='string'?'Серёга Т':entry.speaker;
-  if(speaker==='Демьян П.'||speaker==='Неизвестный'||speaker==='Координатор')return {text:entry.text,speaker,role:speaker==='Демьян П.'?'НАЧАЛЬНИК ШТАБА':speaker==='Координатор'?'РАДИОСВЯЗЬ':'НЕИЗВЕСТНЫЙ ПОЗЫВНОЙ',portrait:speaker==='Демьян П.'?'demyan-portrait.svg':'radio-signal.svg'};
+  if(speaker==='Демьян П.'||speaker==='Неизвестный'||speaker==='Координатор')return {text:entry.text,speaker,role:speaker==='Демьян П.'?'НАЧАЛЬНИК ШТАБА':speaker==='Координатор'?'РАДИОСВЯЗЬ':'НЕИЗВЕСТНЫЙ ПОЗЫВНОЙ',portrait:speaker==='Демьян П.'?'demyan-portrait.webp':'radio-signal.svg'};
   return {text:typeof entry==='string'?entry:entry.text,speaker,
     role:speaker==='Строительный мастер'?'СТРОИТЕЛЬНЫЙ МАСТЕР':speaker==='Илья К'?'РЕМОНТНИК':speaker==='Оружейник'?'ОРУЖЕЙНИК':speaker==='Константин Б'?'МЕХАНИК':speaker==='Герой'?'ПИЛОТ БУРА':'СТРОИТЕЛЬ',
     portrait:speaker==='Строительный мастер'?'builder-portrait-v2.webp':speaker==='Илья К'?'ilya-portrait.webp':speaker==='Оружейник'?'armorer-portrait.webp':speaker==='Константин Б'?'konstantin-portrait.webp':kind==='rescue'&&page>=2?'serega-portrait.webp':'serega-neutral.webp'};
@@ -2909,10 +2910,10 @@ const BUILDER_SITE={x:35,y:30};
 const BUILDER_ENTRANCE=[{x:34,y:28},{x:35,y:28},{x:36,y:28}];
 const BUILDER_GUARDS=[{x:34,y:30},{x:36,y:30},{x:35,y:32}];
 const BUILDER_STORIES=['builderBrief','builderSignal','builderRescue','builderReturn','warehouseReady'];
-const CONSTRUCTION_DESK={x:25,y:29};
-const ARCHITECT_BODY={x:21*CELL,y:23*CELL,width:8*CELL,height:6*CELL};
-const ARCHITECT_DECK={x:21*CELL,y:29*CELL,width:8*CELL,height:CELL};
-const ARCHITECT_FOOTPRINT={x:21*CELL,y:23*CELL,width:8*CELL,height:7*CELL};
+const CONSTRUCTION_DESK={x:23,y:26};
+const ARCHITECT_BODY={x:21*CELL,y:23*CELL,width:4*CELL,height:3*CELL};
+const ARCHITECT_DECK={x:21*CELL,y:26*CELL,width:4*CELL,height:CELL};
+const ARCHITECT_FOOTPRINT={x:21*CELL,y:23*CELL,width:4*CELL,height:4*CELL};
 const WAREHOUSE_PLOTS=[{x:24,y:18,name:'У лифта'},{x:13,y:23,name:'Западная площадка'},{x:24,y:37,name:'Южная площадка'},{x:39,y:18,name:'Восточная площадка'}];
 const WAREHOUSE_RECIPE={earth:80,stone:20};
 const WAREHOUSE_MS=10000,WAREHOUSE_CAPACITY=100;
@@ -2972,7 +2973,7 @@ const constructionMethods={
  prepareArchitectHouse(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
   this.migrateArchitectFootprint();
-  const f=ARCHITECT_FOOTPRINT;for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
+  const footprints=[ARCHITECT_FOOTPRINT,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&this.demyanQuest.plot?[demyanGeometry(this.demyanQuest).footprint]:[])];for(const f of footprints)for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
  },
  grantStarterWarehouse(announce=true){
   const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
@@ -2991,7 +2992,7 @@ const constructionMethods={
   const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
   const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
   for(const key of keys){
-   const original=geometry(key);if(!rectanglesOverlap(original.footprint,ARCHITECT_FOOTPRINT))continue;
+   const original=geometry(key);const bounds=original.footprint;const hqConflict=key==='hq'&&(keys.filter(k=>k!=='hq').some(k=>rectanglesOverlap(bounds,geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL);if(!hqConflict&&!rectanglesOverlap(bounds,ARCHITECT_FOOTPRINT))continue;
    const others=keys.filter(k=>k!==key).map(k=>geometry(k).footprint),f=original.footprint,w=Math.ceil(f.width/CELL),h=Math.ceil(f.height/CELL),choices=[];
    for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};if(rectanglesOverlap(candidate,ARCHITECT_FOOTPRINT)||rectanglesOverlap(candidate,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(candidate,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
    const position=choices.sort((a,b)=>a.score-b.score)[0];if(!position)continue;
@@ -3016,6 +3017,7 @@ const constructionMethods={
    this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
    this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
    this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
+   this.warehouseHouse=this.add.image(0,0,'warehouse-house').setOrigin(0).setDisplaySize(3*CELL,3*CELL).setDepth(5).setVisible(false);
    this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);
    this.renderConstruction();
   }
@@ -3057,8 +3059,9 @@ const constructionMethods={
  renderConstruction(){
   this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
   this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);this.architectSign?.setVisible(q.unlocked);
-  this.warehouseSign?.setVisible(q.warehouse);if(!q.unlocked)return;
+  this.warehouseSign?.setVisible(q.warehouse);this.warehouseHouse?.setVisible(q.warehouse);if(!q.unlocked)return;
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
+  if(q.warehouse){this.warehouseHouse?.setPosition(b.x,b.y);this.warehouseSign?.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y-12);return;}
   g.fillStyle(0x87c5aa,.12);g.fillRect(b.x,b.y,b.width,b.height+CELL);g.lineStyle(3,q.warehouse?0x6a8276:0xeec874,.8);g.strokeRect(b.x,b.y,b.width,b.height);
   if(!q.warehouse&&q.remaining==null)return;
   g.fillStyle(0x182d2b,.45);g.fillRoundedRect(b.x-5,b.y+8,b.width+12,b.height+4,9);
@@ -3067,12 +3070,7 @@ const constructionMethods={
   g.lineStyle(8,0x65533e);for(const x of [b.x+8,b.x+b.width-8])g.lineBetween(x,b.y+10,x,b.y+b.height);
   if(progress>.25){g.fillStyle(0x607e76);g.fillRoundedRect(b.x+4,b.y+12,b.width-8,b.height-14,7);g.lineStyle(2,0x354c48);for(let x=b.x+18;x<b.x+b.width-10;x+=18)g.lineBetween(x,b.y+18,x,b.y+b.height-8);}
   if(progress>.65){g.fillStyle(0x304d4c);g.fillRoundedRect(b.x-6,b.y-6,b.width+12,45,8);g.fillStyle(0x77908a);g.fillRoundedRect(b.x-6,b.y-10,b.width+12,34,8);g.lineStyle(2,0x4b6662);for(let x=b.x+8;x<b.x+b.width;x+=20)g.lineBetween(x,b.y-6,x,b.y+19);}
-  if(q.warehouse){
-   g.fillStyle(0x203834);g.fillRoundedRect(b.x+55,b.y+43,82,83,4);g.fillStyle(0x928a6a);g.fillRect(b.x+59,b.y+46,74,18);g.lineStyle(2,0x484e40);for(let y=b.y+50;y<b.y+65;y+=5)g.lineBetween(b.x+60,y,b.x+132,y);
-   for(const [dx,dy] of [[13,85],[30,98],[148,92]]){g.fillStyle(0xb58b4e);g.fillRoundedRect(b.x+dx,b.y+dy,26,25,3);g.lineStyle(2,0x705532);g.strokeRect(b.x+dx+3,b.y+dy+3,20,19);g.lineBetween(b.x+dx+4,b.y+dy+4,b.x+dx+22,b.y+dy+21);}
-   g.fillStyle(0xffd578);g.fillCircle(b.x+48,b.y+57,4);g.fillCircle(b.x+144,b.y+57,4);this.warehouseSign.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y+28);
-  }
-  else {g.fillStyle(0x183a31);g.fillRect(b.x+10,b.y+b.height+18,b.width-20,8);g.fillStyle(0xffd078);g.fillRect(b.x+10,b.y+b.height+18,(b.width-20)*progress,8);}
+  g.fillStyle(0x183a31);g.fillRect(b.x+10,b.y+b.height+18,b.width-20,8);g.fillStyle(0xffd078);g.fillRect(b.x+10,b.y+b.height+18,(b.width-20)*progress,8);
  },
  openConstruction(){
   if(this.demyanQuest?.returned&&!this.demyanQuest.hq){this.openHeadquartersBuild();return;}
@@ -3228,6 +3226,9 @@ const buildingLayoutMethods={
 
 
 const near=(rig,p,n=3)=>Math.hypot(rig.x-(p.x+.5)*CELL,rig.y-(p.y+.5)*CELL)<n*CELL;
+function makeOfficer(scene,x,y){
+ const person=scene.add.container(x,y).setDepth(10);person.militaryArt=scene.add.image(0,23,'military-guard').setOrigin(.5,1).setDisplaySize(43,70);person.add(person.militaryArt);return person;
+}
 const demyanMethods={
  makeDemyan(){
   this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
@@ -3240,11 +3241,13 @@ const demyanMethods={
    for(let i=0;i<35;i++){g.fillStyle(0xc39b50);g.fillRect(x-90+(i*47)%180,y-20+(i*29)%65,6,3);}
    g.fillStyle(0x19302e);g.fillRoundedRect(35*CELL,28*CELL+12,110,48,6);g.fillStyle(0x81b989);g.fillRect(35*CELL+14,28*CELL+22,70,22);
    this.postLabel=this.add.text(x,28*CELL-12,'КОМАНДНЫЙ ПОСТ · ПОСЛЕДНИЙ РУБЕЖ',{fontFamily:'Arial',fontSize:'16px',color:'#f4c77b',backgroundColor:'#20302c',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);
-   this.demyanPerson=makePerson(this,x,y,'armorer').setVisible(!q.rescued);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
+   this.demyanPerson=makeOfficer(this,x,y).setVisible(!q.rescued);
    this.demyanGun=this.add.graphics();this.demyanGun.fillStyle(0x152423);this.demyanGun.fillRoundedRect(-8,-5,36,9,2);this.demyanGun.fillStyle(0x859485);this.demyanGun.fillRect(22,-3,18,4);this.demyanPerson.add(this.demyanGun);
    this.evacuees=Array.from({length:3},(_,i)=>{const p={x:(34.5+i)*CELL,y:29.5*CELL,root:makePerson(this,(34.5+i)*CELL,29.5*CELL,i===2?'ilya':'serega'),path:[]};p.root.setVisible(i>=q.evacuated&&!q.rescued);return p;});
   }else if(!this.floorNumber){
-   this.demyanPerson=makePerson(this,23.5*CELL,30.5*CELL,'armorer').setVisible(q.returned);this.demyanPerson.workerArt.setTint(0xb1b99d);this.demyanPerson.workerPrevious.setTint(0xb1b99d);
+   this.demyanPerson=makeOfficer(this,23.5*CELL,30.5*CELL).setVisible(q.returned);
+   this.headquartersHouse=this.add.image(0,0,'headquarters').setOrigin(0).setDepth(6).setVisible(false);
+   this.hqSentries=Array.from({length:8},()=>this.add.image(0,0,'military-guard').setDisplaySize(32,52).setOrigin(.5,1).setDepth(10).setVisible(false));
    this.hqLabel=this.add.text(0,0,'',{fontFamily:'Arial',fontSize:'17px',fontStyle:'bold',color:'#ffe3a6',backgroundColor:'#223b35',padding:{x:8,y:5}}).setOrigin(.5).setDepth(9);this.renderHeadquarters();
   }
   this.demyanPassenger=this.add.image(-6,-13,'people','armorer-0').setDisplaySize(17,17).setTint(0xb1b99d).setVisible(q.rescued&&!q.returned);this.rig.add(this.demyanPassenger);
@@ -3273,8 +3276,9 @@ const demyanMethods={
  },
  interactDemyan(){const a=this.demyanAction();if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){this.openHeadquarters();return true;}return false;},
  updateDemyan(ms){
-  const q=this.demyanQuest;updatePerson(this.demyanPerson,ms,this.rig);
+  const q=this.demyanQuest;if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
+   this.hqSentries?.forEach((guard,i)=>{if(guard.visible)guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(this.time.now*.002+i)));});
    if(stepHeadquarters(q,ms)){this.renderHeadquarters();this.persist();this.startStory('hqReady');}else if(q.remaining!=null)this.renderHeadquarters();return;
   }
   if(this.floorNumber!==5||q.rescued)return;
@@ -3304,22 +3308,22 @@ const demyanMethods={
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Пробей боковой проход и уничтожь нападающих.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
-  else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 5×5.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 5×5 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
+  else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
  },
  headquartersError(q=this.demyanQuest){const geom=demyanGeometry(q);if(!geom)return 'Выбери место для штаба';const others=this.occupiedBuildingGeometries().filter(g=>g.kind!=='hq');const error=validateBuildingMove('hq',geom,this.world,others,this.rig);if(error)return error;const f=geom.footprint,buffer={x:f.x-2*CELL,y:f.y-2*CELL,width:f.width+4*CELL,height:f.height+4*CELL};if([...others.map(g=>g.footprint),ARCHITECT_FOOTPRINT].some(f=>rectanglesOverlap(buffer,f)))return 'Оставь проход шириной две клетки между зданиями';return null;},
  startHeadquartersPlacement(){
   document.querySelector('#dialog').close();this.dialogClosed();this.hqSelecting=true;document.querySelector('.base-hud').classList.add('layout-open');this.cameras.main.stopFollow();this.cameras.main.setZoom(.55);
-  const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.textContent='Нажми на место для штаба 5×5. Потяни карту, чтобы осмотреть базу.';note.className='building-editor-note';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);this.hqPlacementStrip=strip;
+  const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.textContent='Нажми на место для штаба 9×8. Потяни карту, чтобы осмотреть базу.';note.className='building-editor-note';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);this.hqPlacementStrip=strip;
   const down=p=>{this.hqPointer={x:p.x,y:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY,id:p.id};};
   const move=p=>{const a=this.hqPointer;if(!a||p.id!==a.id||!p.isDown)return;this.cameras.main.setScroll(a.scrollX-(p.x-a.x)/this.cameras.main.zoom,a.scrollY-(p.y-a.y)/this.cameras.main.zoom);};
-  const up=p=>{const a=this.hqPointer;this.hqPointer=null;if(!a||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL);if(x<2||y<2||x>43||y>43){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.demyanQuest.plot={x,y};this.renderHeadquarters();this.persist();note.textContent=this.headquartersError()||'Площадка выбрана. Вернись в меню и начни строительство.';};
+  const up=p=>{const a=this.hqPointer;this.hqPointer=null;if(!a||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL);if(x<2||y<2||x>48-HQ_WIDTH||y>48-HQ_HEIGHT){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.demyanQuest.plot={x,y};this.renderHeadquarters();this.persist();note.textContent=this.headquartersError()||'Площадка выбрана. Вернись в меню и начни строительство.';};
   this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);this.hqPlacementCleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);strip.remove();};this.events.once('shutdown',()=>this.hqPlacementCleanup?.());done.addEventListener('click',()=>this.finishHeadquartersPlacement());
  },
  finishHeadquartersPlacement(){this.hqPlacementCleanup?.();this.hqPlacementCleanup=null;this.hqSelecting=false;document.querySelector('.base-hud').classList.remove('layout-open');this.cameras.main.startFollow(this.rig,true,.1,.1);this.fit({width:this.scale.width,height:this.scale.height});this.openHeadquartersBuild();},
  openHeadquartersBuild(){
   this.dialogClosed();const q=this.demyanQuest,panel=document.createElement('div');panel.className='lift-console construction-controls';
-  const title=document.createElement('p');title.className='service-readout';title.textContent='ШТАБ · 5×5 КЛЕТОК · ДЕМЬЯН П.';
-  const note=document.createElement('p');note.className='terminal-note';note.textContent='Выбери площадку на карте. Расчисти все 25 клеток, оставь подход к входу снизу и проходы между зданиями. Строительство — 15 секунд. Материалы берутся из груза и склада.';
+  const title=document.createElement('p');title.className='service-readout';title.textContent='ШТАБ · 9×8 КЛЕТОК · ДЕМЬЯН П.';
+  const note=document.createElement('p');note.className='terminal-note';note.textContent='Выбери площадку на карте. Расчисти все 72 клетки, оставь подход к входу снизу и проходы между зданиями. Строительство — 15 секунд. Материалы берутся из груза и склада.';
   const set=document.createElement('button');set.className='metal-button';set.textContent='ВЫБРАТЬ МЕСТО НА КАРТЕ';const status=document.createElement('p');status.className='terminal-note';
   const build=document.createElement('button');build.className='metal-button';build.textContent='ПОСТРОИТЬ ШТАБ';
   const render=()=>{const err=this.headquartersError();status.textContent=q.remaining!=null?'Строительство началось. Закрой меню, чтобы продолжить.':(err||'Площадка готова')+' · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+((this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0))+'/'+n).join(' · ');build.disabled=!!err||q.remaining!=null||Object.entries(HQ_RECIPE).some(([id,n])=>(this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0)<n);set.disabled=q.remaining!=null;};
@@ -3328,18 +3332,22 @@ const demyanMethods={
   panel.append(title,note,set,status,build);render();showBuildingMenu('construction',panel);
  },
  renderHeadquarters(){
-  if(this.floorNumber||!this.demyanArt)return;const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot);if(!q.plot)return;
+  if(this.floorNumber||!this.demyanArt)return;const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;
   const geom=demyanGeometry(q),b=geom.body,f=geom.footprint;
-  preview.lineStyle(3,0xd7bc79,.8);preview.strokeRect(f.x,f.y,f.width,f.height);for(let i=1;i<5;i++){preview.lineStyle(1,0xd7bc79,.4);preview.lineBetween(f.x+i*CELL,f.y,f.x+i*CELL,f.y+f.height);preview.lineBetween(f.x,f.y+i*CELL,f.x+f.width,f.y+i*CELL);}
-  this.hqLabel?.setPosition(b.x+b.width/2,b.y-12).setText(q.hq?'ШТАБ · ДЕМЬЯН П.':q.remaining!=null?'ШТАБ · СТРОИТЕЛЬСТВО':'ПЛОЩАДКА ШТАБА · 5×5');
-  if(!q.hq&&q.remaining==null)return;
-  g.fillStyle(0x7d8065);g.fillRect(geom.deck.x,geom.deck.y,geom.deck.width,geom.deck.height);g.fillStyle(0x182c2b,.5);g.fillRoundedRect(b.x+7,b.y+10,b.width,b.height,12);g.fillStyle(0x51695d);g.fillRoundedRect(b.x,b.y,b.width,b.height,12);
-  g.fillStyle(0x2c443e);g.fillRoundedRect(b.x-4,b.y-4,b.width+8,80,10);g.lineStyle(3,0x8a9980);for(let i=0;i<6;i++)g.lineBetween(b.x+i*55,b.y,b.x+i*55,b.y+75);
-  g.fillStyle(0x1b2b2a);g.fillRect(b.x+125,b.y+150,70,106);g.fillStyle(0xd7b56c);g.fillRect(b.x+140,b.y+170,40,30);
-  for(const dx of [28,225]){g.fillStyle(0x253c34);g.fillRect(b.x+dx,b.y+105,65,60);g.fillStyle(0xbad18c);g.fillRect(b.x+dx+7,b.y+113,50,40);g.lineStyle(4,0x435848);g.lineBetween(b.x+dx+32,b.y+113,b.x+dx+32,b.y+153);}
-  g.lineStyle(4,0x9aab97);g.lineBetween(b.x+265,b.y+5,b.x+265,b.y-55);g.lineBetween(b.x+245,b.y-45,b.x+285,b.y-45);g.fillStyle(0xd0a35f);g.fillTriangle(b.x+80,b.y+90,b.x+92,b.y+110,b.x+68,b.y+110);
-  if(q.hq)this.demyanPerson?.setPosition(b.x+95,geom.deck.y+32).setVisible(true);
-  else{g.fillStyle(0x1d322c);g.fillRect(b.x+12,geom.deck.y+24,296,12);g.fillStyle(0xddbd72);g.fillRect(b.x+12,geom.deck.y+24,296*(1-q.remaining/15000),12);}
+  if(!q.hq){preview.lineStyle(3,0xd7bc79,.8);preview.strokeRect(f.x,f.y,f.width,f.height);preview.lineStyle(1,0xd7bc79,.4);for(let i=1;i<HQ_WIDTH;i++)preview.lineBetween(f.x+i*CELL,f.y,f.x+i*CELL,f.y+f.height);for(let i=1;i<HQ_HEIGHT;i++)preview.lineBetween(f.x,f.y+i*CELL,f.x+f.width,f.y+i*CELL);}
+  this.hqLabel?.setPosition(b.x+b.width/2,f.y-12).setText(q.hq?'ШТАБ · ДЕМЬЯН П.':q.remaining!=null?'ШТАБ · СТРОИТЕЛЬСТВО':'ПЛОЩАДКА ШТАБА · 9×8');
+  if(q.hq){
+   g.fillStyle(0x4a5950);g.fillRoundedRect(f.x,f.y,f.width,f.height,8);g.lineStyle(2,0x9c9575);g.strokeRect(f.x+5,f.y+5,f.width-10,f.height-10);
+   this.headquartersHouse?.setPosition(b.x,b.y).setDisplaySize(b.width,b.height+CELL);
+   const posts=[[1.5,.5],[7.5,.5],[.5,3],[8.5,3],[.5,6],[8.5,6],[1.5,7.5],[7.5,7.5]];
+   this.hqSentries?.forEach((p,i)=>{p.setPosition(f.x+posts[i][0]*CELL,f.y+posts[i][1]*CELL+22).setFlipX(i%2===1);p.sentryScaleX=p.scaleX;p.sentryScaleY=p.scaleY;});
+   this.demyanPerson?.setPosition(b.x+b.width/2-70,geom.deck.y+32).setVisible(true);return;
+  }
+  if(q.remaining==null)return;
+  g.fillStyle(0x435449);g.fillRect(f.x,f.y,f.width,f.height);g.lineStyle(6,0xb19b68);g.strokeRect(b.x,b.y,b.width,b.height);
+  for(let x=b.x+CELL/2;x<b.x+b.width;x+=CELL){g.lineStyle(4,0x687c6c);g.lineBetween(x,b.y,x,b.y+b.height);}
+  const progress=1-q.remaining/15000;g.fillStyle(0x1d322c);g.fillRect(b.x+12,geom.deck.y+24,b.width-24,12);g.fillStyle(0xddbd72);g.fillRect(b.x+12,geom.deck.y+24,(b.width-24)*progress,12);
+
  },
  openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent='Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Спасены трое выживших; следующая задача — подготовить жильё. Новые сюжетные поручения будут появляться здесь.';panel.append(title,note);showBuildingMenu('hq',panel);}
 };
@@ -3536,7 +3544,7 @@ class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber){this.inventory.fiber+=this.carriedLoot.fiber;this.inventory.heads+=this.carriedLoot.heads;this.carriedLoot={fiber:0,heads:0};}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;
-    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=25;this.world.y=29;}
+    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=CONSTRUCTION_DESK.x;this.world.y=CONSTRUCTION_DESK.y;}
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
@@ -3544,7 +3552,7 @@ class Base extends globalThis.Phaser.Scene {
   create() {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
-    if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){this.world.x=this.demyanQuest.plot.x+2;this.world.y=this.demyanQuest.plot.y+4;}}
+    if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
     this.makeMap();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
@@ -4193,7 +4201,7 @@ class Floor extends Base {
 const BUILDING_MENUS={
  construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
- hq:{title:'ШТАБ',portrait:'demyan-portrait',svg:true,name:'Демьян П.',role:'Начальник штаба',art:'menu-workshop-scene',hint:'Сюжетные задания · Выход на поверхность'},
+ hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
@@ -4214,7 +4222,7 @@ function showGamePanel(title,content,kind='terminal',back=null){
 function showBuildingMenu(kind,controls){
  const spec=BUILDING_MENUS[kind],layout=document.createElement('section');layout.className='service-layout service-'+kind;
  const staff=document.createElement('aside');staff.className='service-staff';
- const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'?'game/':'ui/')+spec.art+(spec.artSvg?'.svg':'.webp');art.alt='';
+ const art=document.createElement('img');art.className='service-art';art.src='./public/assets/'+(kind==='porodnik'||spec.artGame?'game/':'ui/')+spec.art+(spec.artSvg?'.svg':'.webp');art.alt='';
  if(spec.portrait){
   const portrait=document.createElement('img');portrait.className='service-portrait';portrait.src='./public/assets/ui/'+spec.portrait+(spec.svg?'.svg':'.webp');portrait.alt=spec.name;
   const name=document.createElement('strong'),role=document.createElement('span');name.textContent=spec.name;role.textContent=spec.role;
@@ -4355,6 +4363,7 @@ class Boot extends Phaser.Scene {
     this.load.image('armory', './public/assets/game/armory-v2.webp');
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
     this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
+    for(const key of ['warehouse-house','headquarters','military-guard'])this.load.image(key,'./public/assets/game/'+key+'.webp');
     this.load.image('architect-house', './public/assets/game/architect-house.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');

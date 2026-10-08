@@ -14,7 +14,7 @@ export const constructionMethods={
  prepareArchitectHouse(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
   this.migrateArchitectFootprint();
-  const f=ARCHITECT_FOOTPRINT;for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
+  const footprints=[ARCHITECT_FOOTPRINT,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&this.demyanQuest.plot?[demyanGeometry(this.demyanQuest).footprint]:[])];for(const f of footprints)for(let y=f.y/CELL;y<(f.y+f.height)/CELL;y++)for(let x=f.x/CELL;x<(f.x+f.width)/CELL;x++){const id=y*50+x;if(!this.world.cleared.has(id)){this.world.cleared.add(id);this.world.damage.delete(id);this.terrain?.paintCell(x,y);}}
  },
  grantStarterWarehouse(announce=true){
   const q=this.constructionQuest;if(this.floorNumber||!q?.unlocked||q.warehouse)return false;
@@ -33,7 +33,7 @@ export const constructionMethods={
   const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
   const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
   for(const key of keys){
-   const original=geometry(key);if(!rectanglesOverlap(original.footprint,ARCHITECT_FOOTPRINT))continue;
+   const original=geometry(key);const bounds=original.footprint;const hqConflict=key==='hq'&&(keys.filter(k=>k!=='hq').some(k=>rectanglesOverlap(bounds,geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL);if(!hqConflict&&!rectanglesOverlap(bounds,ARCHITECT_FOOTPRINT))continue;
    const others=keys.filter(k=>k!==key).map(k=>geometry(k).footprint),f=original.footprint,w=Math.ceil(f.width/CELL),h=Math.ceil(f.height/CELL),choices=[];
    for(let y=2;y<=48-h;y++)for(let x=2;x<=48-w;x++){const candidate={x:x*CELL,y:y*CELL,width:f.width,height:f.height};if(rectanglesOverlap(candidate,ARCHITECT_FOOTPRINT)||rectanglesOverlap(candidate,{x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL})||others.some(o=>rectanglesOverlap(candidate,o)))continue;let rubble=0;for(let cy=y;cy<y+h;cy++)for(let cx=x;cx<x+w;cx++)if(this.world.blocked(cx,cy))rubble++;choices.push({x,y,score:rubble*1000+(candidate.x-f.x)**2/CELL**2+(candidate.y-f.y)**2/CELL**2});}
    const position=choices.sort((a,b)=>a.score-b.score)[0];if(!position)continue;
@@ -58,6 +58,7 @@ export const constructionMethods={
    this.builderSerega=makePerson(this,x-76,y,'serega').setVisible(q.unlocked);
    this.architectHouse=this.add.image(ARCHITECT_FOOTPRINT.x,ARCHITECT_FOOTPRINT.y,'architect-house').setOrigin(0).setDisplaySize(ARCHITECT_FOOTPRINT.width,ARCHITECT_FOOTPRINT.height).setDepth(5).setVisible(q.unlocked);
    this.architectSign=this.add.text(x,ARCHITECT_BODY.y-10,'ДОМ АРХИТЕКТОРА',{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#ffe2a1',backgroundColor:'#203e36',padding:{x:5,y:3}}).setOrigin(.5).setDepth(8).setVisible(q.unlocked);
+   this.warehouseHouse=this.add.image(0,0,'warehouse-house').setOrigin(0).setDisplaySize(3*CELL,3*CELL).setDepth(5).setVisible(false);
    this.warehouseSign=this.add.text(0,0,'СКЛАД',{fontFamily:'Arial',fontSize:'18px',fontStyle:'bold',color:'#ffdfa0',backgroundColor:'#29433b',padding:{x:12,y:3}}).setOrigin(.5).setDepth(7).setVisible(false);
    this.renderConstruction();
   }
@@ -99,8 +100,9 @@ export const constructionMethods={
  renderConstruction(){
   this.prepareArchitectHouse();const g=this.constructionArt,q=this.constructionQuest;if(!g)return;g.clear();
   this.builderAtBase?.setVisible(q.unlocked);this.builderSerega?.setVisible(q.unlocked);this.architectHouse?.setVisible(q.unlocked);this.architectSign?.setVisible(q.unlocked);
-  this.warehouseSign?.setVisible(q.warehouse);if(!q.unlocked)return;
+  this.warehouseSign?.setVisible(q.warehouse);this.warehouseHouse?.setVisible(q.warehouse);if(!q.unlocked)return;
   const b=warehouseBody(q),progress=q.warehouse?1:q.remaining!=null?1-q.remaining/WAREHOUSE_MS:0;
+  if(q.warehouse){this.warehouseHouse?.setPosition(b.x,b.y);this.warehouseSign?.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y-12);return;}
   g.fillStyle(0x87c5aa,.12);g.fillRect(b.x,b.y,b.width,b.height+CELL);g.lineStyle(3,q.warehouse?0x6a8276:0xeec874,.8);g.strokeRect(b.x,b.y,b.width,b.height);
   if(!q.warehouse&&q.remaining==null)return;
   g.fillStyle(0x182d2b,.45);g.fillRoundedRect(b.x-5,b.y+8,b.width+12,b.height+4,9);
@@ -109,12 +111,7 @@ export const constructionMethods={
   g.lineStyle(8,0x65533e);for(const x of [b.x+8,b.x+b.width-8])g.lineBetween(x,b.y+10,x,b.y+b.height);
   if(progress>.25){g.fillStyle(0x607e76);g.fillRoundedRect(b.x+4,b.y+12,b.width-8,b.height-14,7);g.lineStyle(2,0x354c48);for(let x=b.x+18;x<b.x+b.width-10;x+=18)g.lineBetween(x,b.y+18,x,b.y+b.height-8);}
   if(progress>.65){g.fillStyle(0x304d4c);g.fillRoundedRect(b.x-6,b.y-6,b.width+12,45,8);g.fillStyle(0x77908a);g.fillRoundedRect(b.x-6,b.y-10,b.width+12,34,8);g.lineStyle(2,0x4b6662);for(let x=b.x+8;x<b.x+b.width;x+=20)g.lineBetween(x,b.y-6,x,b.y+19);}
-  if(q.warehouse){
-   g.fillStyle(0x203834);g.fillRoundedRect(b.x+55,b.y+43,82,83,4);g.fillStyle(0x928a6a);g.fillRect(b.x+59,b.y+46,74,18);g.lineStyle(2,0x484e40);for(let y=b.y+50;y<b.y+65;y+=5)g.lineBetween(b.x+60,y,b.x+132,y);
-   for(const [dx,dy] of [[13,85],[30,98],[148,92]]){g.fillStyle(0xb58b4e);g.fillRoundedRect(b.x+dx,b.y+dy,26,25,3);g.lineStyle(2,0x705532);g.strokeRect(b.x+dx+3,b.y+dy+3,20,19);g.lineBetween(b.x+dx+4,b.y+dy+4,b.x+dx+22,b.y+dy+21);}
-   g.fillStyle(0xffd578);g.fillCircle(b.x+48,b.y+57,4);g.fillCircle(b.x+144,b.y+57,4);this.warehouseSign.setText('СКЛАД · '+(q.warehouseLevel||1)).setPosition(b.x+b.width/2,b.y+28);
-  }
-  else {g.fillStyle(0x183a31);g.fillRect(b.x+10,b.y+b.height+18,b.width-20,8);g.fillStyle(0xffd078);g.fillRect(b.x+10,b.y+b.height+18,(b.width-20)*progress,8);}
+  g.fillStyle(0x183a31);g.fillRect(b.x+10,b.y+b.height+18,b.width-20,8);g.fillStyle(0xffd078);g.fillRect(b.x+10,b.y+b.height+18,(b.width-20)*progress,8);
  },
  openConstruction(){
   if(this.demyanQuest?.returned&&!this.demyanQuest.hq){this.openHeadquartersBuild();return;}

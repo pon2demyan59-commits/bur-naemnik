@@ -24,8 +24,8 @@ test('ten artifact rarity tiers and keycard floor labels are preserved in banner
  assert.equal(new Set(DISCOVERY_COLORS).size,10);for(let r=1;r<=10;r++){const d=discoveryDetails({kind:'artifact',name:'Артефакт',rarity:r});assert.ok(d.description.includes(r+'/10'));assert.equal(d.color,DISCOVERY_COLORS[r-1]);}
  assert.equal(discoveryDetails({kind:'keycard',floor:5}).name,'Карта 5-го этажа');assert.equal(discoveryDetails({kind:'crate'}).name,'Бонусный ящик');
 });
-test('expanded architect footprint migrates overlapping warehouse and HQ without losing stock or timer',()=>{
- const q=restoreConstruction({rescued:true,unlocked:true,warehouse:true,plot:0,offset:{dx:0,dy:6},stock:{earth:73,iron:8},warehouseLevel:4}),head=restoreDemyan({rescued:true,returned:true,plot:{x:25,y:25},remaining:8000}),world=new BaseWorld();
+test('building resize migrates overlapping warehouse and HQ without losing stock or timer',()=>{
+ const q=restoreConstruction({rescued:true,unlocked:true,warehouse:true,plot:0,offset:{dx:-2,dy:6},stock:{earth:73,iron:8},warehouseLevel:4}),head=restoreDemyan({rescued:true,returned:true,plot:{x:22,y:24},remaining:8000}),world=new BaseWorld();
  const s={floorNumber:0,constructionQuest:q,demyanQuest:head,buildingLayout:{},world,buildingGeom(key){return buildingGeometry(this.buildingLayout,key,q);}};
  constructionMethods.migrateArchitectFootprint.call(s);assert.equal(rectanglesOverlap(s.buildingGeom('warehouse').footprint,ARCHITECT_FOOTPRINT),false);assert.equal(rectanglesOverlap(demyanGeometry(head).footprint,ARCHITECT_FOOTPRINT),false);assert.deepEqual(q.stock,{earth:73,iron:8});assert.equal(q.warehouseLevel,4);assert.equal(head.remaining,8000);const before=JSON.stringify({plot:head.plot,offset:q.offset});constructionMethods.migrateArchitectFootprint.call(s);assert.equal(JSON.stringify({plot:head.plot,offset:q.offset}),before);
 });

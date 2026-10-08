@@ -34,7 +34,7 @@ test('headquarters consumes combined cargo and warehouse once and resumes fiftee
  assert.equal(beginHeadquarters(q,cargo,stock),true);assert.deepEqual(cargo,{});assert.deepEqual(stock,{});assert.equal(beginHeadquarters(q,{...HQ_RECIPE},{}),false);
  for(let i=0;i<100;i++)stepHeadquarters(q,50);const restored=restoreDemyan(JSON.parse(JSON.stringify(q)));assert.equal(restored.remaining,10000);
  let completions=0;for(let i=0;i<210;i++)if(stepHeadquarters(restored,50))completions++;assert.equal(completions,1);assert.equal(restored.hq,true);
- const g=demyanGeometry(restored);assert.equal(g.footprint.width/64*g.footprint.height/64,25);assert.equal(g.body.height+g.deck.height,g.footprint.height);
+ const g=demyanGeometry(restored);assert.equal(g.footprint.width/64*g.footprint.height/64,72);assert.equal(g.body.height+g.deck.height+64,g.footprint.height);
 });
 test('fifth-floor campaign, partial evacuation, dialogue page and HQ survive reload and emergency return',()=>{
  const s=new Base();s.sys={settings:{key:'Floor'}};s.init({save:{progress:{floor:5,base:{rescued:true},demyanQuest:{briefed:true,contact:true,evacuating:true,evacuated:2,dialogue:'demyanBrief',dialoguePage:6},combat:{floor5:[{id:0,hp:0}]}}}});
@@ -42,14 +42,20 @@ test('fifth-floor campaign, partial evacuation, dialogue page and HQ survive rel
  let returned;s.scene={start:(key,args)=>returned=args.save.progress};s.emergencyReturn();assert.equal(returned.floor,0);assert.equal(returned.demyanQuest.evacuated,2);assert.equal(returned.combat.floor5[0].hp,0);
 });
 test('Demyan identity and one-time quest rewards survive save migration',()=>{
- assert.equal(storyPresentation('demyanReturn',1).role,'НАЧАЛЬНИК ШТАБА');assert.equal(storyPresentation('demyanReturn',1).portrait,'demyan-portrait.svg');
+ assert.equal(storyPresentation('demyanReturn',1).role,'НАЧАЛЬНИК ШТАБА');assert.equal(storyPresentation('demyanReturn',1).portrait,'demyan-portrait.webp');
  const ids=restoreRewards({demyanQuest:{rescued:true,returned:true,hq:true}});assert.ok(ids.includes('hqReady'));assert.equal(claimQuestReward(ids,'hqReady',0).amount,0);
 });
 
 test('HQ placement rejects an exactly overlapping building and a parked rig',()=>{
- const q=restoreDemyan({rescued:true,returned:true,plot:{x:12,y:15}}),geom=demyanGeometry(q);
+ const q=restoreDemyan({rescued:true,returned:true,plot:{x:12,y:12}}),geom=demyanGeometry(q);
  const s={demyanQuest:q,world:{blocked:()=>false},rig:{x:0,y:0},occupiedBuildingGeometries:()=>[{...geom,kind:'hq'},geom]};
  assert.match(demyanMethods.headquartersError.call(s),/другая постройка/);
- s.occupiedBuildingGeometries=()=>[{...geom,kind:'hq'}];s.rig={x:13*64,y:16*64};assert.match(demyanMethods.headquartersError.call(s),/Бур/);
+ s.occupiedBuildingGeometries=()=>[{...geom,kind:'hq'}];s.rig={x:13*64,y:13*64};assert.match(demyanMethods.headquartersError.call(s),/Бур/);
  s.rig={x:0,y:0};assert.equal(demyanMethods.headquartersError.call(s),null);
+});
+
+test('expanded HQ keeps an old edge placement inside the base without losing progress',()=>{
+ const q=restoreDemyan({rescued:true,returned:true,hq:true,plot:{x:43,y:43}});
+ const f=demyanGeometry(q).footprint;assert.ok(f.x+f.width<=48*64);assert.ok(f.y+f.height<=48*64);assert.equal(q.hq,true);
+ const building=restoreDemyan({rescued:true,returned:true,plot:{x:43,y:43},remaining:8000});assert.equal(building.remaining,8000);assert.deepEqual(building.plot,q.plot);
 });

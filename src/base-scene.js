@@ -12,7 +12,7 @@ import { buildingLayoutMethods } from './building-layout-scene.js';
 import { makeQuestItem } from './quest-item-view.js';
 import { restoreRewards, claimQuestReward } from './quest-rewards.js';
 import { constructionMethods } from './construction-scene.js';
-import { restoreConstruction, BUILDER_SITE, BUILDER_STORIES, ARCHITECT_BODY, warehouseBody } from './construction-state.js';
+import { restoreConstruction, BUILDER_SITE, BUILDER_STORIES, ARCHITECT_BODY, CONSTRUCTION_DESK, warehouseBody } from './construction-state.js';
 import { gameplayZoom } from './viewport-sync.js';
 import { createTouchJoystick } from './touch-joystick.js';
 import { showGamePanel, showBuildingMenu, openPauseMenu } from './game-menus.js';
@@ -60,7 +60,7 @@ export class Base extends globalThis.Phaser.Scene {
     if(!this.floorNumber){this.inventory.fiber+=this.carriedLoot.fiber;this.inventory.heads+=this.carriedLoot.heads;this.carriedLoot={fiber:0,heads:0};}
     this.parked=arrival?null:local.drive;this.arrival=arrival;this.busy=arrival;this.storyActive=false;this.leaving=false;
     this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;
-    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=25;this.world.y=29;}
+    if(!this.floorNumber&&this.constructionQuest.unlocked&&circleHitsRect(middle(this.world.x),middle(this.world.y),ARCHITECT_BODY)){this.world.x=CONSTRUCTION_DESK.x;this.world.y=CONSTRUCTION_DESK.y;}
     if(arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     this.touchStick=null;this.moving=false;this.hold=null;this.lastSave=0;
     this.dustTime=0;this.trackDustTime=0;this.sparkTime=0;this.speed=0;this.heat=0;this.beltPhases=[0,0];this.turnVelocity=0;this.cutting=false;
@@ -68,7 +68,7 @@ export class Base extends globalThis.Phaser.Scene {
   create() {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
-    if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){this.world.x=this.demyanQuest.plot.x+2;this.world.y=this.demyanQuest.plot.y+4;}}
+    if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
     this.makeMap();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
