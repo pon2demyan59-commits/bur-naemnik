@@ -511,3 +511,8 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 #dialog[data-menu=porodnik][data-material-types="1"] .porodnik-grid{grid-template-columns:1fr;}
 #dialog[data-menu=porodnik][data-material-types="2"] .porodnik-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 @media(max-height:480px) and (min-aspect-ratio:1/1){#dialog.game-dialog[data-menu=porodnik][data-material-types="1"]{width:min(640px,calc(100vw - 24px));}#dialog.game-dialog[data-menu=porodnik][data-material-types="2"]{width:min(790px,calc(100vw - 24px));}}
+
+/* Workshop has two independent purchases; each control needs its own row. */
+.service-layout.service-workshop .service-controls {display:flex;flex-direction:column;align-items:stretch;gap:8px;}
+.service-layout.service-workshop .service-controls>p {margin:0;line-height:1.5;text-align:left;font-size:12px;}
+.service-layout.service-workshop .service-controls>.service-readout {margin-top:5px;color:#ffe2a1;font-weight:900;}

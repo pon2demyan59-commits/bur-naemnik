@@ -96,7 +96,7 @@ test('workshop panel stays open for successive clicks and its service progresses
  globalThis.document={hidden:false,createElement:element,querySelector:id=>({'#dialog':dialog,'#dialog-body':body,'#dialog-title':title}[id])};
  const scene=new Base();scene.workshopQuest=restoreWorkshop({ready:true});scene.credits=1000;
  scene.rig={x:WORKSHOP_DECK.x+96,y:WORKSHOP_DECK.y+64,angle:0};scene.dialogClosed=scene.persist=scene.refreshHUD=scene.showDiscovery=()=>{};scene.notify=()=>{};
- scene.openWorkshop();const text=body.children[0].children[0].children[3];const [buy,status,exit]=body.children[0].children[1].children;
+ scene.openWorkshop();const text=body.children[0].children[0].children[3];const controls=body.children[0].children[1].children,buy=controls[0],status=controls.at(-2),exit=controls.at(-1);
  buy.listeners.click();buy.listeners.click();
  assert.equal(dialog.open,true);assert.equal(scene.workshopQuest.upgrades,2);assert.equal(scene.credits,825);
  assert.match(text.textContent,/104%/);assert.match(buy.textContent,/157/);assert.equal(exit.disabled,true);

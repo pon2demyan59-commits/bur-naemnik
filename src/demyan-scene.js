@@ -118,7 +118,7 @@ export const demyanMethods={
   panel.append(title,note,set,status,build);render();showBuildingMenu('construction',panel);
  },
  renderHeadquarters(){
-  if(this.floorNumber||!this.demyanArt)return;const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;
+  if(this.floorNumber||!this.demyanArt)return;const q=this.demyanQuest,g=this.demyanArt,preview=this.hqPreview;g.clear();preview.clear();this.hqLabel?.setVisible(!!q.plot&&!q.hq);this.headquartersHouse?.setVisible(!!q.hq&&!!q.plot);this.hqSentries?.forEach(p=>p.setVisible(!!q.hq&&!!q.plot));if(!q.plot)return;
   const geom=demyanGeometry(q),b=geom.body,f=geom.footprint;
   if(!q.hq){preview.lineStyle(3,0xd7bc79,.8);preview.strokeRect(f.x,f.y,f.width,f.height);preview.lineStyle(1,0xd7bc79,.4);for(let i=1;i<HQ_WIDTH;i++)preview.lineBetween(f.x+i*CELL,f.y,f.x+i*CELL,f.y+f.height);for(let i=1;i<HQ_HEIGHT;i++)preview.lineBetween(f.x,f.y+i*CELL,f.x+f.width,f.y+i*CELL);}
   this.hqLabel?.setPosition(b.x+b.width/2,f.y-12).setText(q.hq?'ШТАБ · ДЕМЬЯН П.':q.remaining!=null?'ШТАБ · СТРОИТЕЛЬСТВО':'ПЛОЩАДКА ШТАБА · 9×8');

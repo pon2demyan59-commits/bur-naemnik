@@ -2,6 +2,7 @@ import { driveFits } from './drive-controller.js';
 import { smoothHeading, wrapDegrees } from './drill-motion.js';
 import { CELL } from './base-state.js';
 export const WORKSHOP_SERVICE_MS=4000;
+export const EARTH_HEAD_PRICE=5000;
 export const TOOLS_SITE={x:18,y:20};
 export const MECHANIC_SITE={x:32,y:29};
 export const WORKSHOP_BLOCKS=[{x:31,y:34},{x:32,y:34},{x:33,y:34}];
@@ -12,7 +13,8 @@ export function restoreWorkshop(value={}) {
  const kinds=['workshop','mechanic','workshopReturn','workshopReady'];
  return {briefed:value.briefed===true,tools:value.tools===true,mechanic:value.mechanic===true,
  returnBriefed:value.returnBriefed===true,ready:value.ready===true,
- serviceRemaining:value.ready===true&&value.upgrades>0&&Number.isFinite(value.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,value.serviceRemaining)):null,
+ serviceRemaining:value.ready===true&&(value.upgrades>0||value.earthHead===true)&&Number.isFinite(value.serviceRemaining)?Math.max(0,Math.min(WORKSHOP_SERVICE_MS,value.serviceRemaining)):null,
+ earthHead:value.earthHead===true,
  upgrades:Number.isInteger(value.upgrades)?Math.max(0,Math.min(100,value.upgrades)):0,
  dialogue:kinds.includes(value.dialogue)?value.dialogue:null,
  dialoguePage:Number.isInteger(value.dialoguePage)?Math.max(0,Math.min(4,value.dialoguePage)):0};
@@ -27,6 +29,11 @@ export function buyWorkshopUpgrade(q,credits,allowDuringService=false) {
  if(!q.ready||(!allowDuringService&&q.serviceRemaining!=null)||q.upgrades>=100||credits<price)return {bought:false,credits};
  q.upgrades++;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-price};
 }
+export function buyEarthHead(q,credits){
+ if(!q.ready||q.earthHead||q.serviceRemaining!=null||credits<EARTH_HEAD_PRICE)return {bought:false,credits};
+ q.earthHead=true;q.serviceRemaining=WORKSHOP_SERVICE_MS;return {bought:true,credits:credits-EARTH_HEAD_PRICE};
+}
+export function workshopDrillPower(q,material,buff=0){return (1+q.upgrades*.02+buff)*(q.earthHead&&material==='earth'?12.5:1);}
 export function objectiveBearing(rig,site) {
  const dx=(site.x+.5)*CELL-rig.x,dy=(site.y+.5)*CELL-rig.y;
  const arrows=['→','↘','↓','↙','←','↖','↑','↗'];

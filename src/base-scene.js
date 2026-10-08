@@ -26,7 +26,7 @@ import { onRepairDeck, queueRepairBrief, restoreRepair, restoreHull, REPAIR_BODY
 import { preparePeopleFrames, makePerson, updatePerson } from './people-view.js';
 import { armoryMethods } from './armory-scene.js';
 import { restoreArmory, ARMORY_BODY, ARMORY_DECK, ARMORY_BLOCKS, ARMORER_SITE, ARMORY_STORIES, onArmoryDeck } from './armory-state.js';
-import { stepWorkshopService, restoreWorkshop, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
+import { stepWorkshopService, restoreWorkshop, EARTH_HEAD_PRICE, buyEarthHead, workshopDrillPower, TOOLS_SITE, MECHANIC_SITE, WORKSHOP_BLOCKS, WORKSHOP_BODY, WORKSHOP_DECK, nearWorkshopItem, onWorkshopDeck, workshopBlockCount, canRestoreWorkshop, workshopPrice, buyWorkshopUpgrade, objectiveBearing } from './workshop-state.js';
 import { WorkshopView } from './workshop-view.js';
 import { PORODNIK_CYCLE_MS, restorePorodnikJob, stepPorodnikJob, PORODNIK, PORODNIK_MACHINE, PORODNIK_DECK, PORODNIK_COLLIDER, PORODNIK_BLOCKS, porodnikFrameCell, porodnikBlockCount, onPorodnikDeck } from './porodnik-state.js';
 import { WorldTerrain, bunkerFloorTexture } from './terrain.js';
@@ -206,10 +206,14 @@ export class Base extends globalThis.Phaser.Scene {
     const text=document.createElement('p'),buy=document.createElement('button'),status=document.createElement('p'),exit=document.createElement('button');buy.className=exit.className='metal-button';
     exit.textContent='ГОТОВО';exit.className='floor-button';status.className='service-status';status.setAttribute?.('role','status');
     const render=()=>{text.className='service-readout';text.textContent=`Мощность  ${Number((100+q.upgrades*2+(this.collectionBuffs?.drill||0)*100).toFixed(3))}%\nКредиты  ${this.credits}`;buy.textContent=q.upgrades>=100?'МОЩНОСТЬ УЛУЧШЕНА ДО МАКСИМУМА':`УЛУЧШИТЬ МОЩНОСТЬ +2% · ${workshopPrice(q)} КРЕДИТОВ`;buy.disabled=q.upgrades>=100||this.credits<workshopPrice(q);status.textContent=q.serviceRemaining!=null?`Механик работает: ${(q.serviceRemaining/1000).toFixed(1)} с. Можно купить ещё улучшения.`:'Можно улучшить бур ещё раз или выйти из мастерской.';exit.disabled=q.serviceRemaining!=null;};
-    this.workshopPanelRender=render;
+    const headTitle=document.createElement('p'),headNote=document.createElement('p'),headBuy=document.createElement('button');
+    headTitle.className='service-readout';headTitle.textContent='НАСАДКИ НА ГОЛОВКУ БУРА';headNote.className='terminal-note';headNote.textContent='Усиленная земляная насадка · Земля разрушается почти мгновенно. Работает постоянно. Улучшения мощности продолжают действовать на остальные породы. Установка — 4 секунды.';headBuy.className='metal-button';
+    const renderHead=()=>{headBuy.textContent=q.earthHead?'УСИЛЕННАЯ ЗЕМЛЯНАЯ · УСТАНОВЛЕНА':'УСИЛЕННАЯ ЗЕМЛЯНАЯ · '+EARTH_HEAD_PRICE+' КРЕДИТОВ';headBuy.disabled=q.earthHead||q.serviceRemaining!=null||this.credits<EARTH_HEAD_PRICE;};
+    headBuy.addEventListener('click',()=>{const result=buyEarthHead(q,this.credits);if(!result.bought)return;this.credits=result.credits;render();renderHead();this.refreshHUD();this.persist();});
+    this.workshopPanelRender=()=>{render();renderHead();};
     document.querySelector('#dialog').addEventListener('close',()=>{this.workshopPanelRender=null;},{once:true});
-    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;if(q.upgrades===1)this.rewardQuest('firstUpgrade');render();this.refreshHUD();this.persist();});
-    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();panel.append(text,buy,status,exit);
+    buy.addEventListener('click',()=>{const result=buyWorkshopUpgrade(q,this.credits,true);if(!result.bought)return;this.credits=result.credits;if(q.upgrades===1)this.rewardQuest('firstUpgrade');render();renderHead();this.refreshHUD();this.persist();});
+    exit.addEventListener('click',()=>{if(q.serviceRemaining==null)document.querySelector('#dialog').close();});render();renderHead();panel.append(text,buy,headTitle,headNote,headBuy,status,exit);
     showBuildingMenu('workshop',panel);
   }
   makeHUD() {
@@ -606,7 +610,7 @@ export class Base extends globalThis.Phaser.Scene {
       if(!Number.isFinite(this.world.hardness?.(x,y)??1)){this.sparkEmitter.emitParticleAt(middle(x),middle(y),2);return;}
       const key=y*BASE_SIZE+x;
       const material=this.world.material?.(x,y)||'earth';
-      const broken=this.world.drill(x,y,dt*(1+this.workshopQuest.upgrades*.02+(this.collectionBuffs?.drill||0)));
+      const broken=this.world.drill(x,y,dt*workshopDrillPower(this.workshopQuest,material,this.collectionBuffs?.drill||0));
       this.terrain.paintCell(x,y);
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
