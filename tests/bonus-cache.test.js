@@ -36,7 +36,7 @@ test('restore rejects invalid positions and unknown loot, normalizes kind and me
 test('real player drilling discovers a bonus once per destroyed block',()=>{
  const s=new Base(),blocks=new Set([24]);s.world={x:23,y:26,heard:true,damage:new Map(),inside:()=>true,blocked:x=>blocks.has(x),material:()=> 'earth',drill(x){blocks.delete(x);return true;}};
  s.rig={x:23.5*64,y:26.5*64,angle:0,setPosition(x,y){this.x=x;this.y=y;return this;},setAngle(a){this.angle=a;return this;}};
- Object.assign(s,state(),{speed:0,workshopQuest:{upgrades:0},bonusCaches:[],cargo:0,driveSolids:()=>()=>false,findArtifactInBrokenBlock:()=>null});const noop=()=>{};
+ Object.assign(s,state(),{speed:0,workshopQuest:{upgrades:0},bonusCaches:[],cargo:0,driveSolids:()=>()=>false,findArtifactInBrokenBlock:()=>null,findRecipeInBrokenBlock:()=>null});const noop=()=>{};
  s.drillBar={clear:noop,fillStyle:noop,fillRoundedRect:noop};s.terrain={paintCell:noop,refreshAround:noop};s.dustEmitter=s.chipEmitter=s.sparkEmitter={emitParticleAt:noop};s.refreshHUD=s.checkLift=s.checkPorodnik=s.persist=s.showCargoPickup=noop;s.showBonusBoxDiscovery=()=>s.banners=(s.banners||0)+1;
  const old=Math.random;Math.random=()=>0;try{s.advanceVehicle(0,.05,'right');s.advanceVehicle(50,.05,'right');assert.equal(s.credits,60);assert.equal(s.banners,1);assert.equal(s.cargoHold.earth,1);}finally{Math.random=old;}
 });

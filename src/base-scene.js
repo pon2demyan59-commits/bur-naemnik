@@ -1,3 +1,5 @@
+import { restoreRecipeKnowledge, restoreRecipeAccess } from './recipe-drop-state.js';
+import { recipeDropMethods } from './recipe-drop-scene.js';
 import { structureRecipeMethods } from './structure-recipe-scene.js';
 import { restoreBuildingBlueprints } from './building-blueprints.js';
 import { buildingBlueprintMethods } from './building-blueprint-scene.js';
@@ -49,7 +51,7 @@ export class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
     const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
-    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
+    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
@@ -298,7 +300,7 @@ export class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -631,7 +633,7 @@ export class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        this.findArtifactInBrokenBlock();
+        this.findArtifactInBrokenBlock();this.findRecipeInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
@@ -726,4 +728,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);

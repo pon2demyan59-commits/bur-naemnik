@@ -3989,12 +3989,51 @@ const structureRecipeMethods={
   const search=document.createElement('input');search.type='search';search.placeholder='Название или материал';search.setAttribute('aria-label','Поиск рецепта');filters.append(select,search);
   const count=document.createElement('p');count.className='terminal-note';count.setAttribute('role','status');const list=document.createElement('div');list.className='structure-recipe-grid';
   const render=()=>{const recipes=filterStructureRecipes(select.value,search.value);count.textContent='Найдено: '+recipes.length;list.replaceChildren();for(const r of recipes){const card=document.createElement('section');card.className='structure-recipe-card';card.dataset.recipe=r.id;const name=document.createElement('h3');name.textContent=r.name+(r.size?' · '+r.size:'');const status=document.createElement('p');status.className='recipe-availability';status.textContent=r.availability==='build'?'Строительство доступно по чертежу':r.availability==='weapon'?'Изготовление в оружейной':r.availability==='story'?'Сюжетная постройка · дополнительные экземпляры в плане':'План · строительство ещё не введено';
-   const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=formatStructureRecipe(r);card.append(name,status,recipe);
+   const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=formatStructureRecipe(r);card.append(name,status,recipe);const learned=document.createElement('p');learned.className='recipe-availability';learned.textContent=this.recipeLearned(r.id)?'✓ Рецепт изучен':'○ Рецепт ещё не найден';card.append(learned);
    if(r.leader){const leader=document.createElement('p');leader.className='terminal-note';leader.textContent=r.leader+' · '+r.role;card.append(leader);}
    if(r.id==='warehouse'){const gift=document.createElement('p');gift.className='terminal-note';gift.textContent='Первый склад появляется бесплатно. Этот рецепт — для будущих дополнительных складов.';card.append(gift);}
    list.append(card);
   }};
   select.addEventListener('change',render);search.addEventListener('input',render);const back=document.createElement('button');back.className='floor-button';back.textContent='← К ЧЕРТЕЖАМ';back.addEventListener('click',()=>this.openBuildingBlueprints());panel.append(title,note,filters,count,list,back);render();showBuildingMenu('construction',panel);panel.parentElement.classList.add('settlement-layout');
+ }
+};
+
+
+
+
+const RECIPE_DROP_CHANCE=.02;
+const RECIPE_DROP_POOL=[...STRUCTURE_RECIPES.filter(r=>r.id!=='weapon-basic'),{id:'warehouse-upgrade',name:'Расширение склада',category:'Улучшение здания',availability:'upgrade'}];
+const validRecipeIds=new Set([...STRUCTURE_RECIPES.map(r=>r.id),'warehouse-upgrade']);
+function restoreRecipeKnowledge(value,blueprints=[],armory={}){
+ const known=new Set(Array.isArray(value)?value.filter(id=>validRecipeIds.has(id)):[]);
+ for(const b of BUILDING_BLUEPRINTS)if(blueprints.includes(b.id))known.add(b.id);
+ for(const w of WEAPON_CATALOG)if(armory.blueprints?.includes(w.id)||(w.id==='basic'&&armory.blueprint))known.add('weapon-'+w.id);
+ return [...validRecipeIds].filter(id=>known.has(id));
+}
+function recipeIsLearned(state,id){return restoreRecipeKnowledge(state.learnedRecipes,state.buildingBlueprints,state.armoryQuest).includes(id);}
+function learnRecipe(state,id){
+ if(!validRecipeIds.has(id))return false;
+ state.learnedRecipes=restoreRecipeKnowledge(state.learnedRecipes,state.buildingBlueprints,state.armoryQuest);
+ if(!state.learnedRecipes.includes(id))state.learnedRecipes.push(id);
+ if(BUILDING_BLUEPRINTS.some(b=>b.id===id)){state.buildingBlueprints||=[];if(!state.buildingBlueprints.includes(id))state.buildingBlueprints.push(id);}
+ if(id.startsWith('weapon-')){const key=id.slice(7);state.armoryQuest.blueprints||=[];if(!state.armoryQuest.blueprints.includes(key))state.armoryQuest.blueprints.push(key);}
+ return true;
+}
+function restoreRecipeAccess(state){for(const id of [...state.learnedRecipes])learnRecipe(state,id);}
+function awardRecipeDrop(state,floor,rng=Math.random){
+ if(!Number.isInteger(floor)||floor<1||floor>100)return null;
+ const known=new Set(restoreRecipeKnowledge(state.learnedRecipes,state.buildingBlueprints,state.armoryQuest)),pool=RECIPE_DROP_POOL.filter(r=>!known.has(r.id));
+ if(!pool.length||rng()>=RECIPE_DROP_CHANCE)return null;
+ const recipe=pool[Math.min(pool.length-1,Math.max(0,Math.floor(rng()*pool.length)))];learnRecipe(state,recipe.id);return recipe;
+}
+
+
+const recipeDropMethods={
+ recipeLearned(id){return recipeIsLearned(this,id);},
+ findRecipeInBrokenBlock(){
+  const recipe=awardRecipeDrop(this,this.floorNumber);if(!recipe)return null;
+  this.persist();this.refreshHUD();const note=recipe.availability==='planned'||recipe.availability==='story'?'Рецепт изучен навсегда. Он сохранён в книге; строительство этого проекта откроется позже.':recipe.id.startsWith('weapon-')?'Чертёж изучен бесплатно. В оружейной осталось собрать материалы и изготовить оружие.':'Чертёж изучен бесплатно. Выполни сюжетные условия и собери материалы, чтобы использовать его на базе.';
+  this.showDiscovery({kind:'blueprint',name:recipe.name,description:'Найден рецепт · '+recipe.category,note});return recipe;
  }
 };
 
@@ -5399,13 +5438,15 @@ const bonusCacheMethods={
 
 
 
+
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
     const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
-    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
+    const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
@@ -5654,7 +5695,7 @@ class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,learnedRecipes:restoreRecipeKnowledge(this.learnedRecipes,this.buildingBlueprints,this.armoryQuest),buildingBlueprints:[...(this.buildingBlueprints||[])],baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -5987,7 +6028,7 @@ class Base extends globalThis.Phaser.Scene {
       this.drillBar.clear();this.drillBar.fillStyle(0x112d2b,.85);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48,6,3);
       this.drillBar.fillStyle(0xffcd6a);this.drillBar.fillRoundedRect(middle(x)-24,middle(y)-29,48*(this.world.damage.get(key)||1),6,3);
       if(broken) {
-        this.findArtifactInBrokenBlock();
+        this.findArtifactInBrokenBlock();this.findRecipeInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
         this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
@@ -6082,7 +6123,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,recipeDropMethods,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
