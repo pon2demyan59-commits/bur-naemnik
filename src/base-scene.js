@@ -1,3 +1,4 @@
+import { structureRecipeMethods } from './structure-recipe-scene.js';
 import { restoreBuildingBlueprints } from './building-blueprints.js';
 import { buildingBlueprintMethods } from './building-blueprint-scene.js';
 import { SETTLEMENT_PROJECTS, restoreSettlement, snapshotSettlement } from './settlement-state.js';
@@ -725,4 +726,4 @@ export class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);

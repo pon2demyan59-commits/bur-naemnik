@@ -566,3 +566,16 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 #dialog .blueprint-catalog .settlement-project-card button{font-size:12px;min-height:43px;padding:10px;margin-top:3px;}
 .blueprint-catalog .settlement-project-card .terminal-note{flex:1;}
 @media(max-width:650px){.settlement-layout .service-controls.blueprint-catalog{grid-template-columns:1fr;}}
+
+/* The complete recipe book includes planned buildings without allowing placement. */
+.blueprint-catalog>.structure-book-button{grid-column:1/-1;grid-row:auto;}
+.settlement-layout .service-controls.structure-recipe-console{display:flex;flex-direction:column;gap:10px;align-items:stretch;}
+.structure-recipe-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.structure-recipe-filters input,.structure-recipe-filters select{width:100%;min-width:0;background:#112e25;color:#e2e8c9;border:1px solid #799779;border-radius:5px;padding:12px;font:inherit;font-size:13px;}
+.structure-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.structure-recipe-card{padding:13px;border:1px solid #6d8468;border-radius:7px;background:#102b22;min-width:0;}
+.structure-recipe-card h3{margin:0;color:#ffe2a2;font-size:16px;}
+.structure-recipe-card p{font-size:12px;line-height:1.5;margin:7px 0 0;}
+.structure-recipe-ingredients{font-size:12px!important;line-height:1.6;color:#dceac5;padding:8px;background:#061c17;border-radius:4px;overflow-wrap:anywhere;}
+.recipe-availability{color:#b3c9a1;}
+@media(max-width:650px){.structure-recipe-grid,.structure-recipe-filters{grid-template-columns:1fr;}}

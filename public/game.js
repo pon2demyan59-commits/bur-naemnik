@@ -1300,6 +1300,8 @@ function buyBuildingBlueprint(known,id,credits,construction,demyan){
 
 
 
+
+
 const buildingBlueprintMethods={
  knowsBuildingBlueprint(id){return knowsBuildingBlueprint(this.buildingBlueprints,id);},
  purchaseBuildingBlueprint(id){
@@ -1314,8 +1316,8 @@ const buildingBlueprintMethods={
  },
  openBuildingBlueprints(){
   if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='lift-console construction-controls blueprint-catalog';
-  const title=document.createElement('p');title.className='service-readout';title.textContent='ЧЕРТЕЖИ БАЗЫ · '+this.credits+' КРЕДИТОВ';const note=document.createElement('p');note.className='terminal-note';note.textContent='Кредиты: '+this.credits+'. Чертёж покупается один раз и сохраняется навсегда. Материалы для строительства и цена каждого улучшения оплачиваются отдельно. Первый склад уже готов бесплатно.';panel.append(title,note);
-  for(const b of BUILDING_BLUEPRINTS){const card=document.createElement('section');card.className='settlement-project-card';const heading=document.createElement('h3');heading.textContent=b.name;const desc=document.createElement('p');desc.textContent=b.description;const status=document.createElement('p');status.className='terminal-note';const available=buildingBlueprintAvailable(b.id,this.constructionQuest,this.demyanQuest),known=this.knowsBuildingBlueprint(b.id);status.textContent=known?'Чертёж изучен':available?'Доступен у архитектора':b.id==='hq'?'После спасения и возвращения Демьяна':b.id==='warehouse-upgrade'?'После открытия склада':'После строительства штаба и поручения Демьяна';card.append(heading,desc,status);this.addBuildingBlueprintPurchase(card,b.id,()=>this.openBuildingBlueprints());
+  const title=document.createElement('p');title.className='service-readout';title.textContent='ЧЕРТЕЖИ БАЗЫ · '+this.credits+' КРЕДИТОВ';const note=document.createElement('p');note.className='terminal-note';note.textContent='Кредиты: '+this.credits+'. Чертёж покупается один раз и сохраняется навсегда. Материалы для строительства и цена каждого улучшения оплачиваются отдельно. Первый склад уже готов бесплатно.';panel.append(title,note);const book=document.createElement('button');book.className='floor-button structure-book-button';book.textContent='ВСЕ РЕЦЕПТЫ · '+STRUCTURE_RECIPES.length+' ПРОЕКТОВ';book.addEventListener('click',()=>this.openStructureRecipes());panel.append(book);
+  for(const b of BUILDING_BLUEPRINTS){const card=document.createElement('section');card.className='settlement-project-card';const heading=document.createElement('h3');heading.textContent=b.name;const desc=document.createElement('p');desc.textContent=b.description;const status=document.createElement('p');status.className='terminal-note';const available=buildingBlueprintAvailable(b.id,this.constructionQuest,this.demyanQuest),known=this.knowsBuildingBlueprint(b.id);status.textContent=known?'Чертёж изучен':available?'Доступен у архитектора':b.id==='hq'?'После спасения и возвращения Демьяна':b.id==='warehouse-upgrade'?'После открытия склада':'После строительства штаба и поручения Демьяна';card.append(heading,desc,status);const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=b.id==='warehouse-upgrade'?'Следующий уровень: '+warehouseUpgradePrice(this.constructionQuest)+' кредитов':formatStructureRecipe(structureRecipe(b.id));card.append(recipe);this.addBuildingBlueprintPurchase(card,b.id,()=>this.openBuildingBlueprints());
    if(known&&available){const use=document.createElement('button');use.className='floor-button';use.textContent=b.kind==='upgrade'?'К СКЛАДУ · УЛУЧШЕНИЯ':b.id==='hq'&&this.demyanQuest.hq?'ШТАБ ПОСТРОЕН':'ПЕРЕЙТИ К СТРОИТЕЛЬСТВУ';use.disabled=b.id==='hq'&&this.demyanQuest.hq;use.addEventListener('click',()=>{if(b.id==='hq')this.openHeadquartersBuild();else if(b.id==='warehouse-upgrade'){if(this.constructionAction()==='warehouse'){this.openWarehouse();return;}const d=document.createElement('p');d.className='terminal-note';d.textContent='Подъедь к воротам склада: улучшения доступны там. Чертёж открывает все его уровни.';card.append(d);use.disabled=true;}else this.openSettlementConstruction();});card.append(use);}
    panel.append(card);
   }
@@ -2701,6 +2703,1289 @@ const WEAPON_CATALOG=[
 ];
 function weaponDefinition(id){return WEAPON_CATALOG.find(w=>w.id===id)||WEAPON_CATALOG[0];}
 function weaponStats(q,buff=0){const w=weaponDefinition(q.equippedWeapon);return {...w,damage:w.damage*(1+(q.weaponLevel||0)*.02+buff),range:w.range*64};}
+
+// All building recipes are initial balance; defense and weapon recipes preserve the canon.
+
+const STRUCTURE_CATEGORIES=['Здания','Преграды','Препятствия','Ловушки','Башни','Оружие для бура'];
+const STRUCTURE_RECIPES=[
+ {
+  "id": "hq",
+  "name": "Штаб",
+  "category": "Здания",
+  "size": "9×8",
+  "leader": "Демьян П.",
+  "role": "Начальник штаба",
+  "purpose": "Главный центр сюжетных заданий; руководитель Демьян П. Самое величественное здание базы, восемь подвижных вооружённых часовых в чёрных беретах по периметру. Тело 7 × 6, южный вход 7 × 1, остальное — периметр. Построенный штаб можно переносить. Управление людьми и ограничение уровня зданий уровнем штаба остаются планом.",
+  "availability": "build",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 100
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 60
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "architect",
+  "name": "Дом архитектора",
+  "category": "Здания",
+  "size": "4×4",
+  "leader": "Павел М.",
+  "role": "Строительный мастер",
+  "purpose": "Появляется после возвращения строительного мастера с 4-го этажа. Заменяет стол с чертежами. Корпус 4 × 3, южный вход 4 × 1; корпус блокирует бур. Здесь доступно строительство штаба. Здание можно переносить. Чертежи и улучшения будущих зданий — утверждённое направление.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 180
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 120
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 30
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "housing",
+  "name": "Жилой комплекс",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Нина С.",
+  "role": "Комендант",
+  "purpose": "Размещение спасённых людей. Первый уровень — 10 жителей.",
+  "availability": "build",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 200
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 80
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "power",
+  "name": "Электростанция",
+  "category": "Здания",
+  "size": "4×4",
+  "leader": "Денис Г.",
+  "role": "Электрик",
+  "purpose": "Снабжение работающих производств электричеством. Можно построить несколько станций; у каждой отдельный руководитель.",
+  "availability": "build",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 120
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 30
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "warehouse",
+  "name": "Склад",
+  "category": "Здания",
+  "size": "3×3",
+  "leader": "Николай П.",
+  "role": "Кладовщик",
+  "purpose": "Первый склад появляется готовым и бесплатно после возвращения строительного мастера. Хранит отдельно от груза по 100 каждого материала на первом уровне; каждый уровень добавляет 100 каждому виду. Перенос сохраняет запасы и уровень; складской запас не теряется при гибели. Временный баланс улучшений: 200 кредитов за первое, затем рост цены ×1,25, максимум 100 уровней.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 80
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "porodnik",
+  "name": "Породник",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Валерий Д.",
+  "role": "Оператор Породника",
+  "purpose": "Переработка и продажа выбранной породы за кредиты. Размер закреплён как территория с площадкой.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 80
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 160
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 40
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "workshop",
+  "name": "Мастерская",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Константин Б.",
+  "role": "Механик",
+  "purpose": "Модернизация мощности бура и установка насадок. Усиленная земляная насадка: 5000 кредитов, земля разрушается почти мгновенно. Обычные улучшения продолжают действовать на камень и все руды. Помещение и вход можно переносить вместе.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 100
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 100
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 40
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "armory",
+  "name": "Оружейная",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Виктор Р.",
+  "role": "Оружейник",
+  "purpose": "Уже предусмотренный сюжетом спасаемый оружейник. Установка и модернизация оружия бура.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 100
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 100
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 50
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "repair",
+  "name": "Ремонтный цех",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Илья К.",
+  "role": "Ремонтник",
+  "purpose": "Восстановление прочности бура.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 100
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 80
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 40
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "smelter",
+  "name": "Плавильня",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Борис Л.",
+  "role": "Металлург",
+  "purpose": "Переплавка руды в слитки.",
+  "availability": "planned",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 250
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 80
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 30
+   }
+  ]
+ },
+ {
+  "id": "alloy",
+  "name": "Цех сплавов",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Аркадий Н.",
+  "role": "Специалист по сплавам",
+  "purpose": "Производство сплавов по известным рецептам.",
+  "availability": "planned",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 280
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 100
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 40
+   },
+   {
+    "id": "nickel",
+    "name": "Никелевая руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "assembly",
+  "name": "Сборочный цех",
+  "category": "Здания",
+  "size": "5×5",
+  "leader": "Роман Е.",
+  "role": "Мастер-сборщик",
+  "purpose": "Создание башен, ловушек, препятствий и преград.",
+  "availability": "planned",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "earth",
+    "name": "Земля",
+    "count": 200
+   },
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 200
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 120
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 60
+   },
+   {
+    "id": "bauxite",
+    "name": "Алюминиевая руда (боксит)",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "lab",
+  "name": "Лаборатория",
+  "category": "Здания",
+  "size": "4×4",
+  "leader": "Вера А.",
+  "role": "Исследователь",
+  "purpose": "Эксперименты для открытия рецептов с расходованием ингредиентов.",
+  "availability": "planned",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 160
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 40
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 60
+   },
+   {
+    "id": "gold",
+    "name": "Золотосодержащая руда",
+    "count": 5
+   }
+  ]
+ },
+ {
+  "id": "fame",
+  "name": "Зал славы",
+  "category": "Здания",
+  "size": "5×4",
+  "leader": "Григорий Ф.",
+  "role": "Хранитель трофеев",
+  "purpose": "Размещение редких трофеев монстров и активация их бафов.",
+  "availability": "planned",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 200
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 60
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 10
+   }
+  ]
+ },
+ {
+  "id": "lift",
+  "name": "Лифт",
+  "category": "Здания",
+  "size": "7×7",
+  "leader": "Серёга Т.",
+  "role": "Строитель, смотритель лифта",
+  "purpose": "Перемещение между базой и этажами по ключ-картам. Сохраняется исходная роль строителя.",
+  "availability": "story",
+  "balance": "starter",
+  "ingredients": [
+   {
+    "id": "stone",
+    "name": "Камень",
+    "count": 180
+   },
+   {
+    "id": "iron",
+    "name": "Железная руда",
+    "count": 60
+   },
+   {
+    "id": "copper",
+    "name": "Медная руда",
+    "count": 20
+   }
+  ]
+ },
+ {
+  "id": "defense-01",
+  "name": "Сетчатый забор",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Проводящая сталь",
+    "count": 3
+   },
+   {
+    "name": "паучье волокно",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-02",
+  "name": "Листовой забор",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Лёгкая сталь",
+    "count": 5
+   },
+   {
+    "name": "хитиновая пластина",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-03",
+  "name": "Каменная стена",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Бункерный бетон",
+    "count": 8
+   },
+   {
+    "name": "клейкая слизь",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-04",
+  "name": "Оборонительный блок",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Фундаментный композит",
+    "count": 10
+   },
+   {
+    "name": "толстая хитиновая пластина",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-05",
+  "name": "Армированная стена",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Армокамень",
+    "count": 10
+   },
+   {
+    "name": "никелевая сталь",
+    "count": 4
+   },
+   {
+    "name": "боевой хитин",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-06",
+  "name": "Бронированная стена",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Хромовый бронесплав",
+    "count": 8
+   },
+   {
+    "name": "плотная костяная броня",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-07",
+  "name": "Решётчатые ворота",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Каркасный сплав",
+    "count": 6
+   },
+   {
+    "name": "механическая бронза",
+    "count": 3
+   },
+   {
+    "name": "суставной хрящ",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-08",
+  "name": "Бронированные ворота",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Титановый бронекомпозит",
+    "count": 8
+   },
+   {
+    "name": "приводной сплав",
+    "count": 4
+   },
+   {
+    "name": "гвардейская бронепластина",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-09",
+  "name": "Выдвижная перегородка",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Облегчённый приводной сплав",
+    "count": 6
+   },
+   {
+    "name": "пружинный титаносплав",
+    "count": 4
+   },
+   {
+    "name": "сверхпрочный суставной узел",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-10",
+  "name": "Ксенобастион",
+  "category": "Преграды",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ксеносталь",
+    "count": 8
+   },
+   {
+    "name": "плазменный бронесплав",
+    "count": 4
+   },
+   {
+    "name": "многослойный минеральный панцирь",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-11",
+  "name": "Металлический ёж",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Лёгкая сталь",
+    "count": 4
+   },
+   {
+    "name": "копательный коготь",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-12",
+  "name": "Шипованные колья",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Камнесталь",
+    "count": 4
+   },
+   {
+    "name": "костяной шип",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-13",
+  "name": "Колючая проволока",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Проводящая сталь",
+    "count": 3
+   },
+   {
+    "name": "прочное паучье волокно",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-14",
+  "name": "Шипованная решётка",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ударостойкая сталь",
+    "count": 5
+   },
+   {
+    "name": "хвостовой шип",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-15",
+  "name": "Обломочная полоса",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Опорный композит",
+    "count": 6
+   },
+   {
+    "name": "панцирная скорлупа",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-16",
+  "name": "Липкое покрытие",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Герметизирующий композит",
+    "count": 3
+   },
+   {
+    "name": "органическая смола",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-17",
+  "name": "Зубчатый барьер",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ствольная сталь",
+    "count": 5
+   },
+   {
+    "name": "пильная пластина",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-18",
+  "name": "Электрическая ограда",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Обмоточный сплав",
+    "count": 6
+   },
+   {
+    "name": "точный проводник",
+    "count": 3
+   },
+   {
+    "name": "эластичная мембрана",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-19",
+  "name": "Вращающиеся лезвия",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Стойкий режущий сплав",
+    "count": 6
+   },
+   {
+    "name": "приводной сплав",
+    "count": 4
+   },
+   {
+    "name": "режущая лапа",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-20",
+  "name": "Ксеношипы",
+  "category": "Препятствия",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ксеновольфрам",
+    "count": 5
+   },
+   {
+    "name": "бронебойный рог",
+    "count": 3
+   },
+   {
+    "name": "глубинный зубчатый венец",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-21",
+  "name": "Камнесброс",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Опорный композит",
+    "count": 6
+   },
+   {
+    "name": "каркасный сплав",
+    "count": 3
+   },
+   {
+    "name": "плотное сухожилие",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-22",
+  "name": "Шипованный каток",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Камнесталь",
+    "count": 8
+   },
+   {
+    "name": "механическая бронза",
+    "count": 4
+   },
+   {
+    "name": "костяной шип",
+    "count": 5
+   }
+  ]
+ },
+ {
+  "id": "defense-23",
+  "name": "Нажимные шипы",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ударостойкая сталь",
+    "count": 5
+   },
+   {
+    "name": "пружинный титаносплав",
+    "count": 2
+   },
+   {
+    "name": "усиленный коготь",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-24",
+  "name": "Осколочная мина",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Корпусной сплав",
+    "count": 3
+   },
+   {
+    "name": "желчный концентрат",
+    "count": 3
+   },
+   {
+    "name": "едкий фермент",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-25",
+  "name": "Бронебойная мина",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Вольфрамовая сталь",
+    "count": 4
+   },
+   {
+    "name": "рудный зуб",
+    "count": 3
+   },
+   {
+    "name": "алый биоконцентрат",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-26",
+  "name": "Кислотный распылитель",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Стойкий корпусной сплав",
+    "count": 4
+   },
+   {
+    "name": "кислотная железа",
+    "count": 4
+   },
+   {
+    "name": "полый хоботок",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-27",
+  "name": "Огненная ловушка",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Жаростойкий сплав",
+    "count": 5
+   },
+   {
+    "name": "термостойкий припой",
+    "count": 2
+   },
+   {
+    "name": "органическая смола",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-28",
+  "name": "Электрический капкан",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Нагревательный сплав",
+    "count": 4
+   },
+   {
+    "name": "схемный сплав",
+    "count": 3
+   },
+   {
+    "name": "цепкая присоска",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-29",
+  "name": "Обвальная ловушка",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ударостойкий камень",
+    "count": 10
+   },
+   {
+    "name": "сверхпрочная паутина",
+    "count": 4
+   },
+   {
+    "name": "тяжёлая копательная лапа",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-30",
+  "name": "Плазменная мина",
+  "category": "Ловушки",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Ксенопроводник",
+    "count": 3
+   },
+   {
+    "name": "энергетический сплав",
+    "count": 4
+   },
+   {
+    "name": "древняя паразитическая железа",
+    "count": 2
+   }
+  ]
+ },
+ {
+  "id": "defense-31",
+  "name": "Пулемётная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Бункерный бетон",
+    "count": 8
+   },
+   {
+    "name": "ствольная сталь",
+    "count": 5
+   },
+   {
+    "name": "плотное сухожилие",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-32",
+  "name": "Скорострельная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Каркасный сплав",
+    "count": 8
+   },
+   {
+    "name": "механическая бронза",
+    "count": 5
+   },
+   {
+    "name": "усиленный сустав клешни",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-33",
+  "name": "Снайперская башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Орудийная сталь",
+    "count": 8
+   },
+   {
+    "name": "приборный припой",
+    "count": 3
+   },
+   {
+    "name": "силовое мышечное волокно",
+    "count": 3
+   }
+  ]
+ },
+ {
+  "id": "defense-34",
+  "name": "Пушечная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Армокамень",
+    "count": 10
+   },
+   {
+    "name": "вольфрамовая сталь",
+    "count": 8
+   },
+   {
+    "name": "таранная хитиновая пластина",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-35",
+  "name": "Огнемётная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Жаростойкий композит",
+    "count": 8
+   },
+   {
+    "name": "теплостойкий проводник",
+    "count": 5
+   },
+   {
+    "name": "органическая смола",
+    "count": 5
+   }
+  ]
+ },
+ {
+  "id": "defense-36",
+  "name": "Электрическая башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Силовой титанопроводник",
+    "count": 8
+   },
+   {
+    "name": "схемный сплав",
+    "count": 5
+   },
+   {
+    "name": "паразитическая железа",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-37",
+  "name": "Замедляющая башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Титановый приборный сплав",
+    "count": 6
+   },
+   {
+    "name": "герметичный припой",
+    "count": 4
+   },
+   {
+    "name": "слизевой защитный гель",
+    "count": 5
+   }
+  ]
+ },
+ {
+  "id": "defense-38",
+  "name": "Кислотная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Стойкий корпусной сплав",
+    "count": 8
+   },
+   {
+    "name": "барьерный сплав",
+    "count": 5
+   },
+   {
+    "name": "глубинный кислотный концентрат",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-39",
+  "name": "Ракетная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Осадный бронесплав",
+    "count": 8
+   },
+   {
+    "name": "энергетический сплав",
+    "count": 5
+   },
+   {
+    "name": "алый биоконцентрат",
+    "count": 4
+   }
+  ]
+ },
+ {
+  "id": "defense-40",
+  "name": "Плазменная башня",
+  "category": "Башни",
+  "availability": "planned",
+  "balance": "canon",
+  "ingredients": [
+   {
+    "name": "Плазменный бронесплав",
+    "count": 8
+   },
+   {
+    "name": "ядро глубин",
+    "count": 3
+   },
+   {
+    "name": "древняя ткань колосса",
+    "count": 2
+   }
+  ]
+ }
+];
+for(const w of WEAPON_CATALOG)STRUCTURE_RECIPES.push({id:'weapon-'+w.id,name:w.name,category:'Оружие для бура',availability:'weapon',balance:'canon',ingredients:Object.entries(w.recipe).map(([id,count])=>({name:WEAPON_COMPONENTS.find(c=>c.id===id).name,count}))});
+function structureRecipe(id){return STRUCTURE_RECIPES.find(r=>r.id===id);}
+function formatStructureRecipe(recipe){return recipe.ingredients.map(p=>p.name+' ×'+p.count).join(' + ');}
+function filterStructureRecipes(category,query=''){const term=String(query).trim().toLocaleLowerCase('ru');return STRUCTURE_RECIPES.filter(r=>r.category===category&&(!term||(r.name+' '+formatStructureRecipe(r)).toLocaleLowerCase('ru').includes(term)));}
+
+
+
+const structureRecipeMethods={
+ openStructureRecipes(category='Здания'){
+  if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='lift-console structure-recipe-console';
+  const title=document.createElement('p');title.className='service-readout';title.textContent='КНИГА РЕЦЕПТОВ\n'+STRUCTURE_RECIPES.length+' проектов';
+  const note=document.createElement('p');note.className='terminal-note';note.textContent='Состав на одну постройку или один предмет. Проекты с отметкой «План» можно изучить здесь; их строительство откроется позже.';
+  const filters=document.createElement('div');filters.className='structure-recipe-filters';const select=document.createElement('select');select.setAttribute('aria-label','Тип сооружения');
+  for(const key of STRUCTURE_CATEGORIES){const option=document.createElement('option');option.value=key;option.textContent=key+' · '+STRUCTURE_RECIPES.filter(r=>r.category===key).length;select.append(option);}select.value=STRUCTURE_CATEGORIES.includes(category)?category:'Здания';
+  const search=document.createElement('input');search.type='search';search.placeholder='Название или материал';search.setAttribute('aria-label','Поиск рецепта');filters.append(select,search);
+  const count=document.createElement('p');count.className='terminal-note';count.setAttribute('role','status');const list=document.createElement('div');list.className='structure-recipe-grid';
+  const render=()=>{const recipes=filterStructureRecipes(select.value,search.value);count.textContent='Найдено: '+recipes.length;list.replaceChildren();for(const r of recipes){const card=document.createElement('section');card.className='structure-recipe-card';card.dataset.recipe=r.id;const name=document.createElement('h3');name.textContent=r.name+(r.size?' · '+r.size:'');const status=document.createElement('p');status.className='recipe-availability';status.textContent=r.availability==='build'?'Строительство доступно по чертежу':r.availability==='weapon'?'Изготовление в оружейной':r.availability==='story'?'Сюжетная постройка · дополнительные экземпляры в плане':'План · строительство ещё не введено';
+   const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=formatStructureRecipe(r);card.append(name,status,recipe);
+   if(r.leader){const leader=document.createElement('p');leader.className='terminal-note';leader.textContent=r.leader+' · '+r.role;card.append(leader);}
+   if(r.id==='warehouse'){const gift=document.createElement('p');gift.className='terminal-note';gift.textContent='Первый склад появляется бесплатно. Этот рецепт — для будущих дополнительных складов.';card.append(gift);}
+   list.append(card);
+  }};
+  select.addEventListener('change',render);search.addEventListener('input',render);const back=document.createElement('button');back.className='floor-button';back.textContent='← К ЧЕРТЕЖАМ';back.addEventListener('click',()=>this.openBuildingBlueprints());panel.append(title,note,filters,count,list,back);render();showBuildingMenu('construction',panel);panel.parentElement.classList.add('settlement-layout');
+ }
+};
 
 
 
@@ -4102,6 +5387,7 @@ const bonusCacheMethods={
 
 
 
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
@@ -4785,7 +6071,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,structureRecipeMethods,buildingBlueprintMethods,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
@@ -4797,7 +6083,7 @@ class Floor extends Base {
 const BUILDING_MENUS={
  construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Чертежи · Строительство базы'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
- hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
+ hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters-top',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
@@ -4959,9 +6245,9 @@ class Boot extends Phaser.Scene {
     this.load.image('armory', './public/assets/game/armory-v2.webp');
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
     this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
-    for(const key of ['warehouse-house','military-guard'])this.load.image(key,'./public/assets/game/'+key+'.webp');
-    this.load.image('headquarters','./public/assets/game/headquarters.webp');
-    this.load.image('architect-house', './public/assets/game/architect-house.webp');
+    this.load.image('warehouse-house','./public/assets/game/warehouse-house-top.webp');this.load.image('military-guard','./public/assets/game/military-guard.webp');
+    this.load.image('headquarters','./public/assets/game/headquarters-top.webp');
+    this.load.image('architect-house', './public/assets/game/architect-house-top.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');

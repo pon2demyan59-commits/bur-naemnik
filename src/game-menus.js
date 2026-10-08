@@ -4,7 +4,7 @@ import { createInventoryPanel, createHelpPanel, createDrillPanel } from './inter
 const BUILDING_MENUS={
  construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Чертежи · Строительство базы'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
- hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
+ hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters-top',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Виктор Р.',role:'Оружие для бура',art:'menu-armory-scene',hint:'Чертежи · Изготовление · Установка'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
