@@ -3291,7 +3291,7 @@ const demyanMethods={
  updateDemyan(ms){
   const q=this.demyanQuest;if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
-   this.hqSentries?.forEach((guard,i)=>{if(guard.visible)guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(this.time.now*.002+i)));});
+   this.updateHeadquartersSentries();
    if(stepHeadquarters(q,ms)){this.renderHeadquarters();this.persist();this.startStory('hqReady');}else if(q.remaining!=null)this.renderHeadquarters();return;
   }
   if(this.floorNumber!==5||q.rescued)return;
@@ -3350,10 +3350,9 @@ const demyanMethods={
   if(!q.hq){preview.lineStyle(3,0xd7bc79,.8);preview.strokeRect(f.x,f.y,f.width,f.height);preview.lineStyle(1,0xd7bc79,.4);for(let i=1;i<HQ_WIDTH;i++)preview.lineBetween(f.x+i*CELL,f.y,f.x+i*CELL,f.y+f.height);for(let i=1;i<HQ_HEIGHT;i++)preview.lineBetween(f.x,f.y+i*CELL,f.x+f.width,f.y+i*CELL);}
   this.hqLabel?.setPosition(b.x+b.width/2,f.y-12).setText(q.hq?'ШТАБ · ДЕМЬЯН П.':q.remaining!=null?'ШТАБ · СТРОИТЕЛЬСТВО':'ПЛОЩАДКА ШТАБА · 9×8');
   if(q.hq){
-   g.fillStyle(0x4a5950);g.fillRoundedRect(f.x,f.y,f.width,f.height,8);g.lineStyle(2,0x9c9575);g.strokeRect(f.x+5,f.y+5,f.width-10,f.height-10);
    this.headquartersHouse?.setPosition(b.x,b.y).setDisplaySize(b.width,b.height+CELL);
    const posts=[[1.5,.5],[7.5,.5],[.5,3],[8.5,3],[.5,6],[8.5,6],[1.5,7.5],[7.5,7.5]];
-   this.hqSentries?.forEach((p,i)=>{p.setPosition(f.x+posts[i][0]*CELL,f.y+posts[i][1]*CELL+22).setFlipX(i%2===1);p.sentryScaleX=p.scaleX;p.sentryScaleY=p.scaleY;});
+   this.hqSentries?.forEach((p,i)=>{p.setPosition(f.x+posts[i][0]*CELL,f.y+posts[i][1]*CELL+22).setFlipX(i%2===1);p.sentryHome={x:p.x,y:p.y,vertical:i>=2&&i<=5};p.setDisplaySize(32,52);p.sentryScaleX=p.scaleX;p.sentryScaleY=p.scaleY;});
    this.demyanPerson?.setPosition(b.x+b.width/2-70,geom.deck.y+32).setVisible(true);return;
   }
   if(q.remaining==null)return;
@@ -3361,6 +3360,17 @@ const demyanMethods={
   for(let x=b.x+CELL/2;x<b.x+b.width;x+=CELL){g.lineStyle(4,0x687c6c);g.lineBetween(x,b.y,x,b.y+b.height);}
   const progress=1-q.remaining/15000;g.fillStyle(0x1d322c);g.fillRect(b.x+12,geom.deck.y+24,b.width-24,12);g.fillStyle(0xddbd72);g.fillRect(b.x+12,geom.deck.y+24,(b.width-24)*progress,12);
 
+ },
+ updateHeadquartersSentries(){
+  this.hqSentries?.forEach((guard,i)=>{
+   if(!guard.visible||!guard.sentryHome)return;
+   const t=(this.time.now/1000+i*1.47)%12,walking=t>=2&&t<5||t>=8&&t<11;
+   const offset=t<2?-18:t<5?-18+(t-2)*12:t<8?18:t<11?18-(t-8)*12:-18;
+   const home=guard.sentryHome,bob=walking?Math.sin(t*13+i)*1.2:0;
+   guard.setPosition(home.x+(home.vertical?0:offset),home.y+(home.vertical?offset:0)+bob);
+   guard.setFlipX(t>=5&&t<11);guard.setRotation(walking?Math.sin(t*13+i)*.018:Math.sin(t*1.5+i)*.007);
+   guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(t*2+i)));
+  });
  },
  openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent='Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Спасены трое выживших; следующая задача — подготовить жильё. Новые сюжетные поручения будут появляться здесь.';panel.append(title,note);showBuildingMenu('hq',panel);}
 };
@@ -4215,7 +4225,7 @@ class Floor extends Base {
 const BUILDING_MENUS={
  construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
- hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters-v2',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
+ hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
  armory:{title:'ОРУЖЕЙНАЯ',portrait:'armorer-portrait',name:'Оружейник',role:'Оружие для бура',art:'menu-armory-scene',hint:'Установка и модернизация · 4 секунды'},
  repair:{title:'РЕМОНТНЫЙ ЦЕХ',portrait:'ilya-portrait',name:'Илья К',role:'Ремонтник',art:'menu-workshop-scene',hint:'Восстановление прочности · 4 секунды'},
@@ -4378,7 +4388,7 @@ class Boot extends Phaser.Scene {
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
     this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
     for(const key of ['warehouse-house','military-guard'])this.load.image(key,'./public/assets/game/'+key+'.webp');
-    this.load.image('headquarters','./public/assets/game/headquarters-v2.webp');
+    this.load.image('headquarters','./public/assets/game/headquarters.webp');
     this.load.image('architect-house', './public/assets/game/architect-house.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
