@@ -1337,6 +1337,7 @@ function buyBuildingBlueprint(known,id,credits,construction,demyan){
 
 
 
+
 const buildingBlueprintMethods={
  knowsBuildingBlueprint(id){return knowsBuildingBlueprint(this.buildingBlueprints,id);},
  purchaseBuildingBlueprint(id){
@@ -1352,7 +1353,7 @@ const buildingBlueprintMethods={
  openBuildingBlueprints(){
   if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='lift-console construction-controls blueprint-catalog';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ЧЕРТЕЖИ БАЗЫ · '+this.credits+' КРЕДИТОВ';const note=document.createElement('p');note.className='terminal-note';note.textContent='Кредиты: '+this.credits+'. Чертёж покупается один раз и сохраняется навсегда. Материалы для строительства и цена каждого улучшения оплачиваются отдельно. Первый склад уже готов бесплатно.';panel.append(title,note);const book=document.createElement('button');book.className='floor-button structure-book-button';book.textContent='ВСЕ РЕЦЕПТЫ · '+STRUCTURE_RECIPES.length+' ПРОЕКТОВ';book.addEventListener('click',()=>this.openStructureRecipes());panel.append(book);
-  for(const b of BUILDING_BLUEPRINTS){const card=document.createElement('section');card.className='settlement-project-card';const heading=document.createElement('h3');heading.textContent=b.name;const desc=document.createElement('p');desc.textContent=b.description;const status=document.createElement('p');status.className='terminal-note';const available=buildingBlueprintAvailable(b.id,this.constructionQuest,this.demyanQuest),known=this.knowsBuildingBlueprint(b.id);status.textContent=known?'Чертёж изучен':available?'Доступен у архитектора':b.id==='hq'?'После спасения и возвращения Демьяна':b.id==='warehouse-upgrade'?'После открытия склада':'После строительства штаба и поручения Демьяна';card.append(heading,desc,status);const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=b.id==='warehouse-upgrade'?'Следующий уровень: '+warehouseUpgradePrice(this.constructionQuest)+' кредитов':formatStructureRecipe(structureRecipe(b.id));card.append(recipe);this.addBuildingBlueprintPurchase(card,b.id,()=>this.openBuildingBlueprints());
+  for(const b of BUILDING_BLUEPRINTS){const card=document.createElement('section');card.className='settlement-project-card blueprint-banner';const drawing=document.createElement('div');drawing.className='blueprint-banner-drawing';const image=document.createElement('img');image.src=recipeArt(structureRecipe(b.id==='warehouse-upgrade'?'warehouse':b.id));image.alt='';image.loading='lazy';const seal=document.createElement('span');seal.className='blueprint-banner-seal';seal.textContent='ПРОЕКТ УБЕЖИЩА';drawing.append(image,seal);card.append(drawing);const heading=document.createElement('h3');heading.textContent=b.name;const desc=document.createElement('p');desc.textContent=b.description;const status=document.createElement('p');status.className='terminal-note';const available=buildingBlueprintAvailable(b.id,this.constructionQuest,this.demyanQuest),known=this.knowsBuildingBlueprint(b.id);status.textContent=known?'Чертёж изучен':available?'Доступен у архитектора':b.id==='hq'?'После спасения и возвращения Демьяна':b.id==='warehouse-upgrade'?'После открытия склада':'После строительства штаба и поручения Демьяна';card.append(heading,desc,status);const recipe=document.createElement('p');recipe.className='structure-recipe-ingredients';recipe.textContent=b.id==='warehouse-upgrade'?'Следующий уровень: '+warehouseUpgradePrice(this.constructionQuest)+' кредитов':formatStructureRecipe(structureRecipe(b.id));card.append(recipe);this.addBuildingBlueprintPurchase(card,b.id,()=>this.openBuildingBlueprints());
    if(known&&available){const use=document.createElement('button');use.className='floor-button';use.textContent=b.kind==='upgrade'?'К СКЛАДУ · УЛУЧШЕНИЯ':b.id==='hq'&&this.demyanQuest.hq?'ШТАБ ПОСТРОЕН':'ПЕРЕЙТИ К СТРОИТЕЛЬСТВУ';use.disabled=b.id==='hq'&&this.demyanQuest.hq;use.addEventListener('click',()=>{if(b.id==='hq')this.openHeadquartersBuild();else if(b.id==='warehouse-upgrade'){if(this.constructionAction()==='warehouse'){this.openWarehouse();return;}const d=document.createElement('p');d.className='terminal-note';d.textContent='Подъедь к воротам склада: улучшения доступны там. Чертёж открывает все его уровни.';card.append(d);use.disabled=true;}else this.openSettlementConstruction();});card.append(use);}
    panel.append(card);
   }
@@ -4190,7 +4191,7 @@ const recipeDropMethods={
  findRecipeInBrokenBlock(){
   const recipe=awardRecipeDrop(this,this.floorNumber);if(!recipe)return null;
   this.persist();this.refreshHUD();const note=recipe.availability==='planned'||recipe.availability==='story'?'Рецепт изучен навсегда. Он сохранён в книге; строительство этого проекта откроется позже.':recipe.id.startsWith('weapon-')?'Чертёж изучен бесплатно. В оружейной осталось собрать материалы и изготовить оружие.':'Чертёж изучен бесплатно. Выполни сюжетные условия и собери материалы, чтобы использовать его на базе.';
-  this.showDiscovery({kind:'blueprint',name:recipe.name,description:'Найден рецепт · '+recipe.category,note});return recipe;
+  this.showDiscovery({kind:'blueprint',id:recipe.id,name:recipe.name,description:'Найден рецепт · '+recipe.category,note});return recipe;
  }
 };
 
@@ -5462,10 +5463,13 @@ const settlementMethods={
 
 
 
+
+
 const DISCOVERY_COLORS=['#d6c79c','#99d796','#6ed8cf','#78b7ff','#b798ff','#ef8cd8','#ffad70','#ffe180','#ff837e','#f5ecff'];
 function discoveryDetails(item){
  const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
  if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',artSource:artifactArtSource(item.id||item.name),art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
+ if(item.kind==='blueprint'){const recipe=structureRecipe(item.id);return {eyebrow:'НОВЫЕ ВОЗМОЖНОСТИ',heading:'ЧЕРТЁЖ ОБНАРУЖЕН',name:item.name,description:item.description||'Новый проект убежища',note:item.note||'Чертёж сохранён в книге рецептов.',artSource:recipe?recipeArt(recipe):null,art:'blueprint.svg',color:'#87dfdd',rarity:5};}
  if(item.kind==='floor-clear')return {eyebrow:'ТЕРРИТОРИЯ ОСВОБОЖДЕНА!',heading:'ПОЛНАЯ РАСЧИСТКА',name:item.name,description:item.description,note:item.note,artPath:'game/headquarters-top.webp',color:'#bee796',rarity:6};
  if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
  return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',artPath:item.kind==='blueprint'?'quests/blueprint.svg':'game/bonus-cache-v2.webp',color:'#ffd780',rarity:5};
@@ -5486,7 +5490,7 @@ const discoveryMethods={
   const item=this.discoveryQueue?.shift();if(!item){this.discoveryActive=false;return;}
   const spec=discoveryDetails(item);this.discoveryActive=true;this.dialogClosed();this.speed=0;this.persist();
   const previousFocus=document.activeElement,dialog=document.createElement('dialog');dialog.className='discovery-dialog';dialog.setAttribute('aria-labelledby','discovery-heading');dialog.style.setProperty('--discovery-color',spec.color);
-  const card=document.createElement('section');card.className='discovery-card';card.dataset.rarity=String(spec.rarity);
+  const card=document.createElement('section');card.className='discovery-card';card.dataset.rarity=String(spec.rarity);card.dataset.kind=item.kind;
   const beams=document.createElement('div');beams.className='discovery-beams';beams.setAttribute('aria-hidden','true');
   const sparks=document.createElement('div');sparks.className='discovery-sparks';sparks.setAttribute('aria-hidden','true');for(let i=0;i<16;i++){const dot=document.createElement('i');dot.style.setProperty('--i',String(i));dot.style.setProperty('--top',String(15+(i*17)%65)+'%');sparks.append(dot);}
   const eyebrow=document.createElement('p');eyebrow.className='discovery-eyebrow';eyebrow.textContent=spec.eyebrow;
@@ -5496,7 +5500,7 @@ const discoveryMethods={
   const rarity=document.createElement('p');rarity.className='discovery-rarity';rarity.textContent=spec.description;
   const note=document.createElement('p');note.className='discovery-note';note.textContent=spec.note;
   const button=document.createElement('button');button.type='button';button.className='discovery-continue';button.textContent='ПРОДОЛЖИТЬ';
-  card.append(beams,sparks,eyebrow,heading,art,name,rarity);
+  if(item.kind==='blueprint'){const drawing=document.createElement('div');drawing.className='blueprint-discovery-drawing';drawing.append(art);card.append(beams,sparks,eyebrow,heading,drawing,name,rarity);}else card.append(beams,sparks,eyebrow,heading,art,name,rarity);
   if(item.rewards?.length){const caption=document.createElement('p');caption.className='discovery-loot-caption';caption.textContent='ПОЛУЧЕНО';card.append(caption);const grid=document.createElement('div');grid.className='discovery-loot-grid';for(const reward of item.rewards){const row=document.createElement('div');row.className='discovery-loot '+reward.kind;const mark=document.createElement('span');mark.className='discovery-loot-mark';mark.setAttribute('aria-hidden','true');mark.textContent=reward.kind==='credits'?'◈':reward.kind==='artifact'?'✦':reward.kind==='material'?'⬟':'◆';const label=document.createElement('strong'),amount=document.createElement('b');label.textContent=reward.name;amount.textContent=(reward.kind==='credits'?'+':'×')+reward.count.toLocaleString('ru-RU');row.append(mark,label,amount);grid.append(row);}card.append(grid);}
   if(item.remaining?.length){const rest=document.createElement('div');rest.className='discovery-remaining';rest.textContent='ОСТАЛОСЬ В ТАЙНИКЕ · '+item.remaining.map(a=>a.name+' ×'+a.count).join(' · ')+'. Освободи отсек и вернись за запасами.';card.append(rest);}
   card.append(note,button);dialog.append(card);document.querySelector('#ui').append(dialog);let closed=false;

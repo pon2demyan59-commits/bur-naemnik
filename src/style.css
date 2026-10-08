@@ -610,3 +610,17 @@ dialog:not([open]){display:none!important;pointer-events:none;}
 .drill-head-card{padding:12px;background:linear-gradient(145deg,#2a4a3c,#142e29);border:1px solid #668270;border-radius:8px;min-width:0;}
 .drill-head-card strong{font-size:14px;color:#f1d49a;}.drill-head-card p{font-size:11px;color:#c0ceba;line-height:1.5;}.drill-head-card .floor-button{width:100%;min-height:46px!important;padding:10px!important;font-size:12px!important;}.drill-head-card.installed{border-color:#ace393;}
 @media(max-width:600px){.drill-head-grid{grid-template-columns:1fr;}}
+
+/* Illustrated project banners: drafting grid, large machine art and a readable title. */
+.blueprint-catalog .blueprint-banner{display:grid;grid-template-columns:210px minmax(0,1fr);column-gap:22px;padding:22px;border:1px solid #72a9a2;border-radius:12px;background:linear-gradient(125deg,#163e3e,#102e29);box-shadow:inset 0 1px #b5e2cf22,0 5px 14px #071b1740;overflow:hidden;text-align:left;}
+.blueprint-banner-drawing{grid-column:1;grid-row:1/9;position:relative;display:flex;align-items:center;justify-content:center;min-height:200px;border:1px solid #76bdb25c;border-radius:8px;background:linear-gradient(#75c8c41c 1px,transparent 1px),linear-gradient(90deg,#75c8c41c 1px,transparent 1px),radial-gradient(ellipse,#31777a,#12353a);background-size:20px 20px,20px 20px,100% 100%;}
+.blueprint-banner-drawing img{width:95%;height:180px;object-fit:contain;filter:drop-shadow(0 9px 5px #031d2280);}
+.blueprint-banner-seal{position:absolute;top:8px;left:10px;font-size:9px;letter-spacing:1.5px;color:#b9ebe0;}
+.blueprint-catalog .blueprint-banner>h3{font-size:24px;color:#ffdda0;margin:0 0 8px;line-height:1.2;}
+.blueprint-catalog .blueprint-banner>p{margin:5px 0;line-height:1.5;}.blueprint-catalog .blueprint-banner>button{grid-column:2;}
+.discovery-card[data-kind=blueprint]{border-color:#83d7d6;background:linear-gradient(150deg,#163b43,#122f30 70%);}
+.blueprint-discovery-drawing{position:relative;max-width:400px;width:100%;margin:14px auto;padding:18px;border:1px solid #81ccc680;border-radius:9px;background:linear-gradient(#6ccecb20 1px,transparent 1px),linear-gradient(90deg,#6ccecb20 1px,transparent 1px),radial-gradient(ellipse,#286470,#11343c);background-size:24px 24px,24px 24px,100% 100%;box-shadow:inset 0 0 35px #041e2866;}
+.blueprint-discovery-drawing::before,.blueprint-discovery-drawing::after{content:'';position:absolute;width:22px;height:22px;border-color:#b8f0df;border-style:solid;}.blueprint-discovery-drawing::before{left:8px;top:8px;border-width:2px 0 0 2px;}.blueprint-discovery-drawing::after{right:8px;bottom:8px;border-width:0 2px 2px 0;}
+.blueprint-discovery-drawing .discovery-art{display:block;width:100%;height:180px;margin:0;object-fit:contain;filter:drop-shadow(0 12px 8px #031a21aa);}
+@media(max-width:600px){.blueprint-catalog .blueprint-banner{grid-template-columns:1fr;padding:14px;gap:10px;}.blueprint-banner-drawing{grid-column:1;grid-row:auto;min-height:160px;}.blueprint-banner-drawing img{height:145px;}.blueprint-catalog .blueprint-banner>button{grid-column:1;}.blueprint-catalog .blueprint-banner>h3{font-size:21px;}.blueprint-discovery-drawing .discovery-art{height:140px;}}
+@media(max-height:500px){.blueprint-discovery-drawing{max-width:260px;padding:10px;margin:8px auto;}.blueprint-discovery-drawing .discovery-art{height:100px;}}
