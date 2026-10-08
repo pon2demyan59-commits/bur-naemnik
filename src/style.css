@@ -469,3 +469,45 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 @keyframes discovery-spark{50%{opacity:.2;transform:translateY(-22px) scale(.4)}}
 @media(max-height:520px) and (min-aspect-ratio:1/1){.discovery-card{padding:14px 22px;display:grid;grid-template-columns:150px 1fr;gap:4px 18px;align-items:center}.discovery-art{grid-column:1;grid-row:1/7;width:150px;height:150px;margin:0}.discovery-eyebrow,dialog.discovery-dialog h2,.discovery-name,.discovery-rarity,.discovery-note,.discovery-continue{grid-column:2;margin:3px auto}.discovery-name{font-size:26px}.discovery-note{font-size:12px}.discovery-continue{min-height:44px}.discovery-rarity{padding:4px 12px;font-size:12px}}
 @media(prefers-reduced-motion:reduce){.discovery-card,.discovery-art,.discovery-beams::before,.discovery-sparks i{animation:none}}
+
+/* Compact Porodnik catalogue with actual in-game material textures. */
+#dialog.game-dialog[data-menu=porodnik]{width:min(790px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border:3px solid #718975;border-image:none;border-radius:15px;background:linear-gradient(145deg,#29483e,#102d26);filter:none;box-shadow:inset 0 0 0 3px #14332c,0 18px 60px #0009;}
+#dialog.game-dialog[data-menu=porodnik] .dialog-shell{padding:18px;}
+#dialog.game-dialog[data-menu=porodnik] h2{position:static;transform:none;width:auto;height:auto;padding:0;margin:0 0 6px;background:none;color:#ffe5a4;font-size:25px;letter-spacing:.06em;}
+#dialog.game-dialog[data-menu=porodnik] #dialog-body{max-height:none;padding:0;overflow:visible;}
+.porodnik-console{display:flex;flex-direction:column;gap:10px;}
+.porodnik-intro{margin:0;text-align:center;font-size:12px;color:#b8cbb3;line-height:1.4;}
+.porodnik-toolbar{display:flex;gap:6px;justify-content:center;}
+.porodnik-toolbar button{min-height:34px;padding:5px 14px;border:1px solid #6b8970;border-radius:6px;background:#1a3a30;color:#d9e8c5;font-weight:700;font-size:12px;cursor:pointer;}
+.porodnik-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;max-height:min(430px,calc(100dvh - 265px));overflow-y:auto;overscroll-behavior:contain;padding:2px 3px 4px;scrollbar-color:#7d9675 #14392d;}
+.porodnik-material{min-width:0;position:relative;padding:8px 10px 10px;border:2px solid #4c6c59;border-radius:10px;background:radial-gradient(ellipse at top,#3d5a47,#19382f);box-shadow:inset 0 1px #78946b44;transition:border-color .15s,background .15s;}
+.porodnik-material.is-selected{border-color:#e6bd6c;background:radial-gradient(ellipse at top,#596447,#254337);box-shadow:inset 0 0 15px #fbd27012;}
+.porodnik-material label{display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0;}
+.porodnik-material label>input{position:absolute;left:9px;top:9px;width:21px;height:21px;accent-color:#e5b854;cursor:pointer;}
+.porodnik-block-stage{display:block;position:relative;width:98px;height:81px;filter:drop-shadow(0 8px 6px #071a1777);}
+.porodnik-block{position:absolute;left:28px;top:20px;width:57px;height:54px;border:1px solid #26372c;border-radius:3px;background-image:url('../public/assets/game/material-surfaces.webp');background-size:400% 400%;transform:skewY(-8deg);box-shadow:inset 0 0 4px #ffffff44;}
+.porodnik-block::before{content:'';position:absolute;left:-1px;top:-15px;width:57px;height:15px;transform:skewX(42deg);transform-origin:left bottom;background:inherit;border:1px solid #64785d;border-radius:3px 3px 0 0;filter:brightness(1.25);}
+.porodnik-block::after{content:'';position:absolute;left:-15px;top:-1px;width:14px;height:54px;transform:skewY(48deg);transform-origin:right top;background:inherit;border:1px solid #26372c;border-radius:3px 0 0 3px;filter:brightness(.6);}
+.porodnik-material-name{display:flex;align-items:center;justify-content:center;min-height:34px;color:#f2e8c9;text-align:center;font-size:14px;line-height:1.2;overflow-wrap:anywhere;}
+.porodnik-material-details{display:block;margin:5px 0 10px;font-size:11px;color:#bed1ad;text-align:center;line-height:1.3;}
+.porodnik-quantity{display:grid;grid-template-columns:32px minmax(30px,1fr) 32px 40px;gap:3px;}
+.porodnik-quantity button,.porodnik-quantity input{min-width:0;height:36px;padding:3px;border:1px solid #719074;border-radius:5px;background:#112f25;color:#ecdfb9;text-align:center;font:inherit;font-size:14px;font-weight:800;}
+.porodnik-quantity button{cursor:pointer;}.porodnik-quantity button:last-child{font-size:10px;background:#3d5541;}.porodnik-quantity button:disabled,.porodnik-quantity input:disabled{opacity:.35;cursor:default;}
+.porodnik-quantity input{appearance:textfield;}.porodnik-quantity input::-webkit-inner-spin-button{appearance:none;}
+.porodnik-summary{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px;padding:11px 12px;border:1px solid #597760;border-radius:8px;background:#102e24;}
+.porodnik-summary>div{display:flex;flex-direction:column;gap:4px;}.porodnik-summary span{font-size:11px;color:#b4c6a8;}.porodnik-summary strong{font-size:23px;color:#dcebc1;}.porodnik-summary>div:last-child strong{color:#ffdb85;}
+.porodnik-footer{display:grid;grid-template-columns:1.6fr 1fr;gap:8px;}
+#dialog[data-menu=porodnik] .porodnik-footer .metal-button,#dialog[data-menu=porodnik] .porodnik-footer .close-dialog{position:static;margin:0!important;min-height:46px;padding:8px;border:2px solid #9d9366;border-radius:8px;border-image:none;background:linear-gradient(#e5c686,#bb9459);color:#213e32;font-size:13px;box-shadow:inset 0 1px #f5dfaa;}
+#dialog[data-menu=porodnik] .porodnik-footer .close-dialog{background:#385244;border-color:#64816c;color:#d9e4c3;}
+#dialog[data-menu=porodnik] .porodnik-footer .metal-button:disabled{opacity:.45;cursor:default;}
+@media(max-width:560px){#dialog.game-dialog[data-menu=porodnik] .dialog-shell{padding:12px;}#dialog.game-dialog[data-menu=porodnik] h2{font-size:21px;}.porodnik-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:calc(100dvh - 330px);}.porodnik-material{padding:6px 7px 8px;}.porodnik-material-name{font-size:12px;min-height:30px;}.porodnik-material-details{font-size:10px;}.porodnik-quantity{grid-template-columns:27px minmax(22px,1fr) 27px 32px;gap:2px;}.porodnik-summary{padding:9px;gap:5px;}.porodnik-summary span{font-size:10px;}.porodnik-summary strong{font-size:20px;}.porodnik-toolbar button{padding:5px 9px;}.porodnik-intro{font-size:11px;}}
+@media(max-height:480px) and (min-aspect-ratio:1/1){#dialog.game-dialog[data-menu=porodnik] .dialog-shell{padding:10px 15px;}#dialog.game-dialog[data-menu=porodnik] h2{font-size:20px;}.porodnik-console{gap:5px;}.porodnik-grid{max-height:calc(100dvh - 211px);grid-template-columns:repeat(3,minmax(0,1fr));}.porodnik-material{padding:5px 8px;}.porodnik-block-stage{width:78px;height:58px;transform:scale(.7);transform-origin:center top;margin-bottom:-8px;}.porodnik-material-name{min-height:20px;font-size:12px;}.porodnik-material-details{margin:3px 0 5px;font-size:10px;}.porodnik-summary{padding:5px 10px;}.porodnik-summary strong{font-size:18px;}.porodnik-toolbar button{min-height:29px;}.porodnik-intro{font-size:11px;}}
+
+.porodnik-checkout{display:grid;gap:8px;}
+@media(max-height:480px) and (min-aspect-ratio:1/1){.porodnik-console{display:grid;grid-template-columns:minmax(0,1fr) 175px;gap:6px 10px;}.porodnik-intro,.porodnik-toolbar{grid-column:1/-1;}.porodnik-grid{grid-column:1;max-height:calc(100dvh - 170px);grid-template-columns:repeat(3,minmax(0,1fr));}.porodnik-checkout{grid-column:2;align-self:start;gap:8px;}.porodnik-summary{grid-template-columns:1fr;padding:8px;gap:10px;}.porodnik-summary>div{flex-direction:row;align-items:center;justify-content:space-between;gap:7px;}.porodnik-summary span{font-size:10px;max-width:72px;}.porodnik-summary strong{font-size:19px;white-space:nowrap;}.porodnik-footer{grid-template-columns:1fr;gap:6px;}.porodnik-quantity{grid-template-columns:24px minmax(22px,1fr) 24px 30px;gap:2px;}#dialog[data-menu=porodnik] .porodnik-footer .metal-button,#dialog[data-menu=porodnik] .porodnik-footer .close-dialog{font-size:12px!important;padding:8px!important;}}
+
+#dialog.game-dialog[data-menu=porodnik][data-material-types="1"]{width:min(380px,calc(100vw - 24px));}
+#dialog.game-dialog[data-menu=porodnik][data-material-types="2"]{width:min(540px,calc(100vw - 24px));}
+#dialog[data-menu=porodnik][data-material-types="1"] .porodnik-grid{grid-template-columns:1fr;}
+#dialog[data-menu=porodnik][data-material-types="2"] .porodnik-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+@media(max-height:480px) and (min-aspect-ratio:1/1){#dialog.game-dialog[data-menu=porodnik][data-material-types="1"]{width:min(640px,calc(100vw - 24px));}#dialog.game-dialog[data-menu=porodnik][data-material-types="2"]{width:min(790px,calc(100vw - 24px));}}
