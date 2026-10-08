@@ -3164,6 +3164,21 @@ function buildingGeometry(layout={},key,construction={plot:0},head={}){
  const x=Math.min(body.x,deck.x),y=Math.min(body.y,deck.y),right=Math.max(body.x+body.width,deck.x+deck.width),bottom=Math.max(body.y+body.height,deck.y+deck.height);
  return {body,deck,collider,footprint:{x,y,width:right-x,height:bottom-y}};
 }
+// The loading lane reaches the south edge; all other foundation areas are reserved.
+function buildingDriveway(geometry){
+ if(geometry.driveway)return geometry.driveway;
+ const f=geometry.footprint,d=geometry.deck;
+ return {x:d.x,y:d.y,width:d.width,height:Math.max(d.height,f.y+f.height-d.y)};
+}
+function buildingPerimeterColliders(geometry){
+ const f=geometry.footprint,d=buildingDriveway(geometry),left=Math.max(f.x,d.x),right=Math.min(f.x+f.width,d.x+d.width),top=Math.max(f.y,d.y),bottom=Math.min(f.y+f.height,d.y+d.height);
+ return [
+  {x:f.x,y:f.y,width:f.width,height:top-f.y},
+  {x:f.x,y:top,width:left-f.x,height:bottom-top},
+  {x:right,y:top,width:f.x+f.width-right,height:bottom-top},
+  {x:f.x,y:bottom,width:f.width,height:f.y+f.height-bottom}
+ ].filter(r=>r.width>0&&r.height>0);
+}
 const rectanglesOverlap=(a,b)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
 const buildingClearance=f=>({x:f.x-CELL,y:f.y-CELL,width:f.width+2*CELL,height:f.height+2*CELL});
 function validateBuildingMove(key,geometry,world,others,rig){
@@ -3176,7 +3191,7 @@ function validateBuildingMove(key,geometry,world,others,rig){
  const entrance={x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL};
  if(rectanglesOverlap(passage,entrance))return 'Оставь свободным вход в бункер';
  for(let y=Math.floor(passage.y/CELL);y<Math.ceil((passage.y+passage.height)/CELL);y++)for(let x=Math.floor(passage.x/CELL);x<Math.ceil((passage.x+passage.width)/CELL);x++)if(x>=2&&y>=2&&x<48&&y<48&&world.blocked(x,y))return 'Расчисти проход шириной одну клетку вокруг здания';
- if(rig&&rectanglesOverlap(key==='lift'?f:geometry.body,{x:rig.x-30,y:rig.y-30,width:60,height:60}))return 'Бур стоит на месте постройки';
+ if(rig&&[...(geometry.colliders||[geometry.collider||geometry.body]),...buildingPerimeterColliders(geometry)].some(rect=>rectanglesOverlap(rect,{x:rig.x-30,y:rig.y-30,width:60,height:60})))return 'Бур стоит на месте постройки';
  return null;
 }
 
@@ -3192,13 +3207,24 @@ const buildingLayoutMethods={
  existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
  movableBuildings(){return this.existingBuildings().filter(k=>k!=='hq'||this.demyanQuest.hq);},
  questWorld(key){const o=this.buildingLayout?.[key]||{};return {blocked:(x,y)=>this.world.blocked(x+(o.dx||0),y+(o.dy||0))};},
+ foundationGeometries(){return this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest?.hq||this.demyanQuest?.remaining!=null).map(key=>this.buildingGeom(key));},
+ buildingFoundationSolids(){return this.floorNumber?[]:this.foundationGeometries().flatMap(geometry=>buildingPerimeterColliders(geometry));},
  makeBuildingFoundations(){
-  if(this.floorNumber)return;const footprints=this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest.hq).map(key=>this.buildingGeom(key).footprint),signature=JSON.stringify(footprints);if(signature===this.foundationSignature&&this.buildingFoundations?.scene)return;this.buildingFoundations?.destroy();this.foundationSignature=signature;const g=this.add.graphics().setDepth(3.2);
-  for(const f of footprints){
-   g.lineStyle(8,0x172b2b,.32);g.strokeRoundedRect(f.x-7,f.y-7,f.width+14,f.height+14,8);
-   g.lineStyle(4,0x737a6b,.9);g.strokeRoundedRect(f.x-4,f.y-4,f.width+8,f.height+8,7);
-   g.lineStyle(1,0xc2ad79,.65);g.strokeRoundedRect(f.x-1,f.y-1,f.width+2,f.height+2,5);
-   for(const x of [f.x-3,f.x+f.width+3])for(const y of [f.y-3,f.y+f.height+3]){g.fillStyle(0x394c48);g.fillRoundedRect(x-6,y-6,12,12,3);g.fillStyle(0xbba577);g.fillCircle(x,y,2);}
+  if(this.floorNumber)return;const geometries=this.foundationGeometries(),signature=JSON.stringify(geometries);if(signature===this.foundationSignature&&this.buildingFoundations?.scene)return;this.buildingFoundations?.destroy();this.foundationSignature=signature;const g=this.add.graphics().setDepth(1.8);
+  for(const geometry of geometries){const f=geometry.footprint,d=buildingDriveway(geometry);
+   // Weathered poured concrete, flush with the bunker floor rather than a floating platform.
+   g.fillStyle(0x74786e);g.fillRect(f.x,f.y,f.width,f.height);
+   for(let y=0;y<f.height;y+=CELL)for(let x=0;x<f.width;x+=CELL){const seed=(Math.floor(x/CELL)*17+Math.floor(y/CELL)*31)%11,w=Math.min(CELL,f.width-x),h=Math.min(CELL,f.height-y);
+    g.fillStyle(seed%2?0x96988b:0x555e58,.12);g.fillRect(f.x+x+2,f.y+y+2,Math.max(0,w-4),Math.max(0,h-4));
+    for(let i=0;i<10;i++){const px=(seed*13+i*17)%Math.max(1,w-8),py=(seed*7+i*23)%Math.max(1,h-8);g.fillStyle(0xd1c9ae,.12);g.fillCircle(f.x+x+4+px,f.y+y+4+py,i%3?1:2);}
+    if(seed===3||seed===7){g.lineStyle(1,0x35413d,.24);g.lineBetween(f.x+x+11,f.y+y+19,f.x+x+24,f.y+y+23);g.lineBetween(f.x+x+24,f.y+y+23,f.x+x+29,f.y+y+35);}
+   }
+   g.lineStyle(1,0x394540,.5);for(let x=f.x+2*CELL;x<f.x+f.width;x+=2*CELL)g.lineBetween(x,f.y+4,x,f.y+f.height-4);for(let y=f.y+2*CELL;y<f.y+f.height;y+=2*CELL)g.lineBetween(f.x+4,y,f.x+f.width-4,y);
+   g.fillStyle(0x394741,.28);g.fillRect(d.x,d.y,d.width,d.height);
+   g.lineStyle(5,0x424e47);g.lineBetween(f.x+3,f.y+3,f.x+f.width-3,f.y+3);g.lineBetween(f.x+3,f.y+3,f.x+3,f.y+f.height-3);g.lineBetween(f.x+f.width-3,f.y+3,f.x+f.width-3,f.y+f.height-3);
+   g.lineStyle(2,0xb7b49a,.7);g.lineBetween(f.x+7,f.y+7,f.x+f.width-7,f.y+7);g.lineBetween(f.x+7,f.y+7,f.x+7,f.y+f.height-7);g.lineBetween(f.x+f.width-7,f.y+7,f.x+f.width-7,f.y+f.height-7);
+   g.lineStyle(5,0x424e47);if(d.x>f.x)g.lineBetween(f.x+3,f.y+f.height-3,d.x,f.y+f.height-3);if(d.x+d.width<f.x+f.width)g.lineBetween(d.x+d.width,f.y+f.height-3,f.x+f.width-3,f.y+f.height-3);
+   g.lineStyle(3,0xbbaa76,.7);for(let y=d.y+8;y<d.y+d.height-6;y+=26){g.lineBetween(d.x+5,y,d.x+5,Math.min(y+12,d.y+d.height-6));g.lineBetween(d.x+d.width-5,y,d.x+d.width-5,Math.min(y+12,d.y+d.height-6));}
   }this.buildingFoundations=g;
  },
  makeBuildingEditor(){
@@ -3602,8 +3628,9 @@ class Base extends globalThis.Phaser.Scene {
   create() {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
+    this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;if(this.arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
-    this.makeMap();this.makeBuildingFoundations();
+    this.makeMap();this.makeBuildingFoundations();this.relocateFromFoundation();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
@@ -4117,9 +4144,17 @@ class Base extends globalThis.Phaser.Scene {
     }
   }
   solidCell(x,y) { return (this.floorNumber===4&&!this.constructionQuest.rescued&&x===BUILDER_SITE.x&&y===BUILDER_SITE.y)||(this.floorNumber===3&&!this.repairQuest.rescued&&x===REPAIRMAN_SITE.x&&y===REPAIRMAN_SITE.y)||(this.floorNumber===2&&!this.armoryQuest.rescued&&x===ARMORER_SITE.x&&y===ARMORER_SITE.y)||(this.floorNumber===1&&!this.workshopQuest.mechanic&&x===MECHANIC_SITE.x&&y===MECHANIC_SITE.y)||!this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  relocateFromFoundation(){
+    if(this.floorNumber||this.arrival)return;
+    const solid=this.driveSolids(),parked=this.parked,px=Number.isFinite(parked?.x)?parked.x:middle(this.world.x),py=Number.isFinite(parked?.y)?parked.y:middle(this.world.y);
+    if(driveFits(px,py,solid))return;
+    let nearest=null,distance=Infinity;
+    for(let y=2;y<48;y++)for(let x=2;x<48;x++){const sx=middle(x),sy=middle(y),d=(sx-px)**2+(sy-py)**2;if(d<distance&&driveFits(sx,sy,solid)){nearest={x,y};distance=d;}}
+    if(nearest){this.world.x=nearest.x;this.world.y=nearest.y;this.parked=null;}
+  }
   driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
-    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
+    solid.rectangles=[...this.lift.colliders,...this.buildingFoundationSolids(),...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
     return solid;
   }
   advanceVehicle(time,dt,direction) {

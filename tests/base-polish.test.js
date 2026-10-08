@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import { buildingGeometry, restoreBuildingLayout, registerBuildingType, validateBuildingMove } from '../src/building-layout-state.js';
+import { buildingGeometry, restoreBuildingLayout, registerBuildingType, buildingDriveway, buildingPerimeterColliders, validateBuildingMove } from '../src/building-layout-state.js';
 import { restoreConstruction, warehouseBody, warehouseDeck } from '../src/construction-state.js';
 import { restoreArmory, buyWeaponUpgrade, installWeapon, onArmoryDeck } from '../src/armory-state.js';
 import { stepWorkshopService } from '../src/workshop-state.js';
@@ -69,4 +69,24 @@ test('HQ confirmation persists its plot and preserves warehouse stock and upgrad
 test('registered future buildings share movement geometry, save restoration and placement rules',()=>{
  registerBuildingType('futurePower','Электростанция',({offset,CELL})=>{const body={x:(8+offset.dx)*CELL,y:(15+offset.dy)*CELL,width:3*CELL,height:2*CELL},deck={...body,y:body.y+body.height,height:CELL};return {body,deck,footprint:{...body,height:3*CELL}};});
  const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{buildingLayout:{futurePower:{dx:4,dy:2}}}}});s.rig={x:1000,y:500,angle:0};assert.ok(s.movableBuildings().includes('futurePower'));assert.equal(s.buildingGeom('futurePower').body.x,12*64);assert.deepEqual(s.snapshotCampaign().buildingLayout.futurePower,{dx:4,dy:2});
+});
+
+test('concrete perimeters block the drill while every loading lane remains reachable from the south',()=>{
+ for(const key of ['lift','porodnik','workshop','armory','repair','warehouse','architect','hq']){
+  const g=buildingGeometry({},key,{plot:0},{plot:{x:28,y:23}}),d=buildingDriveway(g),f=g.footprint;
+  const solid=()=>false;solid.rectangles=[...buildingPerimeterColliders(g),...(g.colliders||[g.collider||g.body])];
+  assert.equal(driveFits(f.x+21,f.y+21,solid),false,key+' closed rear');
+  const x=d.x+d.width/2;for(let y=f.y+f.height+32;y>=g.deck.y+g.deck.height/2;y-=8)assert.equal(driveFits(x,y,solid),true,key+' open loading approach '+y);
+ }
+});
+test('the one-cell passage between reserved concrete foundations stays driveable',()=>{
+ const g=buildingGeometry({architect:{dx:-13,dy:-8}},'architect'),h=buildingGeometry({architect:{dx:-8,dy:-8}},'architect'),solid=()=>false;
+ solid.rectangles=[...buildingPerimeterColliders(g),...buildingPerimeterColliders(h)];
+ const x=g.footprint.x+g.footprint.width+32;for(let y=g.footprint.y-32;y<g.footprint.y+g.footprint.height+32;y+=8)assert.equal(driveFits(x,y,solid),true);
+});
+test('placement cannot cover the drill with the concrete perimeter of HQ',()=>{
+ const g=buildingGeometry({},'hq',{}, {plot:{x:12,y:37}});assert.match(validateBuildingMove('hq',g,{blocked:()=>false},[],{x:g.footprint.x+32,y:g.footprint.y+32}),/Бур/);
+});
+test('a drill saved on a newly reserved concrete edge moves to free floor without losing cargo',()=>{
+ const s=new Base();s.sys={settings:{key:'Base'}};s.init({save:{progress:{cargoHold:{iron:17},base:{rescued:true},demyanQuest:{briefed:true,contact:true,rescued:true,returned:true,hq:true,plot:{x:28,y:23}}}}});s.world.blocked=()=>false;s.world.inside=()=>true;s.lift={colliders:[]};s.parked={x:28.5*64,y:23.5*64,angle:0};s.world.x=28;s.world.y=23;s.relocateFromFoundation();assert.equal(s.parked,null);assert.ok(driveFits((s.world.x+.5)*64,(s.world.y+.5)*64,s.driveSolids()));assert.equal(s.cargoHold.iron,17);
 });

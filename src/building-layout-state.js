@@ -22,6 +22,21 @@ export function buildingGeometry(layout={},key,construction={plot:0},head={}){
  const x=Math.min(body.x,deck.x),y=Math.min(body.y,deck.y),right=Math.max(body.x+body.width,deck.x+deck.width),bottom=Math.max(body.y+body.height,deck.y+deck.height);
  return {body,deck,collider,footprint:{x,y,width:right-x,height:bottom-y}};
 }
+// The loading lane reaches the south edge; all other foundation areas are reserved.
+export function buildingDriveway(geometry){
+ if(geometry.driveway)return geometry.driveway;
+ const f=geometry.footprint,d=geometry.deck;
+ return {x:d.x,y:d.y,width:d.width,height:Math.max(d.height,f.y+f.height-d.y)};
+}
+export function buildingPerimeterColliders(geometry){
+ const f=geometry.footprint,d=buildingDriveway(geometry),left=Math.max(f.x,d.x),right=Math.min(f.x+f.width,d.x+d.width),top=Math.max(f.y,d.y),bottom=Math.min(f.y+f.height,d.y+d.height);
+ return [
+  {x:f.x,y:f.y,width:f.width,height:top-f.y},
+  {x:f.x,y:top,width:left-f.x,height:bottom-top},
+  {x:right,y:top,width:f.x+f.width-right,height:bottom-top},
+  {x:f.x,y:bottom,width:f.width,height:f.y+f.height-bottom}
+ ].filter(r=>r.width>0&&r.height>0);
+}
 export const rectanglesOverlap=(a,b)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
 export const buildingClearance=f=>({x:f.x-CELL,y:f.y-CELL,width:f.width+2*CELL,height:f.height+2*CELL});
 export function validateBuildingMove(key,geometry,world,others,rig){
@@ -34,6 +49,6 @@ export function validateBuildingMove(key,geometry,world,others,rig){
  const entrance={x:20*CELL,y:6*CELL,width:10*CELL,height:5*CELL};
  if(rectanglesOverlap(passage,entrance))return 'Оставь свободным вход в бункер';
  for(let y=Math.floor(passage.y/CELL);y<Math.ceil((passage.y+passage.height)/CELL);y++)for(let x=Math.floor(passage.x/CELL);x<Math.ceil((passage.x+passage.width)/CELL);x++)if(x>=2&&y>=2&&x<48&&y<48&&world.blocked(x,y))return 'Расчисти проход шириной одну клетку вокруг здания';
- if(rig&&rectanglesOverlap(key==='lift'?f:geometry.body,{x:rig.x-30,y:rig.y-30,width:60,height:60}))return 'Бур стоит на месте постройки';
+ if(rig&&[...(geometry.colliders||[geometry.collider||geometry.body]),...buildingPerimeterColliders(geometry)].some(rect=>rectanglesOverlap(rect,{x:rig.x-30,y:rig.y-30,width:60,height:60})))return 'Бур стоит на месте постройки';
  return null;
 }

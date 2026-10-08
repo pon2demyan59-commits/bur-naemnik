@@ -1,4 +1,4 @@
-import { buildingGeometry, BUILDING_LABELS, buildingClearance, validateBuildingMove } from './building-layout-state.js';
+import { buildingGeometry, buildingDriveway, buildingPerimeterColliders, BUILDING_LABELS, buildingClearance, validateBuildingMove } from './building-layout-state.js';
 import { CELL } from './base-state.js';
 import { writeSave } from './storage.js';
 import { gameplayZoom } from './viewport-sync.js';
@@ -10,13 +10,24 @@ export const buildingLayoutMethods={
  existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
  movableBuildings(){return this.existingBuildings().filter(k=>k!=='hq'||this.demyanQuest.hq);},
  questWorld(key){const o=this.buildingLayout?.[key]||{};return {blocked:(x,y)=>this.world.blocked(x+(o.dx||0),y+(o.dy||0))};},
+ foundationGeometries(){return this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest?.hq||this.demyanQuest?.remaining!=null).map(key=>this.buildingGeom(key));},
+ buildingFoundationSolids(){return this.floorNumber?[]:this.foundationGeometries().flatMap(geometry=>buildingPerimeterColliders(geometry));},
  makeBuildingFoundations(){
-  if(this.floorNumber)return;const footprints=this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest.hq).map(key=>this.buildingGeom(key).footprint),signature=JSON.stringify(footprints);if(signature===this.foundationSignature&&this.buildingFoundations?.scene)return;this.buildingFoundations?.destroy();this.foundationSignature=signature;const g=this.add.graphics().setDepth(3.2);
-  for(const f of footprints){
-   g.lineStyle(8,0x172b2b,.32);g.strokeRoundedRect(f.x-7,f.y-7,f.width+14,f.height+14,8);
-   g.lineStyle(4,0x737a6b,.9);g.strokeRoundedRect(f.x-4,f.y-4,f.width+8,f.height+8,7);
-   g.lineStyle(1,0xc2ad79,.65);g.strokeRoundedRect(f.x-1,f.y-1,f.width+2,f.height+2,5);
-   for(const x of [f.x-3,f.x+f.width+3])for(const y of [f.y-3,f.y+f.height+3]){g.fillStyle(0x394c48);g.fillRoundedRect(x-6,y-6,12,12,3);g.fillStyle(0xbba577);g.fillCircle(x,y,2);}
+  if(this.floorNumber)return;const geometries=this.foundationGeometries(),signature=JSON.stringify(geometries);if(signature===this.foundationSignature&&this.buildingFoundations?.scene)return;this.buildingFoundations?.destroy();this.foundationSignature=signature;const g=this.add.graphics().setDepth(1.8);
+  for(const geometry of geometries){const f=geometry.footprint,d=buildingDriveway(geometry);
+   // Weathered poured concrete, flush with the bunker floor rather than a floating platform.
+   g.fillStyle(0x74786e);g.fillRect(f.x,f.y,f.width,f.height);
+   for(let y=0;y<f.height;y+=CELL)for(let x=0;x<f.width;x+=CELL){const seed=(Math.floor(x/CELL)*17+Math.floor(y/CELL)*31)%11,w=Math.min(CELL,f.width-x),h=Math.min(CELL,f.height-y);
+    g.fillStyle(seed%2?0x96988b:0x555e58,.12);g.fillRect(f.x+x+2,f.y+y+2,Math.max(0,w-4),Math.max(0,h-4));
+    for(let i=0;i<10;i++){const px=(seed*13+i*17)%Math.max(1,w-8),py=(seed*7+i*23)%Math.max(1,h-8);g.fillStyle(0xd1c9ae,.12);g.fillCircle(f.x+x+4+px,f.y+y+4+py,i%3?1:2);}
+    if(seed===3||seed===7){g.lineStyle(1,0x35413d,.24);g.lineBetween(f.x+x+11,f.y+y+19,f.x+x+24,f.y+y+23);g.lineBetween(f.x+x+24,f.y+y+23,f.x+x+29,f.y+y+35);}
+   }
+   g.lineStyle(1,0x394540,.5);for(let x=f.x+2*CELL;x<f.x+f.width;x+=2*CELL)g.lineBetween(x,f.y+4,x,f.y+f.height-4);for(let y=f.y+2*CELL;y<f.y+f.height;y+=2*CELL)g.lineBetween(f.x+4,y,f.x+f.width-4,y);
+   g.fillStyle(0x394741,.28);g.fillRect(d.x,d.y,d.width,d.height);
+   g.lineStyle(5,0x424e47);g.lineBetween(f.x+3,f.y+3,f.x+f.width-3,f.y+3);g.lineBetween(f.x+3,f.y+3,f.x+3,f.y+f.height-3);g.lineBetween(f.x+f.width-3,f.y+3,f.x+f.width-3,f.y+f.height-3);
+   g.lineStyle(2,0xb7b49a,.7);g.lineBetween(f.x+7,f.y+7,f.x+f.width-7,f.y+7);g.lineBetween(f.x+7,f.y+7,f.x+7,f.y+f.height-7);g.lineBetween(f.x+f.width-7,f.y+7,f.x+f.width-7,f.y+f.height-7);
+   g.lineStyle(5,0x424e47);if(d.x>f.x)g.lineBetween(f.x+3,f.y+f.height-3,d.x,f.y+f.height-3);if(d.x+d.width<f.x+f.width)g.lineBetween(d.x+d.width,f.y+f.height-3,f.x+f.width-3,f.y+f.height-3);
+   g.lineStyle(3,0xbbaa76,.7);for(let y=d.y+8;y<d.y+d.height-6;y+=26){g.lineBetween(d.x+5,y,d.x+5,Math.min(y+12,d.y+d.height-6));g.lineBetween(d.x+d.width-5,y,d.x+d.width-5,Math.min(y+12,d.y+d.height-6));}
   }this.buildingFoundations=g;
  },
  makeBuildingEditor(){

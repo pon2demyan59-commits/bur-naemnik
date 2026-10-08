@@ -68,8 +68,9 @@ export class Base extends globalThis.Phaser.Scene {
   create() {
     this.makeTextures();
     this.prepareArchitectHouse();this.grantStarterWarehouse(false);
+    this.liftCenter=this.floorNumber?FLOOR_LIFT:this.buildingGeom('lift').center;if(this.arrival){this.world.x=this.liftCenter.x;this.world.y=this.liftCenter.y;}
     if(!this.floorNumber&&(this.demyanQuest.hq||this.demyanQuest.remaining!=null)){const b=demyanGeometry(this.demyanQuest)?.body;if(b&&circleHitsRect(middle(this.world.x),middle(this.world.y),b)){const d=demyanGeometry(this.demyanQuest).deck;this.world.x=Math.floor((d.x+d.width/2)/CELL);this.world.y=Math.floor(d.y/CELL);}}
-    this.makeMap();this.makeBuildingFoundations();
+    this.makeMap();this.makeBuildingFoundations();this.relocateFromFoundation();
     this.makeHUD();
     this.rig = this.add.container(middle(this.world.x),middle(this.world.y)).setDepth(20);
     const parked=this.parked;
@@ -583,9 +584,17 @@ export class Base extends globalThis.Phaser.Scene {
     }
   }
   solidCell(x,y) { return (this.floorNumber===4&&!this.constructionQuest.rescued&&x===BUILDER_SITE.x&&y===BUILDER_SITE.y)||(this.floorNumber===3&&!this.repairQuest.rescued&&x===REPAIRMAN_SITE.x&&y===REPAIRMAN_SITE.y)||(this.floorNumber===2&&!this.armoryQuest.rescued&&x===ARMORER_SITE.x&&y===ARMORER_SITE.y)||(this.floorNumber===1&&!this.workshopQuest.mechanic&&x===MECHANIC_SITE.x&&y===MECHANIC_SITE.y)||!this.world.inside(x,y)||this.world.blocked(x,y)||(!this.floorNumber&&x===RESCUE.x&&y===RESCUE.y&&!this.world.rescued); }
+  relocateFromFoundation(){
+    if(this.floorNumber||this.arrival)return;
+    const solid=this.driveSolids(),parked=this.parked,px=Number.isFinite(parked?.x)?parked.x:middle(this.world.x),py=Number.isFinite(parked?.y)?parked.y:middle(this.world.y);
+    if(driveFits(px,py,solid))return;
+    let nearest=null,distance=Infinity;
+    for(let y=2;y<48;y++)for(let x=2;x<48;x++){const sx=middle(x),sy=middle(y),d=(sx-px)**2+(sy-py)**2;if(d<distance&&driveFits(sx,sy,solid)){nearest={x,y};distance=d;}}
+    if(nearest){this.world.x=nearest.x;this.world.y=nearest.y;this.parked=null;}
+  }
   driveSolids() {
     const solid=(x,y)=>this.solidCell(x,y);
-    solid.rectangles=[...this.lift.colliders,...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
+    solid.rectangles=[...this.lift.colliders,...this.buildingFoundationSolids(),...(this.floorNumber?[]:[this.buildingGeom('porodnik').collider,this.buildingGeom('workshop').body,this.buildingGeom('armory').body,this.buildingGeom('repair').body,...((this.demyanQuest?.hq||this.demyanQuest?.remaining!=null)&&demyanGeometry(this.demyanQuest)?[demyanGeometry(this.demyanQuest).body]:[]),...(this.constructionQuest?.unlocked?[this.buildingGeom('architect').body]:[]),...(this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null?[warehouseBody(this.constructionQuest)]:[]),...this.existingBuildings().filter(k=>!['lift','porodnik','workshop','armory','repair','architect','warehouse','hq'].includes(k)).map(k=>this.buildingGeom(k).collider||this.buildingGeom(k).body)])];
     return solid;
   }
   advanceVehicle(time,dt,direction) {
