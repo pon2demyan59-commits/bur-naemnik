@@ -3398,6 +3398,86 @@ const discoveryMethods={
 
 
 
+// Prototype balance: one cache per 500 player-broken floor blocks, three draws.
+const BONUS_CACHE_CHANCE=.002;
+const BONUS_CACHE_SLOTS=3;
+const BONUS_LOOT_POOL=[
+ {kind:'credits',id:'credits',name:'Кредиты',weight:60,min:20,max:60},
+ ...MATERIALS.map((m,i)=>({...m,kind:'material',weight:[25,18,10,7,4,3,2,1,.5,.2,.08,.05,.0001][i],min:i<2?5:1,max:[16,10,6,4,3,3,2,2,1,1,1,1,1][i]})),
+ {kind:'fiber',id:'fiber',name:'Паучье волокно',weight:5,min:1,max:3},
+ {kind:'heads',id:'heads',name:'Трофей: голова паука',weight:.001,min:1,max:1},
+ ...ARTIFACTS.map((a,i)=>({...a,kind:'artifact',rarity:Math.floor(i/20)+1,weight:ARTIFACT_DROP_BASE_PERCENT[Math.floor(i/20)]/20,min:1,max:1}))
+];
+const lootById=new Map(BONUS_LOOT_POOL.map(a=>[a.id,a]));
+const unit=(random)=>{const n=random();return Number.isFinite(n)&&n>=0&&n<1?n:null;};
+function rollBonusCache(floor,x,y,random=Math.random){
+ if(!Number.isInteger(floor)||floor<1||floor>100||!Number.isInteger(x)||!Number.isInteger(y)||x<2||y<2||x>=48||y>=48)return null;
+ const chance=unit(random);if(chance==null||chance>=BONUS_CACHE_CHANCE)return null;
+ const total=BONUS_LOOT_POOL.reduce((n,a)=>n+a.weight,0),items=[];
+ for(let slot=0;slot<BONUS_CACHE_SLOTS;slot++){
+  const r=unit(random),q=unit(random);if(r==null||q==null)return null;let threshold=0;
+  const item=BONUS_LOOT_POOL.find(a=>{threshold+=a.weight;return r*total<threshold;})||BONUS_LOOT_POOL.at(-1);
+  const count=item.min+Math.floor(q*(item.max-item.min+1)),existing=items.find(a=>a.id===item.id);
+  if(existing)existing.count+=count;else items.push({id:item.id,kind:item.kind,count});
+ }
+ return {x,y,items};
+}
+function restoreBonusCaches(value){
+ const out=[],seen=new Set();if(!Array.isArray(value))return out;
+ for(const cache of value){if(!cache||!Number.isInteger(cache.x)||!Number.isInteger(cache.y)||cache.x<2||cache.y<2||cache.x>=48||cache.y>=48||!Array.isArray(cache.items))continue;const key=cache.y*50+cache.x;if(seen.has(key))continue;
+  const items=[];for(const a of cache.items){const definition=lootById.get(a?.id);if(!definition||!Number.isSafeInteger(a.count)||a.count<=0)continue;const existing=items.find(i=>i.id===a.id);const count=Math.min(100000,a.count);if(existing)existing.count=Math.min(100000,existing.count+count);else items.push({id:a.id,kind:definition.kind,count});}
+  if(items.length){out.push({x:cache.x,y:cache.y,items});seen.add(key);}
+ }return out;
+}
+// Credits and collectible drops do not occupy the drill's cargo. Cargo overflow stays in the cache.
+function collectBonusCache(cache,scene){
+ const received=[];let free=Math.max(0,scene.cargoCapacity()-cargoCount(scene.cargoHold));
+ for(const a of cache.items){const definition=lootById.get(a.id);if(!definition)continue;const count=a.kind==='material'?Math.min(a.count,free):a.count;if(!count)continue;
+  if(a.kind==='material'){scene.cargoHold[a.id]=(scene.cargoHold[a.id]||0)+count;free-=count;}
+  else if(a.kind==='credits')scene.credits+=count;
+  else if(a.kind==='artifact')scene.artifacts[a.id]=(scene.artifacts[a.id]||0)+count;
+  else{const bag=scene.floorNumber?scene.carriedLoot:scene.inventory;bag[a.kind]=(bag[a.kind]||0)+count;}
+  a.count-=count;received.push({...definition,count});
+ }
+ cache.items=cache.items.filter(a=>a.count>0);scene.cargo=cargoCount(scene.cargoHold);return received;
+}
+function formatBonusLoot(items){return items.map(a=>(lootById.get(a.id)?.name||a.id)+' ×'+a.count).join(' · ');}
+
+
+
+const bonusCacheMethods={
+ makeBonusCaches(){this.bonusCacheViews=new Map();this.renderBonusCaches();},
+ renderBonusCaches(){
+  if(!this.bonusCacheViews||!this.floorNumber)return;
+  const active=new Set((this.bonusCaches||[]).map(c=>c.y*50+c.x));
+  for(const [key,view] of this.bonusCacheViews)if(!active.has(key)){view.destroy();this.bonusCacheViews.delete(key);}
+  for(const cache of this.bonusCaches||[]){const key=cache.y*50+cache.x;if(this.bonusCacheViews.has(key))continue;
+   const root=this.add.container((cache.x+.5)*CELL,(cache.y+.5)*CELL).setDepth(13);
+   const glow=this.add.ellipse(0,4,58,42,0xffd276,.25),art=this.add.image(0,-8,'bonus-cache').setDisplaySize(55,55),label=this.add.text(0,-43,'ТАЙНИК',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#ffe3a1',backgroundColor:'#263e33',padding:{x:5,y:3}}).setOrigin(.5);root.add([glow,art,label]);this.bonusCacheViews.set(key,root);
+  }
+ },
+ findBonusCacheInBrokenBlock(x,y){
+  const cache=rollBonusCache(this.floorNumber,x,y);if(!cache)return null;
+  this.bonusCaches ||= [];this.bonusCaches.push(cache);const received=collectBonusCache(cache,this);this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.persist();
+  const contents=received.length?'Получено: '+formatBonusLoot(received):'Грузовой отсек заполнен.';
+  const rest=cache.items.length?' Осталось в тайнике: '+formatBonusLoot(cache.items)+'. Освободи отсек и забери остаток на месте находки.':'';
+  this.showBonusBoxDiscovery('Бонусный тайник',contents+rest);for(const a of received)if(a.kind==='artifact')this.showDiscovery({kind:'artifact',name:a.name,rarity:a.rarity});return cache;
+ },
+ bonusCacheAction(){if(!this.floorNumber)return null;return (this.bonusCaches||[]).find(c=>Math.hypot(this.rig.x-(c.x+.5)*CELL,this.rig.y-(c.y+.5)*CELL)<1.5*CELL)||null;},
+ interactBonusCache(){
+  const cache=this.bonusCacheAction();if(!cache)return false;
+  const received=collectBonusCache(cache,this);if(!received.length){this.notify('ТАЙНИК НА МЕСТЕ · Освободи грузовой отсек, чтобы забрать материалы.');return true;}
+  this.bonusCaches=this.bonusCaches.filter(c=>c.items.length);this.renderBonusCaches();this.refreshHUD();this.persist();
+  this.showBonusBoxDiscovery('Запасы из тайника','Получено: '+formatBonusLoot(received)+(cache.items.length?' · Осталось: '+formatBonusLoot(cache.items):' · Тайник полностью разобран.'));return true;
+ }
+};
+
+
+
+
+
+
+
 
 
 
@@ -3442,7 +3522,7 @@ class Base extends globalThis.Phaser.Scene {
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
-    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);
+    this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];
     // Old saves may park inside the newly installed machine.
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('porodnik').collider)){this.world.x=18;this.world.y=35;}
     if(!this.floorNumber&&circleHitsRect(middle(this.world.x),middle(this.world.y),this.buildingGeom('workshop').body)){this.world.x=32;this.world.y=35;}
@@ -3505,7 +3585,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeBonusCaches();this.makeBuildingEditor();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -3635,6 +3715,7 @@ class Base extends globalThis.Phaser.Scene {
     const unloading=!this.floorNumber&&this.world.porodnikPowered&&onPorodnikDeck(this.rig,this.buildingDeck('porodnik'));
     const armoryItem=this.armoryFloorAction(),atArmory=!this.floorNumber&&this.armoryQuest.ready&&onArmoryDeck(this.rig,this.buildingDeck('armory'));
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig,this.buildingDeck('workshop'));
+    const cache=this.bonusCacheAction();if(cache){action.textContent='ЗАБРАТЬ ТАЙНИК';action.hidden=false;action.disabled=this.busy||this.storyActive||this.discoveryActive;return;}
     const demyanAction=this.demyanAction();
     if(demyanAction){action.textContent=demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
     const constructionAction=this.constructionAction();
@@ -3679,7 +3760,7 @@ class Base extends globalThis.Phaser.Scene {
   snapshotCampaign() {
     const local={...this.world.snapshot(),drive:{x:this.rig.x,y:this.rig.y,angle:this.rig.angle}};
     const base=this.floorNumber?(this.campaign.base||{}):local;
-    const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]=local;
+    const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
     return {...base,artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
@@ -3695,6 +3776,7 @@ class Base extends globalThis.Phaser.Scene {
   goMenu() {if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
     if(this.discoveryActive||this.demyanQuest.dialogue||this.constructionQuest.dialogue||this.repairQuest.serviceRemaining!=null||this.repairQuest.dialogue||this.armoryQuest.serviceRemaining!=null||this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.workshopQuest.dialogue||this.world.dialogue||this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
+    if(this.interactBonusCache())return;
     if(this.interactConstruction())return;
     if(this.interactDemyan())return;
     const repairItem=this.repairFloorAction();
@@ -4004,7 +4086,7 @@ class Base extends globalThis.Phaser.Scene {
       if(broken) {
         this.findArtifactInBrokenBlock();
         const collected=addCargo(this.cargoHold,material,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
-        this.showCargoPickup(material,middle(x),middle(y),collected);
+        this.showCargoPickup(material,middle(x),middle(y),collected);this.findBonusCacheInBrokenBlock(x,y);
         this.terrain.refreshAround(x,y);this.drillBar.clear();
         this.dustEmitter.emitParticleAt(middle(x),middle(y),12);
         this.chipEmitter.emitParticleAt(middle(x),middle(y),10);
@@ -4097,7 +4179,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
@@ -4270,6 +4352,7 @@ class Boot extends Phaser.Scene {
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory-v2.webp');
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
+    this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
     this.load.image('architect-house', './public/assets/game/architect-house.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');

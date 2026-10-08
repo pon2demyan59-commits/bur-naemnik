@@ -89,6 +89,7 @@ class Boot extends Phaser.Scene {
     this.load.image('bunker-floor', './public/assets/game/bunker-floor-painted.webp');
     this.load.image('armory', './public/assets/game/armory-v2.webp');
     for(const kind of ['tools','repair-kit','blueprint'])this.load.svg('quest-'+kind,'./public/assets/quests/'+kind+'.svg',{width:128,height:128});
+    this.load.svg('bonus-cache','./public/assets/quests/discovery-crate.svg',{width:128,height:128});
     this.load.image('architect-house', './public/assets/game/architect-house.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
