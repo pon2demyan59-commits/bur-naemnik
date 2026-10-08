@@ -1321,7 +1321,7 @@ const DEMYAN_ENTRANCE=[{x:32,y:29},{x:32,y:30},{x:32,y:31}];
 const DEMYAN_GUARDS=[{x:30,y:25},{x:34,y:25},{x:38,y:25},{x:40,y:27},{x:40,y:31},{x:40,y:36},{x:36,y:36},{x:32,y:36},{x:30,y:33},{x:30,y:29}];
 function demyanWall(x,y){return x>=32&&x<=38&&y>=27&&y<=34&&(x===32||x===38||y===27||y===34)&&!DEMYAN_ENTRANCE.some(p=>p.x===x&&p.y===y);}
 function demyanOpenCell(x,y){return (x>=33&&x<=37&&y>=28&&y<=33)||(x>=30&&x<=40&&y>=25&&y<=36&&(x<32||x>38||y<27||y>34));}
-const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady'];
+const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady','settlementBrief','settlementReady'];
 const HQ_RECIPE={earth:100,stone:60,iron:10};
 const HQ_MS=15000;
 const HQ_WIDTH=9,HQ_HEIGHT=8;
@@ -1330,6 +1330,7 @@ function restoreDemyan(v={}){
  const rescued=v.rescued===true,returned=rescued&&v.returned===true;
  return {briefed:v.briefed===true,contact:v.contact===true,evacuating:v.evacuating===true,
  evacuated:Number.isInteger(v.evacuated)?Math.max(0,Math.min(3,v.evacuated)):0,rescued,returned,
+ settlementBriefed:returned&&v.hq===true&&v.settlementBriefed===true,settlementDone:returned&&v.hq===true&&v.settlementDone===true,
  hq:returned&&v.hq===true,plot:v.plot&&Number.isInteger(v.plot.x)&&Number.isInteger(v.plot.y)&&v.plot.x>=2&&v.plot.y>=2&&v.plot.x<=43&&v.plot.y<=43?{x:Math.min(48-HQ_WIDTH,v.plot.x),y:Math.min(48-HQ_HEIGHT,v.plot.y)}:null,
  remaining:returned&&!v.hq&&Number.isFinite(v.remaining)?Math.max(0,Math.min(HQ_MS,v.remaining)):null,
  dialogue:DEMYAN_STORIES.includes(v.dialogue)?v.dialogue:null,dialoguePage:Number.isInteger(v.dialoguePage)?Math.max(0,v.dialoguePage):0};
@@ -1343,6 +1344,31 @@ function beginHeadquarters(q,cargo,stock){
  q.remaining=HQ_MS;return true;
 }
 function stepHeadquarters(q,ms){if(q.remaining==null)return false;q.remaining=Math.max(0,q.remaining-Math.max(0,Math.min(ms,50)));if(q.remaining)return false;q.remaining=null;q.hq=true;return true;}
+
+
+// Initial testing balance; two parallel projects unlock after HQ briefing.
+const SETTLEMENT_PROJECTS={
+ housing:{name:'Жилой комплекс',leader:'Нина С.',role:'Комендант',width:5,height:5,plot:{x:8,y:15},recipe:{earth:200,stone:80,iron:20},duration:20000,description:'Жильё на 10 человек. Первые трое эвакуированных получат собственный дом.'},
+ power:{name:'Электростанция',leader:'Денис Г.',role:'Электрик',width:4,height:4,plot:{x:40,y:38},recipe:{stone:120,iron:30,copper:10},duration:25000,description:'Электричество для будущих производств базы.'}
+};
+function restoreSettlement(value={}){
+ const out={};for(const [key,spec] of Object.entries(SETTLEMENT_PROJECTS)){const v=value?.[key]||{},p=v.plot,valid=p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=2&&p.y>=2&&p.x+spec.width<=48&&p.y+spec.height<=48;
+ out[key]={plot:valid?{x:p.x,y:p.y}:null,built:!!valid&&v.built===true,remaining:valid&&v.built!==true&&Number.isFinite(v.remaining)?Math.max(0,Math.min(spec.duration,v.remaining)):null};}return out;
+}
+function settlementGeometry(key,projects={},offset={}){const spec=SETTLEMENT_PROJECTS[key],p=projects[key]?.plot||spec.plot,x=(p.x+(offset.dx||0))*CELL,y=(p.y+(offset.dy||0))*CELL;return {body:{x,y,width:spec.width*CELL,height:(spec.height-1)*CELL},deck:{x:x+CELL,y:y+(spec.height-1)*CELL,width:(spec.width-2)*CELL,height:CELL},footprint:{x,y,width:spec.width*CELL,height:spec.height*CELL}};}
+function settlementObjectives(projects,construction){return [
+ {key:'housing',name:'Построить жилой комплекс',done:projects.housing.built},
+ {key:'power',name:'Построить электростанцию',done:projects.power.built},
+ {key:'warehouse',name:'Улучшить склад до уровня 2',done:(construction.warehouseLevel||1)>=2}
+];}
+function beginSettlementProject(projects,key,unlocked,cargo,stock){
+ const q=projects[key],spec=SETTLEMENT_PROJECTS[key];if(!spec||!q||!unlocked||!q.plot||q.built||q.remaining!=null)return false;
+ for(const [id,n] of Object.entries(spec.recipe))if((cargo[id]||0)+(stock[id]||0)<n)return false;
+ for(const [id,n] of Object.entries(spec.recipe)){const used=Math.min(n,cargo[id]||0);cargo[id]=(cargo[id]||0)-used;stock[id]=(stock[id]||0)-(n-used);if(!cargo[id])delete cargo[id];if(!stock[id])delete stock[id];}
+ q.remaining=spec.duration;return true;
+}
+function stepSettlementProjects(projects,ms){const completed=[];for(const [key,q] of Object.entries(projects)){if(q.remaining==null)continue;q.remaining=Math.max(0,q.remaining-Math.max(0,Math.min(ms,50)));if(q.remaining===0){q.remaining=null;q.built=true;completed.push(key);}}return completed;}
+function snapshotSettlement(projects={}){return Object.fromEntries(Object.entries(projects).map(([key,q])=>[key,{...q,plot:q.plot?{...q.plot}:null}]));}
 
 function wrapDegrees(angle) { return ((angle + 180) % 360 + 360) % 360 - 180; }
 function smoothHeading(current, target, dt, turnRate=360, response=12) {
@@ -2002,8 +2028,10 @@ const STORY_LINES = {
   hqReady:[
     {speaker:'Строительный мастер',text:'Штаб готов. Связь проверили, вход свободен. Демьян, принимай.'},
     {speaker:'Демьян П.',text:'Теперь работаем сообща. Здесь будем собирать сведения и готовить выход на поверхность.'},
-    {speaker:'Демьян П.',text:'Следом людям понадобится жильё, а производству — электричество. Но сначала разберёмся, что уцелело. За сюжетными поручениями заходи ко мне.'}
+    {speaker:'Демьян П.',text:'Теперь нужно обустроить базу: людям — жильё, производству — электричество, нам — запас материалов. Построй жилой комплекс, запусти электростанцию и расширь склад. С чего начать — решай сам. Чертежи найдёшь у архитектора.'}
   ],
+  settlementBrief:[{speaker:'Демьян П.',text:'Штаб готов. Теперь нужно обустроить базу: людям — жильё, производству — электричество, нам — запас материалов. Построй жилой комплекс, запусти электростанцию и расширь склад. С чего начать — решай сам. Чертежи найдёшь у архитектора.'}],
+  settlementReady:[{speaker:'Демьян П.',text:'Людям есть где жить. Электростанция работает, склад расширен. Убежище становится домом. Теперь у нас есть основа для следующих шагов к поверхности.'}],
   // New construction chapter approved 2026-10-07; original canon above is preserved.
   builderBrief:[
     {speaker:'Серёга Т',text:'Слышь, на четвёртом наш строительный мастер остался. После обвала от него ни слуху.'},
@@ -3008,7 +3036,7 @@ const constructionMethods={
  migrateArchitectFootprint(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
   const q=this.constructionQuest,head=this.demyanQuest,architect=buildingGeometry(this.buildingLayout||{},'architect').footprint;
-  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
+  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[]),...['housing','power'].filter(k=>this.baseProjects?.[k]?.built||this.baseProjects?.[k]?.remaining!=null)];
   const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
   for(const key of keys){
    const original=geometry(key);const bounds=original.footprint;const conflict=keys.filter(k=>k!==key).some(k=>rectanglesOverlap(buildingClearance(bounds),geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL;if(!conflict&&!rectanglesOverlap(buildingClearance(bounds),architect))continue;
@@ -3043,11 +3071,12 @@ const constructionMethods={
   const q=this.constructionQuest;if(!q)return null;
   if(this.floorNumber===4&&q.briefed&&!q.rescued&&nearWorkshopItem(this.rig,BUILDER_SITE))return canRescueBuilder(q,this.world,this.spiders||[])?'builder':'builderBlocked';
   if(this.floorNumber)return null;
+  if(this.settlementAction?.())return 'settlement';
   if(q.warehouse&&inDeck(this.rig,warehouseDeck(q)))return 'warehouse';
   if(q.unlocked&&inDeck(this.rig,buildingGeometry(this.buildingLayout||{},'architect').deck))return 'construction';return null;
  },
  interactConstruction(){
-  const action=this.constructionAction();
+  const action=this.constructionAction();if(action==='settlement')return this.interactSettlement();
   if(action==='builder'){this.constructionQuest.rescued=true;this.builderPassenger?.setVisible(true);this.builderPerson.setVisible(false);this.builderBeacon.setVisible(false);this.persist();this.startStory('builderRescue');return true;}
   if(action==='builderBlocked'){this.notify('Расчисти три блока у входа и уничтожь пауков у комнаты.');return true;}
   if(action==='construction'){this.openConstruction();return true;}
@@ -3091,7 +3120,7 @@ const constructionMethods={
  },
  openConstruction(){
   if(this.demyanQuest?.returned&&!this.demyanQuest.hq){this.openHeadquartersBuild();return;}
-  const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;this.dialogClosed();this.persist();
+  const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;if(this.settlementUnlocked?.()){this.openSettlementConstruction();return;}this.dialogClosed();this.persist();
   if(q.warehouse){const panel=document.createElement('div');panel.className='lift-console construction-controls';const text=document.createElement('p');text.className='service-readout';text.textContent='ПЕРВЫЙ СКЛАД ГОТОВ · БЕСПЛАТНО';const note=document.createElement('p');note.className='terminal-note';note.textContent='Подъезжай к воротам склада для хранения материалов. Следующие чертежи: преграда → башня. Их предстоит получить в следующих заданиях.';panel.append(text,note);showBuildingMenu('construction',panel);return;}
   const panel=document.createElement('div');panel.className='lift-console construction-controls';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' каждого материала';panel.append(title);
@@ -3148,15 +3177,17 @@ function claimQuestReward(ids,id,credits){const amount=QUEST_REWARDS[id];if(!amo
 
 
 
-const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад',architect:'Дом архитектора',hq:'Штаб'};
+
+const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад',architect:'Дом архитектора',hq:'Штаб',housing:'Жилой комплекс',power:'Электростанция'};
 function restoreBuildingLayout(value={}){const out={};for(const key of Object.keys(BUILDING_LABELS)){const p=value?.[key];if(p&&Number.isInteger(p.dx)&&Number.isInteger(p.dy)&&Math.abs(p.dx)<=45&&Math.abs(p.dy)<=45)out[key]={dx:p.dx,dy:p.dy};}return out;}
 function registerBuildingType(key,label,geometry){BUILDING_LABELS[key]=label;BUILDING_GEOMETRIES[key]=geometry;}
 const BUILDING_GEOMETRIES={};
 const shifted=(rect,dx,dy)=>({...rect,x:rect.x+dx*CELL,y:rect.y+dy*CELL});
-function buildingGeometry(layout={},key,construction={plot:0},head={}){
+function buildingGeometry(layout={},key,construction={plot:0},head={},projects={}){
  const o=key==='warehouse'?(construction.offset||{}):(layout[key]||{}),dx=o.dx||0,dy=o.dy||0;
+ if(SETTLEMENT_PROJECTS[key])return settlementGeometry(key,projects,{dx,dy});
  if(key==='hq')return demyanGeometry({...head,plot:head.plot?{x:head.plot.x+dx,y:head.plot.y+dy}:null});
- if(BUILDING_GEOMETRIES[key])return BUILDING_GEOMETRIES[key]({layout,construction,head,offset:{dx,dy},CELL});
+ if(BUILDING_GEOMETRIES[key])return BUILDING_GEOMETRIES[key]({layout,construction,head,projects,offset:{dx,dy},CELL});
  if(key==='lift'){const center={x:LIFT.x+dx,y:LIFT.y+dy},g=liftGeometry(center);return {center,body:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL},deck:g.deck,colliders:g.colliders,footprint:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL}};}
  let body,deck,collider;
  if(key==='warehouse'){body=warehouseBody(construction);deck=warehouseDeck(construction);collider=body;}
@@ -3200,12 +3231,12 @@ function validateBuildingMove(key,geometry,world,others,rig){
 
 
 const buildingLayoutMethods={
- buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest,this.demyanQuest);},
+ buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  buildingDeck(key){return this.buildingGeom(key).deck;},
  buildingPoint(key){const d=this.buildingDeck(key);return {x:(d.x+d.width/2)/CELL-.5,y:(d.y+d.height/2)/CELL-.5};},
  occupiedBuildingGeometries(except){return this.existingBuildings().filter(k=>k!==except).map(k=>({...this.buildingGeom(k),kind:k}));},
- existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
- movableBuildings(){return this.existingBuildings().filter(k=>k!=='hq'||this.demyanQuest.hq);},
+ existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>['housing','power'].includes(k)?!!(this.baseProjects?.[k]?.built||this.baseProjects?.[k]?.remaining!=null):k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
+ movableBuildings(){return this.existingBuildings().filter(k=>!['housing','power'].includes(k)||this.baseProjects[k].built).filter(k=>k!=='hq'||this.demyanQuest.hq);},
  questWorld(key){const o=this.buildingLayout?.[key]||{};return {blocked:(x,y)=>this.world.blocked(x+(o.dx||0),y+(o.dy||0))};},
  foundationGeometries(){return this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest?.hq||this.demyanQuest?.remaining!=null).map(key=>this.buildingGeom(key));},
  buildingFoundationSolids(){return this.floorNumber?[]:this.foundationGeometries().flatMap(geometry=>buildingPerimeterColliders(geometry));},
@@ -3246,13 +3277,14 @@ const buildingLayoutMethods={
   this.events.once('shutdown',()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);this.input.off('pointerupoutside',up);this.layoutEditing=false;});
  },
  toggleBuildingEditor(){
+  if(this.projectSelecting){this.finishSettlementPlacement();return;}
   if(this.hqSelecting){this.finishHeadquartersPlacement();return;}
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
-  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
+  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null||Object.values(this.baseProjects||{}).some(q=>q.remaining!=null)){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
   this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(Math.min(.72,this.cameras.main.zoom));
  },
- candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest);},
+ candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  drawBuildingCandidate(){
   const geometry=this.candidateGeometry();if(!geometry)return;const key=this.layoutSelected,g=this.layoutPreview,f=geometry.footprint;
   const error=validateBuildingMove(key,geometry,this.world,this.occupiedBuildingGeometries(key),this.rig);this.layoutError=error;this.layoutConfirm.disabled=!!error;this.layoutNote.textContent=error||'Место свободно. Подтверди перенос или потяни ещё.';
@@ -3325,10 +3357,14 @@ const demyanMethods={
   if(q.dialogue){this.startStory(q.dialogue);return;}
   if(!this.floorNumber&&this.constructionQuest.warehouse&&!q.briefed){this.startStory('demyanBrief');return;}
   if(this.floorNumber===5&&q.briefed&&!q.contact&&near(this.rig,DEMYAN_SITE,11)){this.startStory('demyanContact');return;}
-  if(!this.floorNumber&&q.rescued&&!q.returned)this.startStory('demyanReturn');
+  if(!this.floorNumber&&q.rescued&&!q.returned){this.startStory('demyanReturn');return;}
+  if(!this.floorNumber&&q.hq&&!q.settlementBriefed){this.startStory('settlementBrief');return;}
+  if(!this.floorNumber&&q.settlementBriefed&&!q.settlementDone&&this.settlementTasks().every(task=>task.done))this.startStory('settlementReady');
  },
  finishDemyanStory(kind){
   const q=this.demyanQuest;
+  if(kind==='hqReady'||kind==='settlementBrief'){q.settlementBriefed=true;this.notify('ОБУСТРОИТЬ УБЕЖИЩЕ · ТРИ ЦЕЛИ В ЛЮБОМ ПОРЯДКЕ');}
+  if(kind==='settlementReady')q.settlementDone=true;
   if(kind==='demyanBrief'){q.briefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 5\nНОВОЕ ЗАДАНИЕ · ПОСЛЕДНИЙ РУБЕЖ');}
   if(kind==='demyanContact')q.contact=true;
   if(kind==='demyanEvac')q.evacuating=true;
@@ -3372,6 +3408,7 @@ const demyanMethods={
  refreshDemyanHUD(){
   const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
+  if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
@@ -3425,7 +3462,68 @@ const demyanMethods={
    guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(t*2+i)));
   });
  },
- openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent='Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Спасены трое выживших; следующая задача — подготовить жильё. Новые сюжетные поручения будут появляться здесь.';panel.append(title,note);showBuildingMenu('hq',panel);}
+ openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
+};
+
+
+
+
+
+
+
+
+const materialName=id=>MATERIALS.find(m=>m.id===id)?.name||id;
+const settlementMethods={
+ settlementUnlocked(){return !!this.demyanQuest?.hq&&!!this.demyanQuest?.settlementBriefed;},
+ settlementTasks(){return settlementObjectives(this.baseProjects,this.constructionQuest);},
+ makeSettlementProjects(){
+  this.projectSelecting=null;if(this.floorNumber)return;
+  this.projectArt=this.add.graphics().setDepth(2.5);this.projectPreview=this.add.graphics().setDepth(8);this.projectSigns={};
+  for(const key of Object.keys(SETTLEMENT_PROJECTS))this.projectSigns[key]=this.add.text(0,0,key==='housing'?'ЖИЛОЙ КОМПЛЕКС':'ЭЛЕКТРОСТАНЦИЯ',{fontFamily:'Arial',fontSize:'14px',fontStyle:'bold',color:'#f5db91',backgroundColor:'#243b36',padding:{x:6,y:4}}).setOrigin(.5).setDepth(2.6).setVisible(false);
+  this.renderSettlementProjects();
+ },
+ renderSettlementProjects(){
+  if(!this.projectArt)return;const g=this.projectArt,p=this.projectPreview;g.clear();p.clear();
+  for(const [key,q] of Object.entries(this.baseProjects)){const spec=SETTLEMENT_PROJECTS[key],geom=this.buildingGeom(key),b=geom.body,f=geom.footprint,d=geom.deck,sign=this.projectSigns[key];sign.setVisible(q.built);
+   if(!q.plot)continue;
+   if(!q.built&&q.remaining==null){p.lineStyle(2,0xd3bd79,.65);p.strokeRect(f.x,f.y,f.width,f.height);continue;}
+   if(!q.built){g.fillStyle(0x59655b);g.fillRect(b.x+8,b.y+8,b.width-16,b.height-16);g.lineStyle(7,0xb6a477);g.strokeRect(b.x+12,b.y+12,b.width-24,b.height-24);for(let x=b.x+32;x<b.x+b.width;x+=48)g.lineBetween(x,b.y+16,x,b.y+b.height-16);g.fillStyle(0x1b302b);g.fillRect(d.x+8,d.y+23,d.width-16,12);g.fillStyle(0xd4b770);g.fillRect(d.x+8,d.y+23,(d.width-16)*(1-q.remaining/spec.duration),12);continue;}
+   g.fillStyle(0x172d2b,.45);g.fillRoundedRect(b.x+8,b.y+12,b.width-10,b.height-8,12);g.fillStyle(key==='housing'?0x566e68:0x696b51);g.fillRoundedRect(b.x+4,b.y+6,b.width-8,b.height-15,10);g.lineStyle(4,0x273f3c);g.strokeRoundedRect(b.x+4,b.y+6,b.width-8,b.height-15,10);
+   g.fillStyle(0x89988a);g.fillRoundedRect(b.x+8,b.y+6,b.width-16,40,7);g.lineStyle(2,0x455d56);for(let x=b.x+20;x<b.x+b.width-12;x+=28)g.lineBetween(x,b.y+12,x+8,b.y+39);
+   if(key==='housing'){
+    for(let row=0;row<3;row++)for(let col=0;col<5;col++){const x=b.x+24+col*55,y=b.y+63+row*49;g.fillStyle(0x233e3b);g.fillRoundedRect(x-4,y-4,38,32,4);g.fillStyle((col+row)%3?0xd8ad61:0x697f76);g.fillRect(x,y,30,24);g.lineStyle(3,0x50615a);g.lineBetween(x+15,y,x+15,y+24);g.lineBetween(x,y+12,x+30,y+12);}
+    g.fillStyle(0x263d39);g.fillRoundedRect(b.x+b.width/2-32,b.y+b.height-52,64,45,5);g.fillStyle(0xb1ab83);g.fillRect(b.x+b.width/2-26,b.y+b.height-45,52,34);
+   }else{
+    for(let i=0;i<3;i++){const x=b.x+25+i*72,y=b.y+73;g.fillStyle(0x304a45);g.fillRoundedRect(x,y,60,82,12);g.fillStyle(0x9c9c76);g.fillEllipse(x+30,y+9,60,24);g.lineStyle(4,0x4f6253);g.strokeEllipse(x+30,y+9,48,16);g.fillStyle(0x182e2c);g.fillRoundedRect(x+11,y+33,38,29,4);g.fillStyle(0xd5bd74);g.fillRect(x+18,y+40,24,6);}
+    g.fillStyle(0x233b35);g.fillRoundedRect(b.x+38,b.y+b.height-26,b.width-76,20,5);
+   }
+   for(const x of [b.x+11,b.x+b.width-20])for(let y=b.y+52;y<b.y+b.height-12;y+=48){g.fillStyle(0xb7a273);g.fillRoundedRect(x,y,9,21,2);}
+   sign.setPosition(b.x+b.width/2,b.y+27);
+  }this.makeBuildingFoundations();
+ },
+ updateSettlementProjects(ms){
+  if(this.floorNumber)return;const working=Object.values(this.baseProjects).some(q=>q.remaining!=null),completed=stepSettlementProjects(this.baseProjects,ms);if(working)this.renderSettlementProjects();
+  if(completed.length){for(const key of completed)this.notify(SETTLEMENT_PROJECTS[key].name.toUpperCase()+' · ГОТОВО');this.refreshHUD();this.persist();}
+ },
+ settlementAction(){if(this.floorNumber)return null;for(const [key,q] of Object.entries(this.baseProjects)){if(!q.built)continue;const d=this.buildingDeck(key);if(this.rig.x>=d.x&&this.rig.x<=d.x+d.width&&this.rig.y>=d.y&&this.rig.y<=d.y+d.height)return key;}return null;},
+ interactSettlement(){const key=this.settlementAction();if(!key)return false;const spec=SETTLEMENT_PROJECTS[key],panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent=spec.leader+' · '+spec.role;const note=document.createElement('p');note.className='terminal-note';note.textContent=key==='housing'?'Жилой комплекс готов. Вместимость — 10 человек. Размещены трое выживших, эвакуированных с Демьяном.':'Электростанция запущена. База готова подключать новые производства по мере открытия их чертежей.';panel.append(title,note);showGamePanel(spec.name.toUpperCase(),panel,key);return true;},
+ addSettlementTaskList(panel){const list=document.createElement('div');list.className='settlement-task-list';for(const task of this.settlementTasks()){const p=document.createElement('p');p.className='settlement-task'+(task.done?' task-done':'');p.textContent=(task.done?'✓ ':'○ ')+task.name;list.append(p);}panel.append(list);},
+ openSettlementConstruction(){
+  this.dialogClosed();this.persist();const panel=document.createElement('div');panel.className='lift-console construction-controls';const title=document.createElement('p');title.className='service-readout';title.textContent='ЧЕРТЕЖИ БАЗЫ';const note=document.createElement('p');note.className='terminal-note';note.textContent='Поручение «Обустроить убежище». Выбирай порядок сам. Материалы берём из груза и склада; для стройки расчисти площадку и проход минимум в одну клетку.';panel.append(title,note);this.addSettlementTaskList(panel);
+  for(const [key,spec] of Object.entries(SETTLEMENT_PROJECTS)){const q=this.baseProjects[key],card=document.createElement('section');card.className='settlement-project-card';const heading=document.createElement('h3');heading.textContent=spec.name+' · '+spec.width+'×'+spec.height;const desc=document.createElement('p');desc.textContent=spec.description+' Руководитель: '+spec.leader;const cost=document.createElement('p');cost.className='terminal-note';cost.textContent=Object.entries(spec.recipe).map(([id,n])=>materialName(id)+' '+((this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0))+'/'+n).join(' · ');const status=document.createElement('p');status.className='service-status';status.textContent=q.built?'Построено':q.remaining!=null?'Строительство · '+Math.ceil(q.remaining/1000)+' с':this.settlementPlacementError(key)||'Площадка готова';const choose=document.createElement('button');choose.className='floor-button';choose.textContent='ВЫБРАТЬ МЕСТО';choose.disabled=q.built||q.remaining!=null;choose.addEventListener('click',()=>this.startSettlementPlacement(key));const build=document.createElement('button');build.className='metal-button';build.textContent=q.built?'ГОТОВО':q.remaining!=null?'СТРОИТСЯ…':'ПОСТРОИТЬ · '+spec.duration/1000+' С';build.disabled=q.built||q.remaining!=null||!!this.settlementPlacementError(key)||Object.entries(spec.recipe).some(([id,n])=>(this.cargoHold[id]||0)+(this.constructionQuest.stock[id]||0)<n);build.addEventListener('click',()=>this.buildSettlementProject(key));card.append(heading,desc,cost,status,choose,build);panel.append(card);}
+  const warehouse=document.createElement('p');warehouse.className='terminal-note';warehouse.textContent='Склад улучшается у его ворот. Нужен уровень 2 или выше; повторное улучшение для задания не требуется.';panel.append(warehouse);showBuildingMenu('construction',panel);panel.parentElement.classList.add('settlement-layout');
+ },
+ settlementPlacementError(key){const q=this.baseProjects[key];if(!q.plot)return 'Выбери место на карте';return validateBuildingMove(key,this.buildingGeom(key),this.world,this.occupiedBuildingGeometries(key),this.rig);},
+ buildSettlementProject(key){
+  if(this.settlementPlacementError(key)||!beginSettlementProject(this.baseProjects,key,this.settlementUnlocked(),this.cargoHold,this.constructionQuest.stock))return;
+  this.cargo=cargoCount(this.cargoHold);this.renderSettlementProjects();this.refreshHUD();this.persist();document.querySelector('#dialog').close();this.notify('СТРОИТЕЛЬСТВО · '+SETTLEMENT_PROJECTS[key].name.toUpperCase());
+ },
+ startSettlementPlacement(key){
+  if(!this.settlementUnlocked()||this.baseProjects[key].built||this.baseProjects[key].remaining!=null)return;document.querySelector('#dialog').close();this.dialogClosed();this.projectSelecting=key;this.cameras.main.stopFollow().setZoom(.55);document.querySelector('.base-hud').classList.add('layout-open');const strip=document.createElement('div');strip.className='building-editor-strip';const note=document.createElement('span');note.className='building-editor-note';note.textContent='Нажми на площадку для '+SETTLEMENT_PROJECTS[key].name+'. Потяни пустое место, чтобы осмотреть базу.';const done=document.createElement('button');done.className='hud-button';done.textContent='ГОТОВО';strip.append(note,done);document.querySelector('.base-hud').append(strip);
+  let pointer=null;const down=p=>{pointer={id:p.id,x:p.x,y:p.y,scrollX:this.cameras.main.scrollX,scrollY:this.cameras.main.scrollY};};const move=p=>{if(!pointer||p.id!==pointer.id||!p.isDown)return;this.cameras.main.setScroll(pointer.scrollX-(p.x-pointer.x)/this.cameras.main.zoom,pointer.scrollY-(p.y-pointer.y)/this.cameras.main.zoom);};const up=p=>{const a=pointer;pointer=null;if(!a||p.id!==a.id||Math.hypot(p.x-a.x,p.y-a.y)>12)return;const point=this.cameras.main.getWorldPoint(p.x,p.y),x=Math.floor(point.x/CELL),y=Math.floor(point.y/CELL),spec=SETTLEMENT_PROJECTS[key];if(x<2||y<2||x+spec.width>48||y+spec.height>48){note.textContent='Площадка должна целиком помещаться внутри базы';return;}this.baseProjects[key].plot={x,y};delete this.buildingLayout[key];this.renderSettlementProjects();this.persist();note.textContent=this.settlementPlacementError(key)||'Место подходит. Вернись в меню для начала стройки.';};
+  this.input.on('pointerdown',down);this.input.on('pointermove',move);this.input.on('pointerup',up);const cleanup=()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);strip.remove();this.projectPlacementCleanup=null;};this.projectPlacementCleanup=cleanup;this.events.once('shutdown',cleanup);done.addEventListener('click',()=>this.finishSettlementPlacement());
+ },
+ finishSettlementPlacement(){this.projectPlacementCleanup?.();this.projectSelecting=null;document.querySelector('.base-hud').classList.remove('layout-open');this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.openSettlementConstruction();}
 };
 
 
@@ -3598,12 +3696,14 @@ const bonusCacheMethods={
 
 
 
+
+
 const middle = n => n * CELL + CELL / 2;
 const heading = {left:180,right:0,up:-90,down:90};
 class Base extends globalThis.Phaser.Scene {
   constructor(key='Base') { super(key); }
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
-    const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
+    const p=save?.progress||{};this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
     this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
@@ -3672,7 +3772,7 @@ class Base extends globalThis.Phaser.Scene {
     if(this.arrival)this.lift.arrive(this.rig,this.shadow).then(()=>{this.busy=false;this.world.x=Math.floor(this.rig.x/CELL);this.world.y=Math.floor(this.rig.y/CELL);this.dialogClosed();this.refreshHUD();this.persist();this.checkWorkshop();this.checkArmory();this.checkRepair();this.checkConstruction();this.checkDemyan();});
     this.mechanicPassenger=this.add.image(-7,10,'people','mechanic-0').setDisplaySize(16,16).setVisible(this.workshopQuest.mechanic&&!this.workshopQuest.ready);this.rig.add(this.mechanicPassenger);
     this.armorerPassenger=this.add.image(-7,-8,'people','armorer-0').setDisplaySize(16,16).setVisible(this.armoryQuest.rescued&&!this.armoryQuest.ready);this.rig.add(this.armorerPassenger);this.makeMountedWeapon();
-    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeBonusCaches();this.makeBuildingEditor();
+    this.repairPassenger=this.add.image(-5,6,'ilya','ilya-0').setDisplaySize(16,16).setVisible(this.repairQuest.rescued&&!this.repairQuest.ready);this.rig.add(this.repairPassenger);this.makeCombat();this.makeDemyan();this.makeSettlementProjects();this.makeBonusCaches();this.makeBuildingEditor();
     this.cameras.main.fadeIn(300,12,26,27);
     if(this.layoutReturn)this.time.delayedCall(400,()=>{if(!this.storyActive)this.toggleBuildingEditor();});
     if(!this.arrival)this.time.delayedCall(350,()=>{
@@ -3810,7 +3910,7 @@ class Base extends globalThis.Phaser.Scene {
     const demyanAction=this.demyanAction();
     if(demyanAction){action.textContent=demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
     const constructionAction=this.constructionAction();
-    const label=constructionAction==='builder'?'СПАСТИ МАСТЕРА':constructionAction==='builderBlocked'?'ОСВОБОДИТЬ КОМНАТУ':constructionAction==='warehouse'?'СКЛАД':constructionAction==='construction'?'ДОМ АРХИТЕКТОРА':repairItem==='repairman'?'СПАСТИ ИЛЬЮ':repairItem==='repairKit'?'ЗАБРАТЬ РЕМКОМПЛЕКТ':atRepair?'РЕМОНТНЫЙ ЦЕХ':armoryItem==='armorer'?'СПАСТИ ОРУЖЕЙНИКА':armoryItem==='blueprint'?'ЗАБРАТЬ ЧЕРТЁЖ':atArmory?'ОРУЖЕЙНАЯ':questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ПРОДАТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
+    const label=constructionAction==='settlement'?SETTLEMENT_PROJECTS[this.settlementAction()].name.toUpperCase():constructionAction==='builder'?'СПАСТИ МАСТЕРА':constructionAction==='builderBlocked'?'ОСВОБОДИТЬ КОМНАТУ':constructionAction==='warehouse'?'СКЛАД':constructionAction==='construction'?'ДОМ АРХИТЕКТОРА':repairItem==='repairman'?'СПАСТИ ИЛЬЮ':repairItem==='repairKit'?'ЗАБРАТЬ РЕМКОМПЛЕКТ':atRepair?'РЕМОНТНЫЙ ЦЕХ':armoryItem==='armorer'?'СПАСТИ ОРУЖЕЙНИКА':armoryItem==='blueprint'?'ЗАБРАТЬ ЧЕРТЁЖ':atArmory?'ОРУЖЕЙНАЯ':questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ПРОДАТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
     if(constructionAction){action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.constructionQuest.dialogue||constructionAction==='builderBlocked';return;}
     action.hidden=!(repairItem||atRepair||armoryItem||atArmory||questItem||atWorkshop||unloading||(saving&&this.world.canRescue(this.rig.x,this.rig.y))||(this.liftReady()&&this.lift.contains(this.rig)));action.disabled=this.repairQuest.serviceRemaining!=null||!!this.repairQuest.dialogue||(atRepair&&this.repairQuest.wave==='active')||(!repairItem&&!atRepair&&!armoryItem&&!atArmory&&!questItem&&!atWorkshop&&!unloading&&this.repairQuest.wave==='active')||this.armoryQuest.serviceRemaining!=null||!!this.armoryQuest.dialogue||this.workshopQuest.serviceRemaining!=null||this.busy||this.storyActive||!!this.world.dialogue||!!this.workshopQuest.dialogue||(repairItem||atRepair||armoryItem||atArmory||questItem||atWorkshop?false:unloading?!!this.porodnikJob||this.cargo===0:saving?!this.world.canRescue(this.rig.x,this.rig.y):!this.liftReady()||!this.lift.contains(this.rig));
   }
@@ -3853,7 +3953,7 @@ class Base extends globalThis.Phaser.Scene {
     const base=this.floorNumber?(this.campaign.base||{}):local;
     const floors={...(this.campaign.floors||{})};if(this.floorNumber)floors[this.floorNumber]={...local,bonusCaches:(this.bonusCaches||[]).map(c=>({...c,items:c.items.map(a=>({...a}))}))};
     const keycards=ownedKeycards({...this.campaign,base,armoryQuest:this.armoryQuest,repairQuest:this.repairQuest,constructionQuest:this.constructionQuest,demyanQuest:this.demyanQuest});
-    return {...base,artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
+    return {...base,baseProjects:snapshotSettlement(this.baseProjects),artifacts:{...this.artifacts},closedCollections:[...(this.closedCollections||[])],buildingLayout:{...(this.buildingLayout||{})},questRewards:[...(this.questRewards||[])],discoveryCards:[...(this.discoveryCards||[])],demyanQuest:{...this.demyanQuest,plot:this.demyanQuest?.plot?{...this.demyanQuest.plot}:null},constructionQuest:{...this.constructionQuest,stock:{...this.constructionQuest?.stock}},repairQuest:{...this.repairQuest},hull:this.hull,inventory:{...this.inventory},carriedLoot:{...this.carriedLoot},combat:this.combatSnapshot(),armoryQuest:{...this.armoryQuest},workshopQuest:{...this.workshopQuest},porodnikJob:this.porodnikJob?{...this.porodnikJob}:null,cargoHold:{...this.cargoHold},cargo:this.cargo,credits:this.credits,location:this.floorNumber?'floor':'base',floor:this.floorNumber,base,floors,keycards,highestFloor:this.campaign.highestFloor||0};
   }
   persist() {
     if(this.leaving||!this.rig)return;
@@ -3862,7 +3962,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   openInventory(){
     if(this.layoutEditing||this.busy||this.storyActive||document.querySelector('#dialog').open)return;
-    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
+    this.dialogClosed();this.persist();const panel=createInventoryPanel(this.snapshotCampaign());if(this.settlementUnlocked())this.addSettlementTaskList(panel);const specs=document.createElement('button');specs.className='metal-button';specs.textContent='ХАРАКТЕРИСТИКИ БУРА';specs.addEventListener('click',()=>showGamePanel('ХАРАКТЕРИСТИКИ БУРА',createDrillPanel(this.snapshotCampaign()),'drill',()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(specs);const collections=document.createElement('button');collections.className='metal-button';collections.textContent='КОЛЛЕКЦИИ · '+this.closedCollections.length+'/1000';collections.addEventListener('click',()=>this.openCollections(()=>{document.querySelector('#dialog').close();this.openInventory();}));panel.append(collections);if(!this.floorNumber){const button=document.createElement('button');button.className='metal-button';button.textContent='ПОСТРОЙКИ · ПЕРЕМЕСТИТЬ ЗДАНИЯ';button.addEventListener('click',()=>{document.querySelector('#dialog').close();this.toggleBuildingEditor();});panel.append(button);}showGamePanel('ИНВЕНТАРЬ',panel,'inventory');
   }
   goMenu() {if(this.hqSelecting){this.finishHeadquartersPlacement();return;}if(this.layoutEditing){this.toggleBuildingEditor();return;}if(this.busy||this.storyActive||document.querySelector('#dialog').open)return;openPauseMenu(this);}
   interact() {
@@ -4092,7 +4192,7 @@ class Base extends globalThis.Phaser.Scene {
   }
   update(time,delta) {
     if(!this.keys||document.hidden)return;
-    if(this.layoutEditing||this.hqSelecting){this.speed=0;this.cutting=false;return;}
+    if(this.layoutEditing||this.hqSelecting||this.projectSelecting){this.speed=0;this.cutting=false;return;}
     this.syncAction();this.drawLiftGlow(time);this.lift.update(Math.min(delta,50));
     if(this.discoveryActive||this.busy||this.storyActive)return;
     if(document.querySelector('#dialog').open){
@@ -4105,7 +4205,7 @@ class Base extends globalThis.Phaser.Scene {
       return;
     }
     for(const person of [this.person,this.mechanic,this.armorer,this.repairman])updatePerson(person,delta,this.rig);
-    this.updateConstruction(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();this.refreshDemyanHUD();
+    this.updateConstruction(Math.min(delta,50));this.updateSettlementProjects(Math.min(delta,50));if(this.storyActive)return;this.refreshConstructionHUD();this.refreshDemyanHUD();
     this.updatePorodnikCycle(Math.min(delta,50));this.animatePorodnik(time);
     this.workshop?.update(Math.min(delta,50),this.workshopQuest.serviceRemaining>0);
     this.repairShop?.update(Math.min(delta,50),this.repairQuest.serviceRemaining>0);
@@ -4281,7 +4381,7 @@ class Base extends globalThis.Phaser.Scene {
 }
 
 
-Object.assign(Base.prototype,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
+Object.assign(Base.prototype,settlementMethods,bonusCacheMethods,discoveryMethods,demyanMethods,armoryMethods,repairMethods,combatMethods,cargoMethods,constructionMethods,buildingLayoutMethods,artifactSceneMethods,collectionMethods);
 
 
 class Floor extends Base {
@@ -4291,7 +4391,7 @@ class Floor extends Base {
 
 
 const BUILDING_MENUS={
- construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
+ construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Чертежи · Строительство базы'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
  hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},

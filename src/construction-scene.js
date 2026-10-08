@@ -30,7 +30,7 @@ export const constructionMethods={
  migrateArchitectFootprint(){
   if(this.floorNumber||!this.constructionQuest?.unlocked)return;
   const q=this.constructionQuest,head=this.demyanQuest,architect=buildingGeometry(this.buildingLayout||{},'architect').footprint;
-  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[])];
+  const keys=['lift','porodnik','workshop','armory','repair',...(q.warehouse||q.remaining!=null?['warehouse']:[]),...(head?.plot?['hq']:[]),...['housing','power'].filter(k=>this.baseProjects?.[k]?.built||this.baseProjects?.[k]?.remaining!=null)];
   const geometry=key=>key==='hq'?demyanGeometry(head):this.buildingGeom(key);
   for(const key of keys){
    const original=geometry(key);const bounds=original.footprint;const conflict=keys.filter(k=>k!==key).some(k=>rectanglesOverlap(buildingClearance(bounds),geometry(k).footprint))||bounds.x+bounds.width>48*CELL||bounds.y+bounds.height>48*CELL;if(!conflict&&!rectanglesOverlap(buildingClearance(bounds),architect))continue;
@@ -65,11 +65,12 @@ export const constructionMethods={
   const q=this.constructionQuest;if(!q)return null;
   if(this.floorNumber===4&&q.briefed&&!q.rescued&&nearWorkshopItem(this.rig,BUILDER_SITE))return canRescueBuilder(q,this.world,this.spiders||[])?'builder':'builderBlocked';
   if(this.floorNumber)return null;
+  if(this.settlementAction?.())return 'settlement';
   if(q.warehouse&&inDeck(this.rig,warehouseDeck(q)))return 'warehouse';
   if(q.unlocked&&inDeck(this.rig,buildingGeometry(this.buildingLayout||{},'architect').deck))return 'construction';return null;
  },
  interactConstruction(){
-  const action=this.constructionAction();
+  const action=this.constructionAction();if(action==='settlement')return this.interactSettlement();
   if(action==='builder'){this.constructionQuest.rescued=true;this.builderPassenger?.setVisible(true);this.builderPerson.setVisible(false);this.builderBeacon.setVisible(false);this.persist();this.startStory('builderRescue');return true;}
   if(action==='builderBlocked'){this.notify('Расчисти три блока у входа и уничтожь пауков у комнаты.');return true;}
   if(action==='construction'){this.openConstruction();return true;}
@@ -113,7 +114,7 @@ export const constructionMethods={
  },
  openConstruction(){
   if(this.demyanQuest?.returned&&!this.demyanQuest.hq){this.openHeadquartersBuild();return;}
-  const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;this.dialogClosed();this.persist();
+  const q=this.constructionQuest;if(!q.unlocked||this.floorNumber)return;if(this.settlementUnlocked?.()){this.openSettlementConstruction();return;}this.dialogClosed();this.persist();
   if(q.warehouse){const panel=document.createElement('div');panel.className='lift-console construction-controls';const text=document.createElement('p');text.className='service-readout';text.textContent='ПЕРВЫЙ СКЛАД ГОТОВ · БЕСПЛАТНО';const note=document.createElement('p');note.className='terminal-note';note.textContent='Подъезжай к воротам склада для хранения материалов. Следующие чертежи: преграда → башня. Их предстоит получить в следующих заданиях.';panel.append(text,note);showBuildingMenu('construction',panel);return;}
   const panel=document.createElement('div');panel.className='lift-console construction-controls';
   const title=document.createElement('p');title.className='service-readout';title.textContent='ПЕРВЫЙ ЧЕРТЁЖ · СКЛАД\nЗапас на '+WAREHOUSE_CAPACITY+' каждого материала';panel.append(title);

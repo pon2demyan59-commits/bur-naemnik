@@ -516,3 +516,17 @@ dialog.discovery-dialog h2{margin:0;font-size:clamp(18px,3.5vw,29px);color:#fff1
 .service-layout.service-workshop .service-controls {display:flex;flex-direction:column;align-items:stretch;gap:8px;}
 .service-layout.service-workshop .service-controls>p {margin:0;line-height:1.5;text-align:left;font-size:12px;}
 .service-layout.service-workshop .service-controls>.service-readout {margin-top:5px;color:#ffe2a1;font-weight:900;}
+
+.settlement-project-card{padding:16px;margin:14px 0;border:1px solid #9e8f61;border-radius:10px;background:rgba(21,43,36,.72)}
+.settlement-project-card h3{margin:0 0 9px;color:#ffe1a1;font-size:18px}
+.settlement-project-card p{overflow-wrap:anywhere;line-height:1.45}
+.settlement-project-card button{width:100%;margin-top:8px}
+.settlement-task-list{display:grid;gap:7px;margin:14px 0}
+.settlement-task{margin:0;padding:9px 12px;border-radius:6px;background:rgba(21,42,35,.65);color:#f4d997}
+.settlement-task.task-done{color:#a9d7ae;background:rgba(43,77,48,.65)}
+
+.service-layout.settlement-layout{grid-template-columns:140px minmax(0,1fr);align-items:start}
+.settlement-layout .service-machine{display:none}
+.settlement-layout .service-controls{grid-column:2;grid-row:1}
+.settlement-layout .service-portrait{height:125px}
+@media(max-width:650px){.service-layout.settlement-layout{grid-template-columns:1fr}.settlement-layout .service-staff{display:none}.settlement-layout .service-controls{grid-column:1;grid-row:1}}

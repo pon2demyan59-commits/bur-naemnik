@@ -45,10 +45,14 @@ export const demyanMethods={
   if(q.dialogue){this.startStory(q.dialogue);return;}
   if(!this.floorNumber&&this.constructionQuest.warehouse&&!q.briefed){this.startStory('demyanBrief');return;}
   if(this.floorNumber===5&&q.briefed&&!q.contact&&near(this.rig,DEMYAN_SITE,11)){this.startStory('demyanContact');return;}
-  if(!this.floorNumber&&q.rescued&&!q.returned)this.startStory('demyanReturn');
+  if(!this.floorNumber&&q.rescued&&!q.returned){this.startStory('demyanReturn');return;}
+  if(!this.floorNumber&&q.hq&&!q.settlementBriefed){this.startStory('settlementBrief');return;}
+  if(!this.floorNumber&&q.settlementBriefed&&!q.settlementDone&&this.settlementTasks().every(task=>task.done))this.startStory('settlementReady');
  },
  finishDemyanStory(kind){
   const q=this.demyanQuest;
+  if(kind==='hqReady'||kind==='settlementBrief'){q.settlementBriefed=true;this.notify('ОБУСТРОИТЬ УБЕЖИЩЕ · ТРИ ЦЕЛИ В ЛЮБОМ ПОРЯДКЕ');}
+  if(kind==='settlementReady')q.settlementDone=true;
   if(kind==='demyanBrief'){q.briefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 5\nНОВОЕ ЗАДАНИЕ · ПОСЛЕДНИЙ РУБЕЖ');}
   if(kind==='demyanContact')q.contact=true;
   if(kind==='demyanEvac')q.evacuating=true;
@@ -92,6 +96,7 @@ export const demyanMethods={
  refreshDemyanHUD(){
   const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
+  if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5){radio.textContent=q.rescued?'Демьян и люди на борту. Вернись на базу.':q.evacuating?'Сначала люди. Демьян отходит последним. Подожди рядом с проходом.':'Демьян удерживает командный пост. Разбей 3 подсвеченных блока слева и уничтожь всех 10 патрулирующих пауков.';status.textContent=q.rescued?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Проход '+DEMYAN_ENTRANCE.filter(p=>!this.world.blocked(p.x,p.y)).length+'/3 · Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/'+DEMYAN_GUARDS.length+' · Люди '+q.evacuated+'/3 · '+objectiveBearing(this.rig,DEMYAN_SITE);}
   else{radio.textContent=q.returned?'Демьян П.: '+(q.hq?'Готовим экспедицию к верхним воротам. Сведения о поверхности ещё предстоит проверить.':'Нужен штаб. Получи чертёж у архитектора, выбери и расчисти площадку 9×8.'): 'Один человек несколько часов удерживает командный пост на пятом этаже. Серёга узнал Демьяна.';status.textContent=q.remaining!=null?'Строительство штаба · '+Math.ceil(q.remaining/1000)+' с':q.hq?'Штаб работает · Руководитель: Демьян П. · Спасены 3 человека':q.returned?'Дом архитектора · Штаб 9×8 · '+Object.entries(HQ_RECIPE).map(([id,n])=>(MATERIALS.find(m=>m.id===id)?.name||id)+' '+n).join(' · '):'Получена карта пятого этажа';}
@@ -145,5 +150,5 @@ export const demyanMethods={
    guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(t*2+i)));
   });
  },
- openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent='Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Спасены трое выживших; следующая задача — подготовить жильё. Новые сюжетные поручения будут появляться здесь.';panel.append(title,note);showBuildingMenu('hq',panel);}
+ openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
 };

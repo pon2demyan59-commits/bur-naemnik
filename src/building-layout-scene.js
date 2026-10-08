@@ -3,12 +3,12 @@ import { CELL } from './base-state.js';
 import { writeSave } from './storage.js';
 import { gameplayZoom } from './viewport-sync.js';
 export const buildingLayoutMethods={
- buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest,this.demyanQuest);},
+ buildingGeom(key){return buildingGeometry(this.buildingLayout||{},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  buildingDeck(key){return this.buildingGeom(key).deck;},
  buildingPoint(key){const d=this.buildingDeck(key);return {x:(d.x+d.width/2)/CELL-.5,y:(d.y+d.height/2)/CELL-.5};},
  occupiedBuildingGeometries(except){return this.existingBuildings().filter(k=>k!==except).map(k=>({...this.buildingGeom(k),kind:k}));},
- existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
- movableBuildings(){return this.existingBuildings().filter(k=>k!=='hq'||this.demyanQuest.hq);},
+ existingBuildings(){return Object.keys(BUILDING_LABELS).filter(k=>['housing','power'].includes(k)?!!(this.baseProjects?.[k]?.built||this.baseProjects?.[k]?.remaining!=null):k==='warehouse'?this.constructionQuest?.warehouse||this.constructionQuest?.remaining!=null:k==='architect'?this.constructionQuest?.unlocked:k==='hq'?!!this.demyanQuest?.plot:['lift','porodnik','workshop','armory','repair'].includes(k)||!!this.buildingLayout?.[k]);},
+ movableBuildings(){return this.existingBuildings().filter(k=>!['housing','power'].includes(k)||this.baseProjects[k].built).filter(k=>k!=='hq'||this.demyanQuest.hq);},
  questWorld(key){const o=this.buildingLayout?.[key]||{};return {blocked:(x,y)=>this.world.blocked(x+(o.dx||0),y+(o.dy||0))};},
  foundationGeometries(){return this.existingBuildings().filter(key=>key!=='hq'||this.demyanQuest?.hq||this.demyanQuest?.remaining!=null).map(key=>this.buildingGeom(key));},
  buildingFoundationSolids(){return this.floorNumber?[]:this.foundationGeometries().flatMap(geometry=>buildingPerimeterColliders(geometry));},
@@ -49,13 +49,14 @@ export const buildingLayoutMethods={
   this.events.once('shutdown',()=>{this.input.off('pointerdown',down);this.input.off('pointermove',move);this.input.off('pointerup',up);this.input.off('pointerupoutside',up);this.layoutEditing=false;});
  },
  toggleBuildingEditor(){
+  if(this.projectSelecting){this.finishSettlementPlacement();return;}
   if(this.hqSelecting){this.finishHeadquartersPlacement();return;}
   if(this.layoutEditing){this.cancelBuildingMove();this.layoutEditing=false;this.layoutStrip.hidden=true;document.querySelector('.base-hud').classList.remove('layout-open');document.querySelector('#base-buildings').textContent='ПОСТРОЙКИ';this.cameras.main.startFollow(this.rig,true,.1,.1).setZoom(gameplayZoom(this.scale.width,this.scale.height));this.dialogClosed();return;}
-  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
+  if(this.floorNumber||this.busy||this.storyActive||document.querySelector('#dialog').open||this.repairQuest.wave==='active'||this.repairQuest.serviceRemaining!=null||this.armoryQuest.serviceRemaining!=null||this.workshopQuest.serviceRemaining!=null||this.porodnikJob||this.constructionQuest.remaining!=null||this.demyanQuest.remaining!=null||Object.values(this.baseProjects||{}).some(q=>q.remaining!=null)){this.notify('Перенос доступен на базе после завершения работ и боя.');return;}
   if(!this.movableBuildings().length){this.notify('Сначала восстанови постройку.');return;}
   this.dialogClosed();this.persist();this.layoutEditing=true;this.layoutStrip.hidden=false;document.querySelector('.base-hud').classList.add('layout-open');document.querySelector('#base-buildings').textContent='ВЫЙТИ';this.cameras.main.stopFollow();this.cameras.main.setZoom(Math.min(.72,this.cameras.main.zoom));
  },
- candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest);},
+ candidateGeometry(){const key=this.layoutSelected;if(!key)return null;return key==='warehouse'?buildingGeometry(this.buildingLayout,key,{...this.constructionQuest,offset:this.layoutCandidate}):buildingGeometry({...this.buildingLayout,[key]:this.layoutCandidate},key,this.constructionQuest,this.demyanQuest,this.baseProjects);},
  drawBuildingCandidate(){
   const geometry=this.candidateGeometry();if(!geometry)return;const key=this.layoutSelected,g=this.layoutPreview,f=geometry.footprint;
   const error=validateBuildingMove(key,geometry,this.world,this.occupiedBuildingGeometries(key),this.rig);this.layoutError=error;this.layoutConfirm.disabled=!!error;this.layoutNote.textContent=error||'Место свободно. Подтверди перенос или потяни ещё.';

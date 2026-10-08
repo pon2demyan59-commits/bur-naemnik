@@ -1,3 +1,4 @@
+import { SETTLEMENT_PROJECTS, settlementGeometry } from './settlement-state.js';
 import { demyanGeometry } from './demyan-state.js';
 import { CELL } from './base-state.js';
 import { LIFT, liftGeometry } from './lift-state.js';
@@ -6,15 +7,16 @@ import { WORKSHOP_BODY, WORKSHOP_DECK } from './workshop-state.js';
 import { ARMORY_BODY, ARMORY_DECK } from './armory-state.js';
 import { REPAIR_BODY, REPAIR_DECK } from './repair-state.js';
 import { warehouseBody, warehouseDeck, ARCHITECT_BODY, ARCHITECT_DECK } from './construction-state.js';
-export const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад',architect:'Дом архитектора',hq:'Штаб'};
+export const BUILDING_LABELS={lift:'Лифт',porodnik:'Породник',workshop:'Мастерская',armory:'Оружейная',repair:'Ремонтный цех',warehouse:'Склад',architect:'Дом архитектора',hq:'Штаб',housing:'Жилой комплекс',power:'Электростанция'};
 export function restoreBuildingLayout(value={}){const out={};for(const key of Object.keys(BUILDING_LABELS)){const p=value?.[key];if(p&&Number.isInteger(p.dx)&&Number.isInteger(p.dy)&&Math.abs(p.dx)<=45&&Math.abs(p.dy)<=45)out[key]={dx:p.dx,dy:p.dy};}return out;}
 export function registerBuildingType(key,label,geometry){BUILDING_LABELS[key]=label;BUILDING_GEOMETRIES[key]=geometry;}
 const BUILDING_GEOMETRIES={};
 const shifted=(rect,dx,dy)=>({...rect,x:rect.x+dx*CELL,y:rect.y+dy*CELL});
-export function buildingGeometry(layout={},key,construction={plot:0},head={}){
+export function buildingGeometry(layout={},key,construction={plot:0},head={},projects={}){
  const o=key==='warehouse'?(construction.offset||{}):(layout[key]||{}),dx=o.dx||0,dy=o.dy||0;
+ if(SETTLEMENT_PROJECTS[key])return settlementGeometry(key,projects,{dx,dy});
  if(key==='hq')return demyanGeometry({...head,plot:head.plot?{x:head.plot.x+dx,y:head.plot.y+dy}:null});
- if(BUILDING_GEOMETRIES[key])return BUILDING_GEOMETRIES[key]({layout,construction,head,offset:{dx,dy},CELL});
+ if(BUILDING_GEOMETRIES[key])return BUILDING_GEOMETRIES[key]({layout,construction,head,projects,offset:{dx,dy},CELL});
  if(key==='lift'){const center={x:LIFT.x+dx,y:LIFT.y+dy},g=liftGeometry(center);return {center,body:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL},deck:g.deck,colliders:g.colliders,footprint:{x:(center.x-3)*CELL,y:(center.y-3)*CELL,width:7*CELL,height:7*CELL}};}
  let body,deck,collider;
  if(key==='warehouse'){body=warehouseBody(construction);deck=warehouseDeck(construction);collider=body;}

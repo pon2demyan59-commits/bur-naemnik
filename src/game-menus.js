@@ -2,7 +2,7 @@ import { readSettings, writeSettings } from './storage.js';
 import { createInventoryPanel, createHelpPanel, createDrillPanel } from './interface-panels.js';
 
 const BUILDING_MENUS={
- construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Первый чертёж — склад'},
+ construction:{title:'ДОМ АРХИТЕКТОРА',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Чертежи и постройки',art:'menu-construction-scene',artSvg:true,hint:'Чертежи · Строительство базы'},
  warehouse:{title:'СКЛАД',portrait:'builder-portrait-v2',name:'Строительный мастер',role:'Хранение материалов',art:'menu-construction-scene',artSvg:true,hint:'Запас сохраняется между вылазками'},
  hq:{title:'ШТАБ',portrait:'demyan-portrait',name:'Демьян П.',role:'Начальник штаба',art:'headquarters',artGame:true,hint:'Сюжетные задания · Выход на поверхность'},
  workshop:{title:'МАСТЕРСКАЯ',portrait:'konstantin-portrait',name:'Константин Б',role:'Механик',art:'menu-workshop-scene',hint:'Улучшение мощности · 4 секунды'},
