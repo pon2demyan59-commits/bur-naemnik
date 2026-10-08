@@ -1,4 +1,5 @@
-// Canonical weapon recipes; combat and supplier prices are initial balance.
+import { DRILL_UPGRADE_PRICE_STEP } from './drill-balance.js';
+// Recipes are canonical. Purchase budgets follow the approved drill economy.
 export const WEAPON_COMPONENTS=[
  {
   "id": "part01",
@@ -283,5 +284,13 @@ export const WEAPON_CATALOG=[
   }
  }
 ];
+export function weaponPurchaseBudget(index){const upgrades=10+5*(index-1);return DRILL_UPGRADE_PRICE_STEP*upgrades*(upgrades+1)/2;}
+for(let i=1;i<WEAPON_CATALOG.length;i++){
+ const w=WEAPON_CATALOG[i],budget=weaponPurchaseBudget(i);
+ w.blueprintPrice=budget*.2;
+ const weighted=Object.entries(w.recipe).reduce((sum,[id,n])=>sum+n*WEAPON_COMPONENTS.find(p=>p.id===id).price,0);
+ for(const id of Object.keys(w.recipe)){const p=WEAPON_COMPONENTS.find(p=>p.id===id);p.price=Math.round(p.price*budget*.8/weighted/10)*10;}
+}
+export function weaponFullCost(w){return w.blueprintPrice+Object.entries(w.recipe).reduce((sum,[id,n])=>sum+n*WEAPON_COMPONENTS.find(p=>p.id===id).price,0);}
 export function weaponDefinition(id){return WEAPON_CATALOG.find(w=>w.id===id)||WEAPON_CATALOG[0];}
 export function weaponStats(q,buff=0){const w=weaponDefinition(q.equippedWeapon);return {...w,damage:w.damage*(1+(q.weaponLevel||0)*.02+buff),range:w.range*64};}

@@ -1427,7 +1427,11 @@ const DEMYAN_ENTRANCE=[{x:32,y:29},{x:32,y:30},{x:32,y:31}];
 const DEMYAN_GUARDS=[{x:30,y:25},{x:34,y:25},{x:38,y:25},{x:40,y:27},{x:40,y:31},{x:40,y:36},{x:36,y:36},{x:32,y:36},{x:30,y:33},{x:30,y:29}];
 function demyanWall(x,y){return x>=32&&x<=38&&y>=27&&y<=34&&(x===32||x===38||y===27||y===34)&&!DEMYAN_ENTRANCE.some(p=>p.x===x&&p.y===y);}
 function demyanOpenCell(x,y){return (x>=33&&x<=37&&y>=28&&y<=33)||(x>=30&&x<=40&&y>=25&&y<=36&&(x<32||x>38||y<27||y>34));}
-const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady','settlementBrief','settlementReady'];
+const SENSOR_SITE={x:36,y:32};
+const SENSOR_GUARDS=[{x:32,y:28},{x:36,y:28},{x:40,y:28},{x:32,y:36},{x:36,y:36},{x:40,y:36}];
+function sensorOpenCell(x,y){return Math.abs(x-SENSOR_SITE.x)<=1&&Math.abs(y-SENSOR_SITE.y)<=1||SENSOR_GUARDS.some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1);}
+function canCollectSensor(q,rig,spiders=[]){return q.sensorBriefed&&!q.sensorCollected&&Math.hypot(rig.x-(SENSOR_SITE.x+.5)*CELL,rig.y-(SENSOR_SITE.y+.5)*CELL)<=90&&spiders.length===SENSOR_GUARDS.length&&spiders.every(s=>s.hp<=0);}
+const DEMYAN_STORIES=['demyanBrief','demyanContact','demyanEvac','demyanRescue','demyanReturn','hqReady','settlementBrief','settlementReady','sensorBrief','sensorReturn'];
 const HQ_RECIPE={earth:100,stone:60,iron:10};
 const HQ_MS=15000;
 const HQ_WIDTH=9,HQ_HEIGHT=8;
@@ -1438,6 +1442,7 @@ function restoreDemyan(v={}){
  return {briefed:v.briefed===true,contact:v.contact===true,evacuating:v.evacuating===true,
  evacuated:Number.isInteger(v.evacuated)?Math.max(0,Math.min(3,v.evacuated)):0,rescued,returned,
  settlementBriefed:returned&&v.hq===true&&v.settlementBriefed===true,settlementDone:returned&&v.hq===true&&v.settlementDone===true,
+ sensorBriefed:returned&&v.settlementDone===true&&v.sensorBriefed===true,sensorCollected:returned&&v.sensorBriefed===true&&v.sensorCollected===true,sensorReturned:returned&&v.sensorCollected===true&&v.sensorReturned===true,
  hq:returned&&v.hq===true,plot:v.plot&&Number.isInteger(v.plot.x)&&Number.isInteger(v.plot.y)&&v.plot.x>=2&&v.plot.y>=2&&v.plot.x<=43&&v.plot.y<=43?{x:Math.min(48-HQ_WIDTH,v.plot.x),y:Math.min(48-HQ_HEIGHT,v.plot.y)}:null,
  remaining:returned&&!v.hq&&Number.isFinite(v.remaining)?Math.max(0,Math.min(HQ_MS,v.remaining)):null,
  dialogue,dialoguePage:dialogue&&Number.isInteger(v.dialoguePage)?Math.max(0,v.dialoguePage):0};
@@ -2068,7 +2073,7 @@ function liftGeometry(center=LIFT) {
 function ownedKeycards(progress) {
   const base=progress.base||progress;
   return [...new Set([...(Array.isArray(progress.keycards)?progress.keycards:[]),
-    ...(base.rescued?[1]:[]),...(progress.armoryQuest?.briefed?[2]:[]),...(progress.repairQuest?.briefed?[3]:[]),...(progress.constructionQuest?.briefed?[4]:[]),...(progress.demyanQuest?.briefed?[5]:[])
+    ...(base.rescued?[1]:[]),...(progress.armoryQuest?.briefed?[2]:[]),...(progress.repairQuest?.briefed?[3]:[]),...(progress.constructionQuest?.briefed?[4]:[]),...(progress.demyanQuest?.briefed?[5]:[]),...(progress.demyanQuest?.sensorBriefed?[6]:[])
   ].filter(n=>Number.isInteger(n)&&n>=1&&n<=100))].sort((a,b)=>a-b);
 }
 function liftDestinations(progress) {
@@ -2079,7 +2084,7 @@ function liftDestinations(progress) {
 // The radio shows only the current mission's unused access card. Owned cards stay saved.
 function questKeycard(progress) {
  const base=progress.base||progress,armory=progress.armoryQuest||{},repair=progress.repairQuest||{};
- const target=progress.demyanQuest?.briefed?(progress.demyanQuest.rescued?null:5):progress.constructionQuest?.briefed?(progress.constructionQuest.rescued?null:4):repair.briefed?(repair.ready?null:3):armory.briefed?(armory.ready?null:2):base.rescued?1:null;
+ const target=progress.demyanQuest?.sensorBriefed?(progress.demyanQuest.sensorCollected?null:6):progress.demyanQuest?.briefed?(progress.demyanQuest.rescued?null:5):progress.constructionQuest?.briefed?(progress.constructionQuest.rescued?null:4):repair.briefed?(repair.ready?null:3):armory.briefed?(armory.ready?null:2):base.rescued?1:null;
  if(target==null||target<=(progress.highestFloor||0)||target===(progress.floor||0))return null;
  return ownedKeycards(progress).includes(target)?target:null;
 }
@@ -2087,7 +2092,7 @@ function questKeycard(progress) {
 // Separate mine state: the lift never swaps the base's excavated cells with a floor.
 class FloorWorld {
   constructor(progress={},floor=1) {
-    this.floor=[1,2,3,4,5].includes(floor)?floor:1;this.x=Number.isInteger(progress.x)?progress.x:FLOOR_LIFT.x;
+    this.floor=[1,2,3,4,5,6].includes(floor)?floor:1;this.x=Number.isInteger(progress.x)?progress.x:FLOOR_LIFT.x;
     this.y=Number.isInteger(progress.y)?progress.y:FLOOR_LIFT.y;
     this.cleared=new Set(Array.isArray(progress.cleared)?progress.cleared.filter(n=>Number.isInteger(n)&&n>=0&&n<BASE_SIZE*BASE_SIZE):[]);
     this.damage=new Map(Array.isArray(progress.damage)?progress.damage.filter(v=>Array.isArray(v)&&Number.isInteger(v[0])&&v[0]>=0&&v[0]<BASE_SIZE*BASE_SIZE&&Number.isFinite(v[1])&&v[1]>0&&v[1]<1):[]);
@@ -2108,7 +2113,7 @@ class FloorWorld {
     if(!this.inside(this.x,this.y)||this.blocked(this.x,this.y)||liftGeometry(FLOOR_LIFT).colliders.some(rect=>circleHitsRect(px,py,rect))){this.x=25;this.y=7;}
   }
   inside(x,y){return x>=2&&y>=2&&x<48&&y<48;}
-  blocked(x,y){if(this.floor===5&&demyanWall(x,y))return true;const item=this.floor===5?demyanOpenCell(x,y):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
+  blocked(x,y){if(this.floor===5&&demyanWall(x,y))return true;const item=this.floor===6?sensorOpenCell(x,y):this.floor===5?demyanOpenCell(x,y):this.floor===4?((x>=34&&x<=36&&y>=29&&y<=32)||BUILDER_GUARDS.some(p=>x===p.x&&y===p.y)):this.floor===3?((x===18&&y===34)||(x===36&&y===39)||[{x:25,y:12},{x:13,y:24},{x:38,y:24},{x:19,y:33},{x:35,y:38}].some(p=>Math.abs(x-p.x)<=1&&Math.abs(y-p.y)<=1)):this.floor===2?((x===17&&y===27)||(x===36&&y===35)):((x===18&&y===20)||(x===32&&y===29));return this.inside(x,y)&&!item&&!(x>=22&&x<=28&&y>=4&&y<=11)&&!this.cleared.has(y*BASE_SIZE+x);}
   material(x,y){return this.materialOverrides.get(y*BASE_SIZE+x)||depositMaterial(this.materialSeed,this.floor,x,y);}
   hardness(x,y){if(this.floor===5&&demyanWall(x,y))return Infinity;return materialDefinition(this.material(x,y)).canonicalHardness;}
   drill(x,y,amount){if(!Number.isFinite(this.hardness(x,y))||!this.blocked(x,y))return false;const key=y*BASE_SIZE+x,next=(this.damage.get(key)||0)+amount/this.hardness(x,y);if(next>=1-1e-12){this.cleared.add(key);this.damage.delete(key);return true;}this.damage.set(key,next);return false;}
@@ -2233,6 +2238,9 @@ const STORY_LINES = {
   ],
   settlementBrief:[{speaker:'Демьян П.',text:'Штаб готов. Теперь нужно обустроить базу: людям — жильё, производству — электричество, нам — запас материалов. Построй жилой комплекс, запусти электростанцию и расширь склад. С чего начать — решай сам. Чертежи найдёшь у архитектора.'}],
   settlementReady:[{speaker:'Демьян П.',text:'Людям есть где жить. Электростанция работает, склад расширен. Убежище становится домом. Теперь у нас есть основа для следующих шагов к поверхности.'}],
+  // New chapter: sensor recovery, added with the sixth-floor request.
+  sensorBrief:[{speaker:'Демьян П.',text:'Электричество есть. А от наружных датчиков — тишина. На шестом остался регистратор: в нём последние замеры перед обвалом.'},{speaker:'Герой',text:'Найду регистратор. Что там с проходом?'},{speaker:'Демьян П.',text:'Карта шестого у тебя. У станции шесть пауков. Зачисти площадку, забери регистратор и привези мне в штаб. Пока не увидим замеры, верхние ворота не трогаем.'}],
+  sensorReturn:[{speaker:'Герой',text:'Регистратор цел. Площадку зачистил.'},{speaker:'Демьян П.',text:'Хорошая работа. Архив есть, но замеры старые — по ним одним людей наружу не поведём. Разберём записи и подготовим следующую вылазку. За доставку — десять тысяч кредитов.'}],
   // New construction chapter approved 2026-10-07; original canon above is preserved.
   builderBrief:[
     {speaker:'Серёга Т',text:'Слышь, на четвёртом наш строительный мастер остался. После обвала от него ни слуху.'},
@@ -2558,7 +2566,8 @@ class WorkshopView {
  }
 }
 
-// Canonical weapon recipes; combat and supplier prices are initial balance.
+
+// Recipes are canonical. Purchase budgets follow the approved drill economy.
 const WEAPON_COMPONENTS=[
  {
   "id": "part01",
@@ -2843,6 +2852,14 @@ const WEAPON_CATALOG=[
   }
  }
 ];
+function weaponPurchaseBudget(index){const upgrades=10+5*(index-1);return DRILL_UPGRADE_PRICE_STEP*upgrades*(upgrades+1)/2;}
+for(let i=1;i<WEAPON_CATALOG.length;i++){
+ const w=WEAPON_CATALOG[i],budget=weaponPurchaseBudget(i);
+ w.blueprintPrice=budget*.2;
+ const weighted=Object.entries(w.recipe).reduce((sum,[id,n])=>sum+n*WEAPON_COMPONENTS.find(p=>p.id===id).price,0);
+ for(const id of Object.keys(w.recipe)){const p=WEAPON_COMPONENTS.find(p=>p.id===id);p.price=Math.round(p.price*budget*.8/weighted/10)*10;}
+}
+function weaponFullCost(w){return w.blueprintPrice+Object.entries(w.recipe).reduce((sum,[id,n])=>sum+n*WEAPON_COMPONENTS.find(p=>p.id===id).price,0);}
 function weaponDefinition(id){return WEAPON_CATALOG.find(w=>w.id===id)||WEAPON_CATALOG[0];}
 function weaponStats(q,buff=0){const w=weaponDefinition(q.equippedWeapon);return {...w,damage:w.damage*(1+(q.weaponLevel||0)*.02+buff),range:w.range*64};}
 
@@ -4252,6 +4269,8 @@ function createWeaponPanel(scene,onInstall){
  readout.className='service-readout';status.className='service-status';status.setAttribute('role','status');catalog.className='weapon-list';catalog.setAttribute('aria-label','Каталог оружия');detail.className='weapon-detail';body.className='weapon-browser';exit.className='floor-button';exit.textContent='ГОТОВО';body.append(catalog,detail);panel.append(readout,status,body,exit);
  let selected=q.equippedWeapon||'basic',signature='',message='';
  const node=(tag,text,className)=>{const el=document.createElement(tag);el.textContent=text;if(className)el.className=className;return el;};
+ const number=n=>Number(n.toFixed(2)).toLocaleString('ru-RU');
+ const metrics=(w,level=0)=>{const box=node('div','','weapon-metrics'),damage=w.damage*(1+level*.02+(scene.collectionBuffs?.weapon||0));for(const [label,value] of [['Урон',number(damage)],['Дальность',number(w.range)+' м'],['Скорострельность',number(1000/w.interval)+' /с'],['Урон в секунду',number(damage*1000/w.interval)]]){const item=node('div','','weapon-metric');item.append(node('small',label),node('strong',value));box.append(item);}return box;};
  const action=(label,disabled,run)=>{const button=node('button',label,'metal-button');button.disabled=disabled;button.addEventListener('click',()=>{run();scene.refreshMountedWeapon();scene.refreshHUD();scene.persist();render();});detail.append(button);};
  const pay=(result,text)=>{if(result.bought){scene.credits=result.credits;message=text;}};
  const mounted=()=>{onInstall();message='Оружейник устанавливает оружие.';};
@@ -4261,15 +4280,15 @@ function createWeaponPanel(scene,onInstall){
   status.textContent=`Кредиты: ${scene.credits} · `+(busy?`Оружейник работает · ${(q.serviceRemaining/1000).toFixed(1)} с`:(message||'Выбери оружие. Чертёж → материалы → изготовление → установка.'));exit.disabled=busy;
   const next=JSON.stringify([selected,scene.credits,q.weapons,q.components,q.blueprints,q.blueprint,q.weaponLevels,q.installed,q.equippedWeapon,busy]);if(next===signature)return;signature=next;
   catalog.replaceChildren();
-  for(const entry of WEAPON_CATALOG){const button=node('button','','weapon-choice'+(entry.id===selected?' is-selected':''));button.setAttribute('aria-pressed',String(entry.id===selected));button.dataset.weapon=entry.id;const owned=q.weapons[entry.id]||0;button.append(node('span',entry.name),node('small',q.installed&&q.equippedWeapon===entry.id?'НА БУРЕ':owned?'В АРСЕНАЛЕ · '+owned:hasWeaponBlueprint(q,entry.id)?'ЧЕРТЁЖ ИЗУЧЕН':'НЕТ ЧЕРТЕЖА'));button.addEventListener('click',()=>{selected=entry.id;message='';render();});catalog.append(button);}
+  for(const entry of WEAPON_CATALOG){const button=node('button','','weapon-choice'+(entry.id===selected?' is-selected':''));button.setAttribute('aria-pressed',String(entry.id===selected));button.dataset.weapon=entry.id;const owned=q.weapons[entry.id]||0;button.append(node('span',entry.name),node('small',q.installed&&q.equippedWeapon===entry.id?'НА БУРЕ':owned?'В АРСЕНАЛЕ · '+owned:hasWeaponBlueprint(q,entry.id)?'ЧЕРТЁЖ ИЗУЧЕН':'НЕТ ЧЕРТЕЖА'),metrics(entry,q.weaponLevels[entry.id]||0),node('small',Object.entries(entry.recipe).map(([id,n])=>WEAPON_COMPONENTS.find(p=>p.id===id).name+' ×'+n).join(' · '),'weapon-card-materials'),node('strong',entry.id==='basic'?'ПЕРВАЯ ПУШКА · ПОДАРОК':'С НУЛЯ · '+weaponFullCost(entry).toLocaleString('ru-RU')+' КР.','weapon-card-price'));button.addEventListener('click',()=>{selected=entry.id;message='';render();});catalog.append(button);}
   detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id);preview.setAttribute('aria-hidden','true');preview.append(node('i','','weapon-mount'),node('i','','weapon-barrels'));detail.append(preview,node('h3',w.name));
-  const level=q.weaponLevels[w.id]||0,damage=w.damage*(1+level*.02+(scene.collectionBuffs?.weapon||0));detail.append(node('p',`Урон ${Number(damage.toFixed(3))} · ${Number((1000/w.interval).toFixed(2))} выстр./с · Дальность ${w.range} клетки`,'weapon-stats'),node('p',`Уровень улучшения: ${level}/100 · Экземпляров: ${q.weapons[w.id]||0}`,'weapon-stats'));
+  const level=q.weaponLevels[w.id]||0;detail.append(metrics(w,level),node('p',`Уровень улучшения: ${level}/100 · Экземпляров: ${q.weapons[w.id]||0}`,'weapon-stats'),node('p',w.id==='basic'?'Первая пушка — подарок оружейника. Дополнительные экземпляры изготовляются по рецепту.':'Полный комплект с нуля: '+weaponFullCost(w).toLocaleString('ru-RU')+' кр. Включает чертёж и все материалы.','weapon-note'));
   if(!hasWeaponBlueprint(q,w.id)){
    detail.append(node('p',w.id==='basic'?'Чертёж находится на втором этаже, в оружейном шкафу.':'Оружейник может передать чертёж за кредиты.','weapon-note'));
    if(w.id!=='basic')action(`ИЗУЧИТЬ ЧЕРТЁЖ · ${w.blueprintPrice} КР.`,busy||scene.credits<w.blueprintPrice,()=>pay(buyWeaponBlueprint(q,w.id,scene.credits),'Чертёж изучен. Теперь доступны материалы и изготовление.'));
   }
   detail.append(node('h4','РЕЦЕПТ · 1 ЭКЗЕМПЛЯР'));
-  const recipe=node('ul','','weapon-recipe');for(const [id,n] of Object.entries(w.recipe)){const owned=q.components[id]||0;recipe.append(node('li',`${WEAPON_COMPONENTS.find(p=>p.id===id).name} · ${owned}/${n}`,owned>=n?'is-ready':'is-missing'));}detail.append(recipe);
+  const recipe=node('ul','','weapon-recipe');for(const [id,n] of Object.entries(w.recipe)){const owned=q.components[id]||0,part=WEAPON_COMPONENTS.find(p=>p.id===id);recipe.append(node('li',`${part.name} · ${owned}/${n} · ${part.price} кр./шт.`,owned>=n?'is-ready':'is-missing'));}detail.append(recipe);
   const price=weaponPartsPrice(q,w.id),known=hasWeaponBlueprint(q,w.id);
   detail.append(node('p','Материалы хранятся в оружейной. Пока производство сплавов не запущено, их можно закупать здесь.','weapon-note'));
   if(price)action(`ЗАКУПИТЬ НЕДОСТАЮЩЕЕ · ${price} КР.`,busy||!known||scene.credits<price,()=>pay(buyWeaponParts(q,w.id,scene.credits),'Материалы закуплены. Можно изготовить оружие.'));
@@ -4615,11 +4634,11 @@ const combatMethods={
  makeCombat(){
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
-  this.spiders=this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
-  if(this.floorNumber===5)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
+  this.spiders=this.floorNumber===6?SENSOR_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor6?.find(s=>s.id===id),site,id)):this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
+  if(this.floorNumber===5||this.floorNumber===6)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
   this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(3000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
-  if(this.floorNumber===3||this.floorNumber===4||this.floorNumber===5)this.createSpiderViews();
+  if([3,4,5,6].includes(this.floorNumber))this.createSpiderViews();
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.beginDefense(this.campaign.combat?.wave);
  },
  createSpiderViews(){
@@ -4636,6 +4655,7 @@ const combatMethods={
   if(this.floorNumber===3)combat.floor3=spiderSnapshot(this.spiders);
   if(this.floorNumber===4)combat.floor4=spiderSnapshot(this.spiders);
   if(this.floorNumber===5)combat.floor5=spiderSnapshot(this.spiders);
+  if(this.floorNumber===6)combat.floor6=spiderSnapshot(this.spiders);
   if(!this.floorNumber&&this.repairQuest.wave==='active')combat.wave=spiderSnapshot(this.spiders);
   if(this.repairQuest.wave==='done')delete combat.wave;
   return combat;
@@ -4676,7 +4696,7 @@ const combatMethods={
   for(const s of this.spiders){
    // Base enemies belong only to the finite tutorial wave, never to floor respawns.
    if(!this.floorNumber&&!tutorial)continue;
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4||this.floorNumber===5,safe,patrol:this.floorNumber===5?DEMYAN_GUARDS:null,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:[4,5,6].includes(this.floorNumber),safe,patrol:this.floorNumber===5?DEMYAN_GUARDS:null,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage*(1-(this.collectionBuffs?.defense||0)));
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));
@@ -5063,8 +5083,8 @@ function makeQuestItem(scene,x,y,kind){
 }
 
 // Temporary reward balance. Completed pre-update quests are recorded without retroactive payouts.
-const QUEST_REWARDS={rescue:40,lift:30,firstUpgrade:50,weaponInstalled:60,porodnik:60,mechanic:40,workshopReady:80,armorer:60,armoryReady:100,repairman:80,repairReady:100,waveComplete:150,builderRescue:100,builderReturn:120,warehouseReady:150,demyanRescue:200,demyanReturn:150,hqReady:200};
-function completedRewardIds(p={}){const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{},c=p.constructionQuest||{},d=p.demyanQuest||{};return Object.entries({rescue:b.rescued,lift:b.liftAnnounced,firstUpgrade:w.upgrades>0,weaponInstalled:a.installed,porodnik:b.porodnikPowered,mechanic:w.mechanic,workshopReady:w.ready,armorer:a.rescued,armoryReady:a.ready,repairman:r.rescued,repairReady:r.ready,waveComplete:r.wave==='done',builderRescue:c.rescued,builderReturn:c.unlocked,warehouseReady:c.warehouse,demyanRescue:d.rescued,demyanReturn:d.returned,hqReady:d.hq}).filter(([,yes])=>yes).map(([id])=>id);}
+const QUEST_REWARDS={rescue:40,lift:30,firstUpgrade:50,weaponInstalled:60,porodnik:60,mechanic:40,workshopReady:80,armorer:60,armoryReady:100,repairman:80,repairReady:100,waveComplete:150,builderRescue:100,builderReturn:120,warehouseReady:150,demyanRescue:200,demyanReturn:150,hqReady:200,sensorReturn:10000};
+function completedRewardIds(p={}){const b=p.base||p,w=p.workshopQuest||{},a=p.armoryQuest||{},r=p.repairQuest||{},c=p.constructionQuest||{},d=p.demyanQuest||{};return Object.entries({rescue:b.rescued,lift:b.liftAnnounced,firstUpgrade:w.upgrades>0,weaponInstalled:a.installed,porodnik:b.porodnikPowered,mechanic:w.mechanic,workshopReady:w.ready,armorer:a.rescued,armoryReady:a.ready,repairman:r.rescued,repairReady:r.ready,waveComplete:r.wave==='done',builderRescue:c.rescued,builderReturn:c.unlocked,warehouseReady:c.warehouse,demyanRescue:d.rescued,demyanReturn:d.returned,hqReady:d.hq,sensorReturn:d.sensorReturned}).filter(([,yes])=>yes).map(([id])=>id);}
 function restoreRewards(p={}){return Array.isArray(p.questRewards)?[...new Set(p.questRewards.filter(id=>Object.hasOwn(QUEST_REWARDS,id)))]:completedRewardIds(p).filter(id=>![p.dialogue,p.base?.dialogue,p.workshopQuest?.dialogue,p.armoryQuest?.dialogue,p.repairQuest?.dialogue,p.constructionQuest?.dialogue,p.demyanQuest?.dialogue].includes(id));}
 function claimQuestReward(ids,id,credits){const amount=QUEST_REWARDS[id];if(!amount||ids.includes(id))return {credits,amount:0};ids.push(id);return {credits:credits+amount,amount};}
 
@@ -5268,6 +5288,7 @@ const demyanMethods={
  makeDemyan(){
   this.commandPost=null;this.commandPostGlow=null;this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
   const q=this.demyanQuest;
+  if(this.floorNumber===6){const x=(SENSOR_SITE.x+.5)*CELL,y=(SENSOR_SITE.y+.5)*CELL,g=this.demyanArt;g.setVisible(!q.sensorCollected);g.fillStyle(0x183e38);g.fillRoundedRect(x-56,y-50,112,100,12);g.lineStyle(5,0xbdb587);g.strokeRoundedRect(x-56,y-50,112,100,12);g.fillStyle(0x82c997);g.fillRoundedRect(x-39,y-32,78,42,5);g.lineStyle(3,0x214c3a);for(let i=0;i<4;i++)g.lineBetween(x-30,y-23+i*8,x+20-i*8,y-23+i*8);g.fillStyle(0xe7bb61);for(let i=0;i<3;i++)g.fillCircle(x-24+i*24,y+30,6);this.sensorLabel=this.add.text(x,y-80,'АРХИВ ДАТЧИКОВ',{fontFamily:'Arial',fontSize:'16px',color:'#ffe7a4',backgroundColor:'#183e38',padding:{x:8,y:6}}).setOrigin(.5).setDepth(7).setVisible(!q.sensorCollected);}
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
    this.commandPost=this.add.image(33*CELL,28*CELL,'command-post').setOrigin(0).setDisplaySize(5*CELL,6*CELL).setDepth(5);
@@ -5295,12 +5316,15 @@ const demyanMethods={
   if(this.floorNumber===5&&q.briefed&&!q.contact&&near(this.rig,DEMYAN_SITE,11)){this.startStory('demyanContact');return;}
   if(!this.floorNumber&&q.rescued&&!q.returned){this.startStory('demyanReturn');return;}
   if(!this.floorNumber&&q.hq&&!q.settlementBriefed){this.startStory('settlementBrief');return;}
+  if(!this.floorNumber&&q.settlementDone&&!q.sensorBriefed){this.startStory('sensorBrief');return;}
   if(!this.floorNumber&&q.settlementBriefed&&!q.settlementDone&&this.settlementTasks().every(task=>task.done))this.startStory('settlementReady');
  },
  finishDemyanStory(kind){
   const q=this.demyanQuest;
   if(kind==='hqReady'||kind==='settlementBrief'){q.settlementBriefed=true;this.notify('ОБУСТРОИТЬ УБЕЖИЩЕ · ТРИ ЦЕЛИ В ЛЮБОМ ПОРЯДКЕ');}
   if(kind==='settlementReady')q.settlementDone=true;
+  if(kind==='sensorBrief'){q.sensorBriefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 6\nЗАДАНИЕ · АРХИВ НАРУЖНЫХ ДАТЧИКОВ');}
+  if(kind==='sensorReturn')q.sensorReturned=true;
   if(kind==='demyanBrief'){q.briefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 5\nНОВОЕ ЗАДАНИЕ · ПОСЛЕДНИЙ РУБЕЖ');}
   if(kind==='demyanContact')q.contact=true;
   if(kind==='demyanEvac')q.evacuating=true;
@@ -5308,11 +5332,12 @@ const demyanMethods={
  },
  demyanAction(){
   const q=this.demyanQuest;if(!q)return null;
+  if(this.floorNumber===6&&canCollectSensor(q,this.rig,this.spiders))return 'sensor';
   if(this.floorNumber===5&&near(this.rig,DEMYAN_SITE,5)&&canEvacuateDemyan(q,this.world,this.spiders||[]))return 'evac';
-  if(!this.floorNumber&&q.returned&&q.hq){const d=demyanGeometry(q).deck;if(this.rig.x>=d.x&&this.rig.x<=d.x+d.width&&this.rig.y>=d.y&&this.rig.y<=d.y+d.height)return 'hq';}
+  if(!this.floorNumber&&q.returned&&q.hq){const d=this.buildingDeck?this.buildingDeck('hq'):demyanGeometry(q).deck;if(this.rig.x>=d.x&&this.rig.x<=d.x+d.width&&this.rig.y>=d.y&&this.rig.y<=d.y+d.height)return 'hq';}
   return null;
  },
- interactDemyan(){const a=this.demyanAction();if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){this.openHeadquarters();return true;}return false;},
+ interactDemyan(){const a=this.demyanAction();if(a==='sensor'){this.demyanQuest.sensorCollected=true;this.demyanArt?.setVisible(false);this.sensorLabel?.setVisible(false);this.persist();this.refreshHUD();this.showDiscovery({kind:'sensor'});return true;}if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){if(this.demyanQuest.sensorCollected&&!this.demyanQuest.sensorReturned)this.startStory('sensorReturn');else this.openHeadquarters();return true;}return false;},
  updateDemyan(ms){
   const q=this.demyanQuest;if(this.commandPostGlow)this.commandPostGlow.setAlpha(.55+.2*Math.sin(this.time.now*.004));if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
@@ -5342,8 +5367,9 @@ const demyanMethods={
   const ctx=this.sound?.context;if(!ctx||ctx.state!=='running')return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sawtooth';osc.frequency.setValueAtTime(130,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(35,ctx.currentTime+.09);gain.gain.setValueAtTime(.025,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.1);osc.connect(gain);gain.connect(ctx.destination);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start();osc.stop(ctx.currentTime+.11);
  },
  refreshDemyanHUD(){
-  const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
+  const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&![5,6].includes(this.floorNumber))return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
+  if(q.sensorBriefed&&(!this.floorNumber||this.floorNumber===6)){name.textContent=q.sensorReturned?'Исследовать этаж':'Архив наружных датчиков';radio.textContent=q.sensorReturned?'Архив доставлен. Демьян изучает записи. Продолжай добычу и поиск артефактов.':q.sensorCollected?'Регистратор на борту. Вернись на базу и передай его Демьяну в штабе.':'На шестом этаже зачисти станцию от шести пауков и забери регистратор.';status.textContent=q.sensorReturned?'Задание завершено':q.sensorCollected?(this.floorNumber?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Штаб · '+objectiveBearing(this.rig,this.buildingPoint('hq'))):this.floorNumber?'Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/6 · Станция '+objectiveBearing(this.rig,SENSOR_SITE):'Ключ-карта · этаж 6';return;}
   if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5&&q.returned){name.textContent='Исследовать этаж';radio.textContent='Спасательная миссия завершена. Демьян и люди уже на базе. Продолжай добычу и поиск артефактов.';status.textContent='Этаж 5 · Свободное исследование';return;}
@@ -5399,7 +5425,7 @@ const demyanMethods={
    guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(t*2+i)));
   });
  },
- openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
+ openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.sensorReturned?'Архив наружных датчиков доставлен. Демьян изучает замеры для следующей вылазки.':this.demyanQuest.sensorBriefed?'Шестой этаж: зачисти станцию от шести пауков, забери регистратор наружных датчиков и доставь его сюда. Награда — 10 000 кредитов.':this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
 };
 
 
@@ -5474,6 +5500,7 @@ function discoveryDetails(item){
  const rarity=Math.max(1,Math.min(10,Number.isInteger(item.rarity)?item.rarity:1));
  if(item.kind==='artifact')return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:'ВЫ ОБНАРУЖИЛИ АРТЕФАКТ',name:item.name,description:RARITY_NAMES[rarity-1]+' · Редкость '+rarity+'/10',note:'Артефакт добавлен в коллекционный запас.',artSource:artifactArtSource(item.id||item.name),art:'discovery-artifact.svg',color:DISCOVERY_COLORS[rarity-1],rarity};
  if(item.kind==='blueprint'){const recipe=structureRecipe(item.id);return {eyebrow:'НОВЫЕ ВОЗМОЖНОСТИ',heading:'ЧЕРТЁЖ ОБНАРУЖЕН',name:item.name,description:item.description||'Новый проект убежища',note:item.note||'Чертёж сохранён в книге рецептов.',artSource:recipe?recipeArt(recipe):null,art:'blueprint.svg',color:'#87dfdd',rarity:5};}
+ if(item.kind==='sensor')return {eyebrow:'ЗАДАНИЕ · ЭТАЖ 6',heading:'РЕГИСТРАТОР НАЙДЕН',name:'Архив наружных датчиков',description:'Доставь регистратор Демьяну в штаб.',note:'Не занимает грузовой отсек. Сохраняется при повреждении бура.',artPath:'quests/tools.svg',color:'#87dfdd',rarity:5};
  if(item.kind==='floor-clear')return {eyebrow:'ТЕРРИТОРИЯ ОСВОБОЖДЕНА!',heading:'ПОЛНАЯ РАСЧИСТКА',name:item.name,description:item.description,note:item.note,artPath:'game/headquarters-top.webp',color:'#bee796',rarity:6};
  if(item.kind==='keycard')return {eyebrow:'НОВЫЙ ПУТЬ ОТКРЫТ',heading:'ВЫ ПОЛУЧИЛИ КЛЮЧ-КАРТУ',name:'Карта '+item.floor+'-го этажа',description:'Грузовой лифт · Этаж '+item.floor,note:'Теперь можно выбрать этот этаж в пульте лифта.',art:'keycard.svg',color:'#8fe2cb',rarity:3};
  return {eyebrow:'ПОЗДРАВЛЯЕМ!',heading:item.kind==='blueprint'?'ВЫ ОБНАРУЖИЛИ ЧЕРТЁЖ':'ВЫ ОБНАРУЖИЛИ ЯЩИК',name:item.name||'Бонусный ящик',description:item.description||'Новая находка',note:item.note||'Содержимое получено.',art:item.kind==='blueprint'?'blueprint.svg':'discovery-crate.svg',artPath:item.kind==='blueprint'?'quests/blueprint.svg':'game/bonus-cache-v2.webp',color:'#ffd780',rarity:5};
@@ -5663,7 +5690,7 @@ class Base extends globalThis.Phaser.Scene {
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
     const p=save?.progress||{};this.clearedFloors=restoreClearedFloors(p.clearedFloors);this.lastClearSize=null;this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
-    this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
+    this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5,6].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];this.groundCargo=restoreGroundCargo(local.groundCargo);
@@ -5867,7 +5894,7 @@ class Base extends globalThis.Phaser.Scene {
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig,this.buildingDeck('workshop'));
     const cache=this.bonusCacheAction();if(cache){action.textContent='ЗАБРАТЬ ТАЙНИК';action.hidden=false;action.disabled=this.busy||this.storyActive||this.discoveryActive;return;}
     const demyanAction=this.demyanAction();
-    if(demyanAction){action.textContent=demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
+    if(demyanAction){action.textContent=demyanAction==='sensor'?'ЗАБРАТЬ РЕГИСТРАТОР':demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
     const constructionAction=this.constructionAction();
     const label=constructionAction==='settlement'?SETTLEMENT_PROJECTS[this.settlementAction()].name.toUpperCase():constructionAction==='builder'?'СПАСТИ МАСТЕРА':constructionAction==='builderBlocked'?'ОСВОБОДИТЬ КОМНАТУ':constructionAction==='warehouse'?'СКЛАД':constructionAction==='construction'?'ДОМ АРХИТЕКТОРА':repairItem==='repairman'?'СПАСТИ ИЛЬЮ':repairItem==='repairKit'?'ЗАБРАТЬ РЕМКОМПЛЕКТ':atRepair?'РЕМОНТНЫЙ ЦЕХ':armoryItem==='armorer'?'СПАСТИ ОРУЖЕЙНИКА':armoryItem==='blueprint'?'ЗАБРАТЬ ЧЕРТЁЖ':atArmory?'ОРУЖЕЙНАЯ':questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ПРОДАТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
     if(constructionAction){action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.constructionQuest.dialogue||constructionAction==='builderBlocked';return;}
@@ -6101,7 +6128,7 @@ class Base extends globalThis.Phaser.Scene {
     showBuildingMenu('lift',panel);
   }
   async travelTo(target) {
-    if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3,4,5].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
+    if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3,4,5,6].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
     this.busy=true;this.speed=0;this.dialogClosed();this.persist();
     await this.lift.depart(this.rig,this.shadow,target);
     this.campaign=this.snapshotCampaign();this.campaign.location=target===0?'base':'floor';this.campaign.floor=target;

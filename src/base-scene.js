@@ -59,7 +59,7 @@ export class Base extends globalThis.Phaser.Scene {
   init({save,arrival=false,emergency=false,layoutReturn=false} = {}) {
     const p=save?.progress||{};this.clearedFloors=restoreClearedFloors(p.clearedFloors);this.lastClearSize=null;this.closedCollections=restoreClosedCollections(p.closedCollections);this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.artifacts=restoreArtifacts(p.artifacts);this.questRewards=restoreRewards(p);this.buildingLayout=restoreBuildingLayout(p.buildingLayout);this.layoutEditing=false;this.layoutReturn=layoutReturn;this.constructionQuest=restoreConstruction(p.constructionQuest);this.demyanQuest=restoreDemyan(p.demyanQuest);this.baseProjects=restoreSettlement(p.baseProjects);this.buildingBlueprints=restoreBuildingBlueprints(p.buildingBlueprints,this.constructionQuest,this.demyanQuest,this.baseProjects);this.emergency=emergency;this.combatReady=false;this.repairQuest=restoreRepair(p.repairQuest);this.hull=restoreHull(p.hull);
     const loot=v=>({fiber:Number.isSafeInteger(v?.fiber)?Math.max(0,v.fiber):0,heads:Number.isSafeInteger(v?.heads)?Math.max(0,v.heads):0});this.inventory=loot(p.inventory);this.carriedLoot=loot(p.carriedLoot);this.discoveryCards=Array.isArray(p.discoveryCards)?[...new Set(p.discoveryCards.filter(n=>Number.isInteger(n)&&n>=1&&n<=100))]:ownedKeycards(p);this.discoveryActive=false;this.discoveryQueue=[];this.campaign=p;this.armoryQuest=restoreArmory(p.armoryQuest);this.learnedRecipes=restoreRecipeKnowledge(p.learnedRecipes,this.buildingBlueprints,this.armoryQuest);restoreRecipeAccess(this);this.workshopQuest=restoreWorkshop(p.workshopQuest);this.porodnikJob=restorePorodnikJob(p.porodnikJob,this.cargoCapacity(),this.collectionBuffs.sale);this.cargo=Number.isInteger(p.cargo)?Math.max(0,Math.min(this.cargoCapacity(),p.cargo)):0;this.credits=Number.isSafeInteger(p.credits)?Math.max(0,p.credits):0;this.cargoHold=restoreCargo(p.cargoHold,this.cargo,this.cargoCapacity());this.cargo=cargoCount(this.cargoHold);
-    this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5].includes(p.floor)?p.floor:1):0;
+    this.floorNumber=this.sys.settings.key==='Floor'?([1,2,3,4,5,6].includes(p.floor)?p.floor:1):0;
     if(!this.floorNumber)queueRepairBrief(this.repairQuest,this.armoryQuest);
     const local=this.floorNumber?(p.floors?.[this.floorNumber]||{}):(p.base||p);
     this.world=this.floorNumber?new FloorWorld(local,this.floorNumber):new BaseWorld(local);this.bonusCaches=this.floorNumber?restoreBonusCaches(local.bonusCaches):[];this.groundCargo=restoreGroundCargo(local.groundCargo);
@@ -263,7 +263,7 @@ export class Base extends globalThis.Phaser.Scene {
     const questItem=this.workshopFloorAction(),atWorkshop=!this.floorNumber&&this.workshopQuest.ready&&onWorkshopDeck(this.rig,this.buildingDeck('workshop'));
     const cache=this.bonusCacheAction();if(cache){action.textContent='ЗАБРАТЬ ТАЙНИК';action.hidden=false;action.disabled=this.busy||this.storyActive||this.discoveryActive;return;}
     const demyanAction=this.demyanAction();
-    if(demyanAction){action.textContent=demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
+    if(demyanAction){action.textContent=demyanAction==='sensor'?'ЗАБРАТЬ РЕГИСТРАТОР':demyanAction==='evac'?'ЭВАКУИРОВАТЬ ЛЮДЕЙ':'ШТАБ · ДЕМЬЯН П.';action.hidden=false;action.disabled=this.busy||this.storyActive;return;}
     const constructionAction=this.constructionAction();
     const label=constructionAction==='settlement'?SETTLEMENT_PROJECTS[this.settlementAction()].name.toUpperCase():constructionAction==='builder'?'СПАСТИ МАСТЕРА':constructionAction==='builderBlocked'?'ОСВОБОДИТЬ КОМНАТУ':constructionAction==='warehouse'?'СКЛАД':constructionAction==='construction'?'ДОМ АРХИТЕКТОРА':repairItem==='repairman'?'СПАСТИ ИЛЬЮ':repairItem==='repairKit'?'ЗАБРАТЬ РЕМКОМПЛЕКТ':atRepair?'РЕМОНТНЫЙ ЦЕХ':armoryItem==='armorer'?'СПАСТИ ОРУЖЕЙНИКА':armoryItem==='blueprint'?'ЗАБРАТЬ ЧЕРТЁЖ':atArmory?'ОРУЖЕЙНАЯ':questItem==='tools'?'ЗАБРАТЬ ИНСТРУМЕНТЫ':questItem==='mechanic'?'СПАСТИ МЕХАНИКА':atWorkshop?'МАСТЕРСКАЯ':saving?'СПАСТИ СЕРЁГУ':unloading?(this.porodnikJob?'ПЕРЕРАБОТКА…':'ПРОДАТЬ ПОРОДУ'):'ПУЛЬТ ЛИФТА';if(action.textContent!==label)action.textContent=label;
     if(constructionAction){action.hidden=false;action.disabled=this.busy||this.storyActive||!!this.constructionQuest.dialogue||constructionAction==='builderBlocked';return;}
@@ -497,7 +497,7 @@ export class Base extends globalThis.Phaser.Scene {
     showBuildingMenu('lift',panel);
   }
   async travelTo(target) {
-    if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3,4,5].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
+    if(this.busy||this.storyActive||target===this.floorNumber||![0,1,2,3,4,5,6].includes(target)||this.repairQuest.wave==='active'||!this.liftReady()||!this.lift.contains(this.rig)||!liftDestinations(this.campaign).some(e=>e.floor===target&&e.enabled))return;
     this.busy=true;this.speed=0;this.dialogClosed();this.persist();
     await this.lift.depart(this.rig,this.shadow,target);
     this.campaign=this.snapshotCampaign();this.campaign.location=target===0?'base':'floor';this.campaign.floor=target;

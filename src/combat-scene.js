@@ -1,5 +1,5 @@
 import { weaponStats } from './weapon-catalog.js';
-import { DEMYAN_GUARDS } from './demyan-state.js';
+import { DEMYAN_GUARDS, SENSOR_GUARDS } from './demyan-state.js';
 import { BUILDER_GUARDS } from './construction-state.js';
 import { CELL } from './base-state.js';
 import { driveFits } from './drive-controller.js';
@@ -10,11 +10,11 @@ export const combatMethods={
  makeCombat(){
   const texture=this.textures.get('spider'),source=texture.getSourceImage();
   for(let i=0;i<4;i++)if(!texture.has('walk-'+i))texture.add('walk-'+i,0,i*source.width/4,0,source.width/4,source.height);
-  this.spiders=this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
-  if(this.floorNumber===5)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
+  this.spiders=this.floorNumber===6?SENSOR_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor6?.find(s=>s.id===id),site,id)):this.floorNumber===5?DEMYAN_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor5?.find(s=>s.id===id),site,id)):this.floorNumber===4?BUILDER_GUARDS.map((site,id)=>restoreSpider(this.campaign.combat?.floor4?.find(s=>s.id===id),site,id)):this.floorNumber===3?createFloorSpiders(this.campaign.combat?.floor3):[];
+  if(this.floorNumber===5||this.floorNumber===6)for(const s of this.spiders)if(this.world.blocked(Math.floor(s.x/CELL),Math.floor(s.y/CELL))){s.x=s.homeX;s.y=s.homeY;}
   this.spiderViews=[];this.allies=[];this.combatShots=[];this.weaponCooldown=Number.isFinite(this.campaign.combat?.cooldown)?Math.max(0,Math.min(3000,this.campaign.combat.cooldown)):0;
   this.combatTime=0;this.combatReady=true;
-  if(this.floorNumber===3||this.floorNumber===4||this.floorNumber===5)this.createSpiderViews();
+  if([3,4,5,6].includes(this.floorNumber))this.createSpiderViews();
   if(!this.floorNumber&&this.repairQuest.wave==='active')this.beginDefense(this.campaign.combat?.wave);
  },
  createSpiderViews(){
@@ -31,6 +31,7 @@ export const combatMethods={
   if(this.floorNumber===3)combat.floor3=spiderSnapshot(this.spiders);
   if(this.floorNumber===4)combat.floor4=spiderSnapshot(this.spiders);
   if(this.floorNumber===5)combat.floor5=spiderSnapshot(this.spiders);
+  if(this.floorNumber===6)combat.floor6=spiderSnapshot(this.spiders);
   if(!this.floorNumber&&this.repairQuest.wave==='active')combat.wave=spiderSnapshot(this.spiders);
   if(this.repairQuest.wave==='done')delete combat.wave;
   return combat;
@@ -71,7 +72,7 @@ export const combatMethods={
   for(const s of this.spiders){
    // Base enemies belong only to the finite tutorial wave, never to floor respawns.
    if(!this.floorNumber&&!tutorial)continue;
-   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:this.floorNumber===4||this.floorNumber===5,safe,patrol:this.floorNumber===5?DEMYAN_GUARDS:null,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
+   const damage=stepSpider(s,this.rig,ms,solid,{tutorial,finite:[4,5,6].includes(this.floorNumber),safe,patrol:this.floorNumber===5?DEMYAN_GUARDS:null,world:this.world,onDig:(x,y,broken,spider)=>this.showMonsterDig(x,y,broken,spider)});
    if(damage){
     this.hull=Math.max(tutorial?1:0,this.hull-damage*(1-(this.collectionBuffs?.defense||0)));
     const indicator=document.querySelector('#combat-hull');indicator?.classList.add('hull-hit');this.time.delayedCall(180,()=>indicator?.classList.remove('hull-hit'));

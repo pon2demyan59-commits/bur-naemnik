@@ -625,3 +625,15 @@ dialog:not([open]){display:none!important;pointer-events:none;}
 .blueprint-discovery-drawing .discovery-art{display:block;width:100%;height:180px;margin:0;object-fit:contain;filter:drop-shadow(0 12px 8px #031a21aa);}
 @media(max-width:600px){.blueprint-catalog .blueprint-banner{grid-template-columns:1fr;padding:14px;gap:10px;}.blueprint-banner-drawing{grid-column:1;grid-row:auto;min-height:160px;}.blueprint-banner-drawing img{height:145px;}.blueprint-catalog .blueprint-banner>button{grid-column:1;}.blueprint-catalog .blueprint-banner>h3{font-size:21px;}.blueprint-discovery-drawing .discovery-art{height:140px;}}
 @media(max-height:500px){.blueprint-discovery-drawing{max-width:260px;padding:10px;margin:8px auto;}.blueprint-discovery-drawing .discovery-art{height:100px;}}
+
+/* Weapon cards: compare combat performance and the complete recipe before selecting. */
+.weapon-browser{grid-template-columns:minmax(240px,1fr) minmax(270px,1fr);}
+.weapon-list{max-height:65dvh;overflow-y:auto;padding-right:5px;}
+.weapon-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%;}
+.weapon-metric{padding:8px;background:#244b3c;border-radius:6px;min-width:0;}
+#dialog .weapon-metric small{display:block;color:#b9ccba;font-size:10px;}
+.weapon-metric strong{display:block;color:#ffe1a0;font-size:17px;margin-top:3px;}
+#dialog .weapon-card-materials{line-height:1.5;font-size:11px;border-top:1px solid #53705b;padding-top:7px;}
+.weapon-card-price{font-size:12px;color:#e9cb80;}
+#dialog .weapon-choice{gap:9px;padding:12px;}
+@media(max-width:700px){.weapon-browser{grid-template-columns:1fr;}.weapon-list{grid-template-columns:1fr;max-height:45dvh;}.weapon-detail{min-width:0;}}

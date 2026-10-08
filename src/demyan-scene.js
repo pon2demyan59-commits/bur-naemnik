@@ -1,7 +1,7 @@
 import { clampEditorZoom } from './editor-camera.js';
 import { readSettings } from './storage.js';
 import { ARCHITECT_FOOTPRINT } from './construction-state.js';
-import { DEMYAN_SITE, DEMYAN_ENTRANCE, DEMYAN_GUARDS, demyanWall, HQ_RECIPE, HQ_WIDTH, HQ_HEIGHT, demyanGeometry, canEvacuateDemyan, beginHeadquarters, stepHeadquarters } from './demyan-state.js';
+import { DEMYAN_SITE, DEMYAN_ENTRANCE, DEMYAN_GUARDS, SENSOR_SITE, canCollectSensor, demyanWall, HQ_RECIPE, HQ_WIDTH, HQ_HEIGHT, demyanGeometry, canEvacuateDemyan, beginHeadquarters, stepHeadquarters } from './demyan-state.js';
 import { CELL } from './base-state.js';
 import { makePerson, updatePerson } from './people-view.js';
 import { nearestTarget, findPath, moveEnemy } from './combat-state.js';
@@ -19,6 +19,7 @@ export const demyanMethods={
  makeDemyan(){
   this.commandPost=null;this.commandPostGlow=null;this.hqSelecting=false;this.demyanArt=this.add.graphics().setDepth(6);this.hqPreview=this.add.graphics().setDepth(8);this.demyanCooldown=0;this.evacPathTime=0;
   const q=this.demyanQuest;
+  if(this.floorNumber===6){const x=(SENSOR_SITE.x+.5)*CELL,y=(SENSOR_SITE.y+.5)*CELL,g=this.demyanArt;g.setVisible(!q.sensorCollected);g.fillStyle(0x183e38);g.fillRoundedRect(x-56,y-50,112,100,12);g.lineStyle(5,0xbdb587);g.strokeRoundedRect(x-56,y-50,112,100,12);g.fillStyle(0x82c997);g.fillRoundedRect(x-39,y-32,78,42,5);g.lineStyle(3,0x214c3a);for(let i=0;i<4;i++)g.lineBetween(x-30,y-23+i*8,x+20-i*8,y-23+i*8);g.fillStyle(0xe7bb61);for(let i=0;i<3;i++)g.fillCircle(x-24+i*24,y+30,6);this.sensorLabel=this.add.text(x,y-80,'АРХИВ ДАТЧИКОВ',{fontFamily:'Arial',fontSize:'16px',color:'#ffe7a4',backgroundColor:'#183e38',padding:{x:8,y:6}}).setOrigin(.5).setDepth(7).setVisible(!q.sensorCollected);}
   if(this.floorNumber===5){
    const x=(DEMYAN_SITE.x+.5)*CELL,y=(DEMYAN_SITE.y+.5)*CELL,g=this.demyanArt;
    this.commandPost=this.add.image(33*CELL,28*CELL,'command-post').setOrigin(0).setDisplaySize(5*CELL,6*CELL).setDepth(5);
@@ -46,12 +47,15 @@ export const demyanMethods={
   if(this.floorNumber===5&&q.briefed&&!q.contact&&near(this.rig,DEMYAN_SITE,11)){this.startStory('demyanContact');return;}
   if(!this.floorNumber&&q.rescued&&!q.returned){this.startStory('demyanReturn');return;}
   if(!this.floorNumber&&q.hq&&!q.settlementBriefed){this.startStory('settlementBrief');return;}
+  if(!this.floorNumber&&q.settlementDone&&!q.sensorBriefed){this.startStory('sensorBrief');return;}
   if(!this.floorNumber&&q.settlementBriefed&&!q.settlementDone&&this.settlementTasks().every(task=>task.done))this.startStory('settlementReady');
  },
  finishDemyanStory(kind){
   const q=this.demyanQuest;
   if(kind==='hqReady'||kind==='settlementBrief'){q.settlementBriefed=true;this.notify('ОБУСТРОИТЬ УБЕЖИЩЕ · ТРИ ЦЕЛИ В ЛЮБОМ ПОРЯДКЕ');}
   if(kind==='settlementReady')q.settlementDone=true;
+  if(kind==='sensorBrief'){q.sensorBriefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 6\nЗАДАНИЕ · АРХИВ НАРУЖНЫХ ДАТЧИКОВ');}
+  if(kind==='sensorReturn')q.sensorReturned=true;
   if(kind==='demyanBrief'){q.briefed=true;this.notify('КЛЮЧ-КАРТА · ЭТАЖ 5\nНОВОЕ ЗАДАНИЕ · ПОСЛЕДНИЙ РУБЕЖ');}
   if(kind==='demyanContact')q.contact=true;
   if(kind==='demyanEvac')q.evacuating=true;
@@ -59,11 +63,12 @@ export const demyanMethods={
  },
  demyanAction(){
   const q=this.demyanQuest;if(!q)return null;
+  if(this.floorNumber===6&&canCollectSensor(q,this.rig,this.spiders))return 'sensor';
   if(this.floorNumber===5&&near(this.rig,DEMYAN_SITE,5)&&canEvacuateDemyan(q,this.world,this.spiders||[]))return 'evac';
-  if(!this.floorNumber&&q.returned&&q.hq){const d=demyanGeometry(q).deck;if(this.rig.x>=d.x&&this.rig.x<=d.x+d.width&&this.rig.y>=d.y&&this.rig.y<=d.y+d.height)return 'hq';}
+  if(!this.floorNumber&&q.returned&&q.hq){const d=this.buildingDeck?this.buildingDeck('hq'):demyanGeometry(q).deck;if(this.rig.x>=d.x&&this.rig.x<=d.x+d.width&&this.rig.y>=d.y&&this.rig.y<=d.y+d.height)return 'hq';}
   return null;
  },
- interactDemyan(){const a=this.demyanAction();if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){this.openHeadquarters();return true;}return false;},
+ interactDemyan(){const a=this.demyanAction();if(a==='sensor'){this.demyanQuest.sensorCollected=true;this.demyanArt?.setVisible(false);this.sensorLabel?.setVisible(false);this.persist();this.refreshHUD();this.showDiscovery({kind:'sensor'});return true;}if(a==='evac'){this.startStory('demyanEvac');return true;}if(a==='hq'){if(this.demyanQuest.sensorCollected&&!this.demyanQuest.sensorReturned)this.startStory('sensorReturn');else this.openHeadquarters();return true;}return false;},
  updateDemyan(ms){
   const q=this.demyanQuest;if(this.commandPostGlow)this.commandPostGlow.setAlpha(.55+.2*Math.sin(this.time.now*.004));if(this.demyanPerson?.militaryArt)this.demyanPerson.militaryArt.setDisplaySize(43,70*(1+.008*Math.sin(this.time.now*.002)));else updatePerson(this.demyanPerson,ms,this.rig);
   if(!this.floorNumber){
@@ -93,8 +98,9 @@ export const demyanMethods={
   const ctx=this.sound?.context;if(!ctx||ctx.state!=='running')return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sawtooth';osc.frequency.setValueAtTime(130,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(35,ctx.currentTime+.09);gain.gain.setValueAtTime(.025,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.1);osc.connect(gain);gain.connect(ctx.destination);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start();osc.stop(ctx.currentTime+.11);
  },
  refreshDemyanHUD(){
-  const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&this.floorNumber!==5)return;
+  const q=this.demyanQuest;if(!q?.briefed||this.floorNumber&&![5,6].includes(this.floorNumber))return;
   const name=document.querySelector('#quest-name'),radio=document.querySelector('#radio-text'),status=document.querySelector('#quest-status');
+  if(q.sensorBriefed&&(!this.floorNumber||this.floorNumber===6)){name.textContent=q.sensorReturned?'Исследовать этаж':'Архив наружных датчиков';radio.textContent=q.sensorReturned?'Архив доставлен. Демьян изучает записи. Продолжай добычу и поиск артефактов.':q.sensorCollected?'Регистратор на борту. Вернись на базу и передай его Демьяну в штабе.':'На шестом этаже зачисти станцию от шести пауков и забери регистратор.';status.textContent=q.sensorReturned?'Задание завершено':q.sensorCollected?(this.floorNumber?'Лифт · '+objectiveBearing(this.rig,FLOOR_LIFT):'Штаб · '+objectiveBearing(this.rig,this.buildingPoint('hq'))):this.floorNumber?'Пауки '+(this.spiders||[]).filter(s=>s.hp<=0).length+'/6 · Станция '+objectiveBearing(this.rig,SENSOR_SITE):'Ключ-карта · этаж 6';return;}
   if(q.hq&&q.settlementBriefed&&!q.settlementDone&&!this.floorNumber){const tasks=this.settlementTasks();name.textContent='Обустроить убежище';radio.textContent='Демьян П.: Людям — жильё, производству — электричество, нам — запас материалов. С чего начать — решай сам. Чертежи у архитектора.';status.textContent=tasks.map(t=>(t.done?'✓ ':'○ ')+t.name).join(' · ');return;}
   name.textContent=q.returned?(q.hq?'Выход на поверхность':'Построить штаб'):'Последний рубеж';
   if(this.floorNumber===5&&q.returned){name.textContent='Исследовать этаж';radio.textContent='Спасательная миссия завершена. Демьян и люди уже на базе. Продолжай добычу и поиск артефактов.';status.textContent='Этаж 5 · Свободное исследование';return;}
@@ -150,5 +156,5 @@ export const demyanMethods={
    guard.setScale(guard.sentryScaleX,guard.sentryScaleY*(1+.008*Math.sin(t*2+i)));
   });
  },
- openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
+ openHeadquarters(){const panel=document.createElement('div');panel.className='lift-console';const title=document.createElement('p');title.className='service-readout';title.textContent='ДЕМЬЯН П. · НАЧАЛЬНИК ШТАБА';const note=document.createElement('p');note.className='terminal-note';note.textContent=this.demyanQuest.sensorReturned?'Архив наружных датчиков доставлен. Демьян изучает замеры для следующей вылазки.':this.demyanQuest.sensorBriefed?'Шестой этаж: зачисти станцию от шести пауков, забери регистратор наружных датчиков и доставь его сюда. Награда — 10 000 кредитов.':this.demyanQuest.settlementDone?'Убежище обустроено: жилой комплекс и электростанция готовы, склад расширен. Глобальная миссия — выйти на поверхность. Следующее сюжетное поручение появится здесь.':'Глобальная миссия: выйти на поверхность. Показания наружных датчиков дают надежду, но безопасность ещё не подтверждена. Для открытия верхних ворот потребуется собрать предметы — состав определим по ходу сюжета. Следующий шаг — обустроить убежище. Жильё, электростанция и склад развиваются в любом порядке.';panel.append(title,note);if(this.settlementUnlocked()){this.addSettlementTaskList(panel);const button=document.createElement('button');button.className='metal-button';button.textContent='ЧЕРТЕЖИ · ДОМ АРХИТЕКТОРА';button.addEventListener('click',()=>this.openSettlementConstruction());panel.append(button);}showBuildingMenu('hq',panel);}
 };

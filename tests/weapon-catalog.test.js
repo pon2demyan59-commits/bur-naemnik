@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { WEAPON_CATALOG, WEAPON_COMPONENTS, weaponStats } from '../src/weapon-catalog.js';
+import { WEAPON_CATALOG, WEAPON_COMPONENTS, weaponStats, weaponFullCost, weaponPurchaseBudget } from '../src/weapon-catalog.js';
 import { restoreArmory, buyWeaponBlueprint, buyWeaponParts, weaponPartsPrice, craftWeapon, equipCraftedWeapon, buyWeaponUpgrade } from '../src/armory-state.js';
 const ready=()=>restoreArmory({ready:true,gifted:true,blueprint:true,installed:true,weaponLevel:4});
+test('complete weapon purchase budgets follow ten then five-step drill milestones',()=>{
+ const q=ready();assert.equal(q.weapons.basic,1);
+ for(let i=1;i<WEAPON_CATALOG.length;i++){const w=WEAPON_CATALOG[i],n=10+5*(i-1),budget=50*n*(n+1);assert.equal(weaponPurchaseBudget(i),budget);assert.equal(w.blueprintPrice,budget*.2);assert.ok(Math.abs(weaponFullCost(w)-budget)<=70);if(i>1)assert.ok(weaponFullCost(w)>weaponFullCost(WEAPON_CATALOG[i-1]));}
+});
 test('all ten drill weapon recipes match the agreed canon exactly',()=>{
  const rows=readFileSync(new URL('../docs/canon-miro.txt',import.meta.url),'utf8').split('\n').filter(l=>l.includes('\tОружие для бура\t')).map(l=>l.split('\t'));
  assert.equal(WEAPON_CATALOG.length,10);
@@ -15,10 +19,10 @@ test('legacy saves preserve the gifted cannon and its upgrades without adding ex
  const invalid=restoreArmory({ready:true,installed:true,weapons:{constructor:1,basic:-2},equippedWeapon:'constructor',blueprints:'machinegun',weaponLevels:{plasma:Infinity},components:{part01:-2,part02:1.5,evil:20}});assert.equal(invalid.installed,false);assert.equal(invalid.equippedWeapon,'basic');assert.deepEqual(invalid.components,{});assert.deepEqual(invalid.blueprints,[]);
 });
 test('blueprints are purchased once and insufficient credits change nothing',()=>{
- const q=ready(),before=JSON.stringify(q);assert.equal(buyWeaponBlueprint(q,'machinegun',499).bought,false);assert.equal(JSON.stringify(q),before);assert.deepEqual(buyWeaponBlueprint(q,'machinegun',1000),{bought:true,credits:500});assert.equal(buyWeaponBlueprint(q,'machinegun',1000).bought,false);assert.equal(buyWeaponParts(q,'plasma',1e6).bought,false);assert.equal(buyWeaponBlueprint(q,'basic',1e6).bought,false);
+ const q=ready(),before=JSON.stringify(q);assert.equal(buyWeaponBlueprint(q,'machinegun',1099).bought,false);assert.equal(JSON.stringify(q),before);assert.deepEqual(buyWeaponBlueprint(q,'machinegun',2000),{bought:true,credits:900});assert.equal(buyWeaponBlueprint(q,'machinegun',1000).bought,false);assert.equal(buyWeaponParts(q,'plasma',1e6).bought,false);assert.equal(buyWeaponBlueprint(q,'basic',1e6).bought,false);
 });
 test('crafting atomically spends the canonical recipe and grants one saved item per service',()=>{
- const q=ready();buyWeaponBlueprint(q,'machinegun',1000);q.components.part04=2;const price=weaponPartsPrice(q,'machinegun'),before=JSON.stringify(q);
+ const q=ready();buyWeaponBlueprint(q,'machinegun',2000);q.components.part04=2;const price=weaponPartsPrice(q,'machinegun'),before=JSON.stringify(q);
  assert.equal(craftWeapon(q,'machinegun'),false);assert.equal(buyWeaponParts(q,'machinegun',price-1).bought,false);assert.equal(JSON.stringify(q),before);
  assert.deepEqual(buyWeaponParts(q,'machinegun',price),{bought:true,credits:0});assert.equal(craftWeapon(q,'machinegun'),true);assert.equal(q.weapons.machinegun,1);assert.equal(q.serviceRemaining,4000);assert.deepEqual(q.components,{});assert.equal(craftWeapon(q,'machinegun'),false);assert.equal(equipCraftedWeapon(q,'machinegun'),false);
  const reload=restoreArmory(JSON.parse(JSON.stringify(q)));assert.equal(reload.weapons.machinegun,1);assert.equal(reload.serviceRemaining,4000);reload.serviceRemaining=null;assert.equal(equipCraftedWeapon(reload,'machinegun'),true);assert.equal(reload.equippedWeapon,'machinegun');assert.equal(reload.weaponLevel,0);
