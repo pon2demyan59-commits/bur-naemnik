@@ -420,6 +420,7 @@ dialog:not(.story-dialogue) .close-dialog{margin-top:18px;background:linear-grad
 .collection-card.ready {border-color:#e5bc63;}.collection-card.ready small {color:#ffda8b;}
 .collection-card.completed {border-color:#83bc90;background:#224d3e;}.collection-card.completed small {color:#b6efbd;}
 .collection-pager {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px;}
+.collection-back {align-self:flex-start;margin-bottom:12px;}
 .collection-pager span,.collection-note {font-size:12px;color:#c6d7bd;}
 .collection-list.collection-details {display:flex;flex-direction:column;gap:12px;margin-top:14px;}
 .collection-details h3 {font-size:20px;color:#ffe4a1;margin:4px 0;}

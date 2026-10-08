@@ -7,7 +7,7 @@ import { writeSave } from './storage.js';
 const artifactInfo=new Map(ARTIFACTS.map((a,i)=>[a.id,{...a,rarity:Math.floor(i/20)+1}]));
 const effectLabels=Object.fromEntries(Object.entries(COLLECTION_EFFECTS).map(([label,key])=>[key,label]));
 export const formatCollectionBuff=n=>'+'+(n*100).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:4})+'%';
-export function createCollectionPage(scene){
+export function createCollectionPage(scene,back=null){
  const root=document.createElement('section');root.className='collection-page';let tier=0,filter='all',query='',page=0,selected=null,confirming=false,showBuffs=false;
  const summary=document.createElement('div');summary.className='collection-summary';
  const controls=document.createElement('div');controls.className='collection-filters';
@@ -18,6 +18,10 @@ export function createCollectionPage(scene){
  const body=document.createElement('div');body.className='collection-list';const pager=document.createElement('div');pager.className='collection-pager';const note=document.createElement('p');note.className='collection-note';note.setAttribute('role','status');const guide=document.createElement('p');guide.className='collection-guide';guide.textContent='Собери весь набор → закрой коллекцию → получи постоянный баф. При закрытии артефакты расходуются.';
  const legend=document.createElement('p');legend.className='collection-legend';legend.textContent='✓ Есть в запасе    ·    — Нужно найти    ·    ★ Коллекция закрыта';root.append(summary,guide,controls,legend,body,pager,note);
  const button=(text,action,cls='floor-button')=>{const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=text;b.addEventListener('click',action);return b;};
+ const returnButton=button('← НАЗАД',()=>{
+  if(selected){selected=null;confirming=false;note.textContent='';render();}
+  else if(back)back();else document.querySelector('#dialog').close();
+ });returnButton.classList.add('collection-back');root.prepend(returnButton);
  function artifactSlot(id,done=false,detail=false){
   const a=artifactInfo.get(id),owned=scene.artifacts[id]||0,has=done||owned>0,slot=document.createElement('div');slot.className='artifact-slot '+(has?'owned':'missing');slot.dataset.rarity=String(a.rarity);
   const portrait=document.createElement('div');portrait.className='artifact-portrait';const image=document.createElement('img');image.className='artifact-image';image.src=artifactArtSource(id);image.alt='';image.loading='lazy';const mark=document.createElement('span');mark.className='artifact-mark';mark.textContent=done?'★':has?'✓':'—';portrait.append(image,mark);
@@ -42,12 +46,12 @@ export function createCollectionPage(scene){
    const track=document.createElement('div');track.className='collection-progress-track';track.setAttribute('role','progressbar');track.setAttribute('aria-label','Состав коллекции');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax',String(s.total));track.setAttribute('aria-valuenow',String(s.done?s.total:s.found));const fill=document.createElement('span');fill.style.width=((s.done?1:s.found/s.total)*100)+'%';track.append(fill);
    const slots=document.createElement('div');slots.className='collection-slots';for(const id of c.artifacts)slots.append(artifactSlot(id,s.done));const action=document.createElement('span');action.className='collection-card-action';action.textContent=s.done?'ПОСМОТРЕТЬ НАБОР →':s.ready?'ОТКРЫТЬ И ЗАКРЫТЬ НАБОР →':'ПОСМОТРЕТЬ, ЧЕГО НЕ ХВАТАЕТ →';card.append(badge,name,status,track,slots,reward,action);body.append(card);}
   if(!rows.length){const empty=document.createElement('p');empty.textContent='Коллекций с такими условиями нет. Выбери другую ступень или фильтр.';body.append(empty);}
-  const prev=button('← НАЗАД',()=>{page--;render();}),next=button('ВПЕРЁД →',()=>{page++;render();}),label=document.createElement('span');prev.disabled=page===0;next.disabled=(page+1)*20>=rows.length;label.textContent=(page+1)+' / '+Math.max(1,Math.ceil(rows.length/20))+' · найдено '+rows.length;pager.append(prev,label,next);note.textContent='Закрытие — по подтверждению. Предметы сами не расходуются.';
+  const prev=button('← ПРЕДЫДУЩАЯ СТРАНИЦА',()=>{page=Math.max(0,page-1);render();}),next=button('СЛЕДУЮЩАЯ СТРАНИЦА →',()=>{page++;render();}),label=document.createElement('span');prev.disabled=page===0;next.disabled=(page+1)*20>=rows.length;label.textContent=(page+1)+' / '+Math.max(1,Math.ceil(rows.length/20))+' · найдено '+rows.length;pager.append(prev,label,next);note.textContent='Закрытие — по подтверждению. Предметы сами не расходуются.';
  }
  search.addEventListener('input',()=>{query=search.value.trim().toLocaleLowerCase('ru-RU');page=0;render();});levels.addEventListener('change',()=>{tier=Number(levels.value);page=0;render();});statuses.addEventListener('change',()=>{filter=statuses.value;page=0;render();});const media=globalThis.window?.matchMedia?.('(max-height:420px) and (min-aspect-ratio:1/1)');const compactChange=()=>{if(media.matches)showBuffs=false;render();};media?.addEventListener?.('change',compactChange);document.querySelector('#dialog')?.addEventListener('close',()=>media?.removeEventListener?.('change',compactChange),{once:true});render();return root;
 }
 export const collectionMethods={
  cargoCapacity(){return Math.floor(200*(1+(this.collectionBuffs?.cargo||0))+1e-8);},
  closeCollection(id){const next=prepareCollectionClose(id,this.artifacts,this.closedCollections);if(!next)return false;const progress={...this.snapshotCampaign(),artifacts:next.artifacts,closedCollections:next.closedCollections};if(!writeSave(progress))return false;this.artifacts=next.artifacts;this.closedCollections=next.closedCollections;this.collectionBuffs=collectionBuffTotals(this.closedCollections);this.campaign=progress;this.refreshHUD();return true;},
- openCollections(back=null){if(this.layoutEditing||this.busy||this.storyActive)return;this.dialogClosed();this.persist();showGamePanel('КОЛЛЕКЦИИ',createCollectionPage(this),'collections',back);}
+ openCollections(back=null){if(this.layoutEditing||this.busy||this.storyActive)return;this.dialogClosed();this.persist();showGamePanel('КОЛЛЕКЦИИ',createCollectionPage(this,back),'collections',back);}
 };
