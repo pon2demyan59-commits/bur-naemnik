@@ -97,6 +97,7 @@ class Boot extends Phaser.Scene {
     this.load.image('warehouse-house','./public/assets/game/warehouse-house-top.webp');this.load.image('military-guard','./public/assets/game/military-guard.webp');
     this.load.image('headquarters','./public/assets/game/headquarters-top.webp');
     this.load.image('architect-house', './public/assets/game/architect-house-top.webp');
+    for(const name of ['housing','power'])this.load.image(name+'-top','./public/assets/game/'+name+'-top.webp');
     this.load.image('workshop', './public/assets/game/workshop.webp');
     this.load.image('porodnik', './public/assets/game/porodnik.webp');
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');

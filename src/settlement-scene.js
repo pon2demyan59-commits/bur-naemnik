@@ -12,16 +12,18 @@ export const settlementMethods={
  settlementTasks(){return settlementObjectives(this.baseProjects,this.constructionQuest);},
  makeSettlementProjects(){
   this.projectSelecting=null;if(this.floorNumber)return;
-  this.projectArt=this.add.graphics().setDepth(2.5);this.projectPreview=this.add.graphics().setDepth(8);this.projectSigns={};
+  this.projectArt=this.add.graphics().setDepth(2.5);this.projectPreview=this.add.graphics().setDepth(8);this.projectSigns={};this.projectSprites={};
+  for(const key of Object.keys(SETTLEMENT_PROJECTS))if(this.textures?.exists(key+'-top'))this.projectSprites[key]=this.add.image(0,0,key+'-top').setOrigin(0).setDepth(2.5).setVisible(false);
   for(const key of Object.keys(SETTLEMENT_PROJECTS))this.projectSigns[key]=this.add.text(0,0,key==='housing'?'ЖИЛОЙ КОМПЛЕКС':'ЭЛЕКТРОСТАНЦИЯ',{fontFamily:'Arial',fontSize:'14px',fontStyle:'bold',color:'#f5db91',backgroundColor:'#243b36',padding:{x:6,y:4}}).setOrigin(.5).setDepth(2.6).setVisible(false);
   this.renderSettlementProjects();
  },
  renderSettlementProjects(){
   if(!this.projectArt)return;const g=this.projectArt,p=this.projectPreview;g.clear();p.clear();
-  for(const [key,q] of Object.entries(this.baseProjects)){const spec=SETTLEMENT_PROJECTS[key],geom=this.buildingGeom(key),b=geom.body,f=geom.footprint,d=geom.deck,sign=this.projectSigns[key];sign.setVisible(q.built);
+  for(const [key,q] of Object.entries(this.baseProjects)){const spec=SETTLEMENT_PROJECTS[key],geom=this.buildingGeom(key),b=geom.body,f=geom.footprint,d=geom.deck,sign=this.projectSigns[key],sprite=this.projectSprites?.[key];sign.setVisible(q.built);sprite?.setVisible(q.built&&!!q.plot);
    if(!q.plot)continue;
    if(!q.built&&q.remaining==null){p.lineStyle(2,0xd3bd79,.65);p.strokeRect(f.x,f.y,f.width,f.height);continue;}
    if(!q.built){g.fillStyle(0x59655b);g.fillRect(b.x+8,b.y+8,b.width-16,b.height-16);g.lineStyle(7,0xb6a477);g.strokeRect(b.x+12,b.y+12,b.width-24,b.height-24);for(let x=b.x+32;x<b.x+b.width;x+=48)g.lineBetween(x,b.y+16,x,b.y+b.height-16);g.fillStyle(0x1b302b);g.fillRect(d.x+8,d.y+23,d.width-16,12);g.fillStyle(0xd4b770);g.fillRect(d.x+8,d.y+23,(d.width-16)*(1-q.remaining/spec.duration),12);continue;}
+   if(sprite){sprite.setPosition(f.x,f.y).setDisplaySize(f.width,f.height);sign.setPosition(b.x+b.width/2,b.y+27);continue;}
    g.fillStyle(0x172d2b,.45);g.fillRoundedRect(b.x+8,b.y+12,b.width-10,b.height-8,12);g.fillStyle(key==='housing'?0x566e68:0x696b51);g.fillRoundedRect(b.x+4,b.y+6,b.width-8,b.height-15,10);g.lineStyle(4,0x273f3c);g.strokeRoundedRect(b.x+4,b.y+6,b.width-8,b.height-15,10);
    g.fillStyle(0x89988a);g.fillRoundedRect(b.x+8,b.y+6,b.width-16,40,7);g.lineStyle(2,0x455d56);for(let x=b.x+20;x<b.x+b.width-12;x+=28)g.lineBetween(x,b.y+12,x+8,b.y+39);
    if(key==='housing'){
