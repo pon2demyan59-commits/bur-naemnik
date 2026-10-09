@@ -653,40 +653,6 @@ export const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-11",
-  "name": "Металлический ёж",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Лёгкая сталь",
-    "count": 4
-   },
-   {
-    "name": "копательный коготь",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-12",
-  "name": "Шипованные колья",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Камнесталь",
-    "count": 4
-   },
-   {
-    "name": "костяной шип",
-    "count": 3
-   }
-  ]
- },
- {
   "id": "defense-13",
   "name": "Колючая проволока",
   "category": "Препятствия",
@@ -704,76 +670,8 @@ export const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-14",
-  "name": "Шипованная решётка",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ударостойкая сталь",
-    "count": 5
-   },
-   {
-    "name": "хвостовой шип",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-15",
-  "name": "Обломочная полоса",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Опорный композит",
-    "count": 6
-   },
-   {
-    "name": "панцирная скорлупа",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-16",
-  "name": "Липкое покрытие",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Герметизирующий композит",
-    "count": 3
-   },
-   {
-    "name": "органическая смола",
-    "count": 4
-   }
-  ]
- },
- {
-  "id": "defense-17",
-  "name": "Зубчатый барьер",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ствольная сталь",
-    "count": 5
-   },
-   {
-    "name": "пильная пластина",
-    "count": 3
-   }
-  ]
- },
- {
   "id": "defense-18",
-  "name": "Электрическая ограда",
+  "name": "Электрическая преграда",
   "category": "Препятствия",
   "availability": "planned",
   "balance": "canon",
@@ -794,7 +692,7 @@ export const STRUCTURE_RECIPES=[
  },
  {
   "id": "defense-19",
-  "name": "Вращающиеся лезвия",
+  "name": "Вращающееся лезвие",
   "category": "Препятствия",
   "availability": "planned",
   "balance": "canon",
@@ -814,71 +712,8 @@ export const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-20",
-  "name": "Ксеношипы",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ксеновольфрам",
-    "count": 5
-   },
-   {
-    "name": "бронебойный рог",
-    "count": 3
-   },
-   {
-    "name": "глубинный зубчатый венец",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-21",
-  "name": "Камнесброс",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Опорный композит",
-    "count": 6
-   },
-   {
-    "name": "каркасный сплав",
-    "count": 3
-   },
-   {
-    "name": "плотное сухожилие",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-22",
-  "name": "Шипованный каток",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Камнесталь",
-    "count": 8
-   },
-   {
-    "name": "механическая бронза",
-    "count": 4
-   },
-   {
-    "name": "костяной шип",
-    "count": 5
-   }
-  ]
- },
- {
   "id": "defense-23",
-  "name": "Нажимные шипы",
+  "name": "Шипы",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -899,7 +734,7 @@ export const STRUCTURE_RECIPES=[
  },
  {
   "id": "defense-24",
-  "name": "Осколочная мина",
+  "name": "Мины",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -919,71 +754,8 @@ export const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-25",
-  "name": "Бронебойная мина",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Вольфрамовая сталь",
-    "count": 4
-   },
-   {
-    "name": "рудный зуб",
-    "count": 3
-   },
-   {
-    "name": "алый биоконцентрат",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-26",
-  "name": "Кислотный распылитель",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Стойкий корпусной сплав",
-    "count": 4
-   },
-   {
-    "name": "кислотная железа",
-    "count": 4
-   },
-   {
-    "name": "полый хоботок",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-27",
-  "name": "Огненная ловушка",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Жаростойкий сплав",
-    "count": 5
-   },
-   {
-    "name": "термостойкий припой",
-    "count": 2
-   },
-   {
-    "name": "органическая смола",
-    "count": 4
-   }
-  ]
- },
- {
   "id": "defense-28",
-  "name": "Электрический капкан",
+  "name": "Капкан",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -999,48 +771,6 @@ export const STRUCTURE_RECIPES=[
    {
     "name": "цепкая присоска",
     "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-29",
-  "name": "Обвальная ловушка",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ударостойкий камень",
-    "count": 10
-   },
-   {
-    "name": "сверхпрочная паутина",
-    "count": 4
-   },
-   {
-    "name": "тяжёлая копательная лапа",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-30",
-  "name": "Плазменная мина",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ксенопроводник",
-    "count": 3
-   },
-   {
-    "name": "энергетический сплав",
-    "count": 4
-   },
-   {
-    "name": "древняя паразитическая железа",
-    "count": 2
    }
   ]
  },

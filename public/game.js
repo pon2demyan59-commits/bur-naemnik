@@ -3518,40 +3518,6 @@ const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-11",
-  "name": "Металлический ёж",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Лёгкая сталь",
-    "count": 4
-   },
-   {
-    "name": "копательный коготь",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-12",
-  "name": "Шипованные колья",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Камнесталь",
-    "count": 4
-   },
-   {
-    "name": "костяной шип",
-    "count": 3
-   }
-  ]
- },
- {
   "id": "defense-13",
   "name": "Колючая проволока",
   "category": "Препятствия",
@@ -3569,76 +3535,8 @@ const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-14",
-  "name": "Шипованная решётка",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ударостойкая сталь",
-    "count": 5
-   },
-   {
-    "name": "хвостовой шип",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-15",
-  "name": "Обломочная полоса",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Опорный композит",
-    "count": 6
-   },
-   {
-    "name": "панцирная скорлупа",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-16",
-  "name": "Липкое покрытие",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Герметизирующий композит",
-    "count": 3
-   },
-   {
-    "name": "органическая смола",
-    "count": 4
-   }
-  ]
- },
- {
-  "id": "defense-17",
-  "name": "Зубчатый барьер",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ствольная сталь",
-    "count": 5
-   },
-   {
-    "name": "пильная пластина",
-    "count": 3
-   }
-  ]
- },
- {
   "id": "defense-18",
-  "name": "Электрическая ограда",
+  "name": "Электрическая преграда",
   "category": "Препятствия",
   "availability": "planned",
   "balance": "canon",
@@ -3659,7 +3557,7 @@ const STRUCTURE_RECIPES=[
  },
  {
   "id": "defense-19",
-  "name": "Вращающиеся лезвия",
+  "name": "Вращающееся лезвие",
   "category": "Препятствия",
   "availability": "planned",
   "balance": "canon",
@@ -3679,71 +3577,8 @@ const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-20",
-  "name": "Ксеношипы",
-  "category": "Препятствия",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ксеновольфрам",
-    "count": 5
-   },
-   {
-    "name": "бронебойный рог",
-    "count": 3
-   },
-   {
-    "name": "глубинный зубчатый венец",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-21",
-  "name": "Камнесброс",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Опорный композит",
-    "count": 6
-   },
-   {
-    "name": "каркасный сплав",
-    "count": 3
-   },
-   {
-    "name": "плотное сухожилие",
-    "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-22",
-  "name": "Шипованный каток",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Камнесталь",
-    "count": 8
-   },
-   {
-    "name": "механическая бронза",
-    "count": 4
-   },
-   {
-    "name": "костяной шип",
-    "count": 5
-   }
-  ]
- },
- {
   "id": "defense-23",
-  "name": "Нажимные шипы",
+  "name": "Шипы",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -3764,7 +3599,7 @@ const STRUCTURE_RECIPES=[
  },
  {
   "id": "defense-24",
-  "name": "Осколочная мина",
+  "name": "Мины",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -3784,71 +3619,8 @@ const STRUCTURE_RECIPES=[
   ]
  },
  {
-  "id": "defense-25",
-  "name": "Бронебойная мина",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Вольфрамовая сталь",
-    "count": 4
-   },
-   {
-    "name": "рудный зуб",
-    "count": 3
-   },
-   {
-    "name": "алый биоконцентрат",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-26",
-  "name": "Кислотный распылитель",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Стойкий корпусной сплав",
-    "count": 4
-   },
-   {
-    "name": "кислотная железа",
-    "count": 4
-   },
-   {
-    "name": "полый хоботок",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-27",
-  "name": "Огненная ловушка",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Жаростойкий сплав",
-    "count": 5
-   },
-   {
-    "name": "термостойкий припой",
-    "count": 2
-   },
-   {
-    "name": "органическая смола",
-    "count": 4
-   }
-  ]
- },
- {
   "id": "defense-28",
-  "name": "Электрический капкан",
+  "name": "Капкан",
   "category": "Ловушки",
   "availability": "planned",
   "balance": "canon",
@@ -3864,48 +3636,6 @@ const STRUCTURE_RECIPES=[
    {
     "name": "цепкая присоска",
     "count": 3
-   }
-  ]
- },
- {
-  "id": "defense-29",
-  "name": "Обвальная ловушка",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ударостойкий камень",
-    "count": 10
-   },
-   {
-    "name": "сверхпрочная паутина",
-    "count": 4
-   },
-   {
-    "name": "тяжёлая копательная лапа",
-    "count": 2
-   }
-  ]
- },
- {
-  "id": "defense-30",
-  "name": "Плазменная мина",
-  "category": "Ловушки",
-  "availability": "planned",
-  "balance": "canon",
-  "ingredients": [
-   {
-    "name": "Ксенопроводник",
-    "count": 3
-   },
-   {
-    "name": "энергетический сплав",
-    "count": 4
-   },
-   {
-    "name": "древняя паразитическая железа",
-    "count": 2
    }
   ]
  },
@@ -4129,7 +3859,7 @@ const recipeArtFiles={hq:'headquarters-top',architect:'architect-house-top',hous
 const recipeBenefits={hq:'Штаб Демьяна П. и новые сюжетные задания.',architect:'Чертежи и строительство собственного убежища.',housing:'Уютное жильё для первых 10 спасённых жителей.',power:'Источник энергии для производств убежища.',warehouse:'Запасы каждого материала вне грузового отсека.',porodnik:'Превращает лишнюю породу в кредиты.',workshop:'Улучшения бура и мощные буровые насадки.',armory:'Изготовление, установка и усиление оружия.',repair:'Восстанавливает прочность повреждённого бура.',smelter:'Превращает добытую руду в металлические слитки.',alloy:'Создаёт сплавы для сложных рецептов.',assembly:'Производит защиту, ловушки и боевые башни.',lab:'Помогает открывать новые рецепты опытным путём.',fame:'Хранит трофеи и открывает их усиления.',lift:'Связывает убежище с этажами шахты.'};
 function recipeBenefit(r){return recipeBenefits[r.id]||({Преграды:'Укрепление периметра и защита подходов.',Препятствия:'Задерживает противников на пути к убежищу.',Ловушки:'Подготовь сюрприз на пути монстров.',Башни:'Огневая поддержка и оборона убежища.','Оружие для бура':'Новый способ расправляться с обитателями шахты.'}[r.category]||'Новый проект для убежища.');}
 function recipeArt(r){
- if(r.category==='Преграды'&&/^defense-(0[1-9]|10)$/.test(r.id))return './public/assets/game/'+r.id+'.webp';
+ if(['Преграды','Препятствия','Ловушки'].includes(r.category)&&/^defense-(0[1-9]|10|13|18|19|23|24|28)$/.test(r.id))return './public/assets/game/'+r.id+'.webp';
  if(recipeArtFiles[r.id])return './public/assets/game/'+recipeArtFiles[r.id]+'.webp';
  const n=Number(r.id.match(/\d+$/)?.[0]||0),color=['#9dbfaf','#e1c58d','#abbee7','#ca9d8c','#a6c98b'][n%5];let shape='';
  if(r.id==='housing')shape='<rect x="29" y="31" width="46" height="73" rx="5" fill="#557973" stroke="#b9ceb3" stroke-width="4"/><rect x="85" y="31" width="46" height="73" rx="5" fill="#557973" stroke="#b9ceb3" stroke-width="4"/><path d="M36 43h31m-31 13h31m-31 13h31m25-26h31m-31 13h31m-31 13h31" stroke="#b2d7c3" stroke-width="6"/><path d="M50 81h17v23H50m43-23h17v23H93" fill="#f3ca7b"/><path d="M80 30v83" stroke="#b5a384" stroke-width="3"/>';
@@ -4152,13 +3882,13 @@ function recipeArt(r){
 const structureRecipeMethods={
  openStructureRecipes(category='Здания'){
   if(this.floorNumber||!this.constructionQuest.unlocked)return;this.dialogClosed();const panel=document.createElement('div');panel.className='recipe-showroom';
-  const hero=document.createElement('header');hero.className='recipe-showroom-hero';const intro=document.createElement('div'),eyebrow=document.createElement('span'),title=document.createElement('h3'),note=document.createElement('p'),wallet=document.createElement('strong');eyebrow.textContent='ПАВЕЛ М. · ПРОЕКТНОЕ БЮРО';title.textContent='Построй своё убежище';note.textContent='65 проектов для жизни, добычи и обороны. Найди чертёж в породе или купи доступный проект здесь.';wallet.className='recipe-wallet';intro.append(eyebrow,title,note);hero.append(intro,wallet);
+  const hero=document.createElement('header');hero.className='recipe-showroom-hero';const intro=document.createElement('div'),eyebrow=document.createElement('span'),title=document.createElement('h3'),note=document.createElement('p'),wallet=document.createElement('strong');eyebrow.textContent='ПАВЕЛ М. · ПРОЕКТНОЕ БЮРО';title.textContent='Построй своё убежище';note.textContent=STRUCTURE_RECIPES.length+' проектов для жизни, добычи и обороны. Найди чертёж в породе или купи доступный проект здесь.';wallet.className='recipe-wallet';intro.append(eyebrow,title,note);hero.append(intro,wallet);
   const tabs=document.createElement('nav');tabs.className='recipe-category-tabs';tabs.setAttribute('aria-label','Категории проектов');const filters=document.createElement('div');filters.className='structure-recipe-filters';const select=document.createElement('select');select.setAttribute('aria-label','Тип сооружения');
   for(const key of STRUCTURE_CATEGORIES){const option=document.createElement('option');option.value=key;option.textContent=key+' · '+STRUCTURE_RECIPES.filter(r=>r.category===key).length;select.append(option);}select.value=STRUCTURE_CATEGORIES.includes(category)?category:'Здания';
   const search=document.createElement('input');search.type='search';search.placeholder='Найти проект или материал…';search.setAttribute('aria-label','Поиск рецепта');const onlyKnown=document.createElement('button');onlyKnown.type='button';onlyKnown.className='recipe-known-filter';onlyKnown.textContent='Только изученные';onlyKnown.setAttribute('aria-pressed','false');let knownOnly=false;filters.append(select,search,onlyKnown);
   const count=document.createElement('p');count.className='recipe-result-count';count.setAttribute('role','status');const list=document.createElement('div');list.className='structure-recipe-grid';
   const tabButtons=[];for(const key of STRUCTURE_CATEGORIES){const b=document.createElement('button');b.type='button';b.textContent=key+' · '+STRUCTURE_RECIPES.filter(r=>r.category===key).length;b.addEventListener('click',()=>{select.value=key;render();});tabButtons.push([key,b]);tabs.append(b);}
-  const render=()=>{wallet.textContent=this.credits.toLocaleString('ru-RU')+' кр.';for(const [key,b] of tabButtons){b.classList.toggle('active',key===select.value);b.setAttribute('aria-pressed',String(key===select.value));}const recipes=filterStructureRecipes(select.value,search.value).filter(r=>!knownOnly||this.recipeLearned(r.id));count.textContent=recipes.length+' проектов · изучено '+STRUCTURE_RECIPES.filter(r=>this.recipeLearned(r.id)).length+' из 65';list.replaceChildren();
+  const render=()=>{wallet.textContent=this.credits.toLocaleString('ru-RU')+' кр.';for(const [key,b] of tabButtons){b.classList.toggle('active',key===select.value);b.setAttribute('aria-pressed',String(key===select.value));}const recipes=filterStructureRecipes(select.value,search.value).filter(r=>!knownOnly||this.recipeLearned(r.id));count.textContent=recipes.length+' проектов · изучено '+STRUCTURE_RECIPES.filter(r=>this.recipeLearned(r.id)).length+' из '+STRUCTURE_RECIPES.length;list.replaceChildren();
    if(!recipes.length){const empty=document.createElement('p');empty.className='recipe-empty';empty.textContent='Таких проектов пока нет. Попробуй другой материал или категорию.';list.append(empty);}
    for(const r of recipes){const known=this.recipeLearned(r.id),card=document.createElement('section');card.className='structure-recipe-card'+(known?' is-learned':'');card.dataset.recipe=r.id;
     const stage=document.createElement('div');stage.className='recipe-art-stage';const art=document.createElement('img');art.src=recipeArt(r);art.alt='';art.loading='lazy';const badge=document.createElement('span');badge.className='recipe-state-badge';badge.textContent=known?'✓ ИЗУЧЕНО':r.availability==='planned'?'БУДУЩИЙ ПРОЕКТ':'ЧЕРТЁЖ';stage.append(art,badge);if(r.size){const size=document.createElement('span');size.className='recipe-size';size.textContent=r.size+' клеток';stage.append(size);}
