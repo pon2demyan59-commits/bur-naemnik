@@ -1,4 +1,8 @@
 import { DRILL_UPGRADE_PRICE_STEP } from './drill-balance.js';
+// Roof sprites face right. Width is in drill-local pixels, independent of camera zoom.
+const weaponVisualWidths={basic:46,machinegun:50,shotgun:46,heavy:52,flame:48,electric:50,acid:48,rocket:50,rail:60,plasma:54};
+const weaponMountOrigins={basic:[.26,.5],machinegun:[.27,.38],shotgun:[.28,.5],heavy:[.25,.5],flame:[.28,.5],electric:[.28,.5],acid:[.29,.5],rocket:[.29,.5],rail:[.26,.5],plasma:[.3,.5]};
+export function weaponVisual(id){const key=Object.hasOwn(weaponVisualWidths,id)?id:'basic',[originX,originY]=weaponMountOrigins[key];return {id:key,texture:'drill-weapon-'+key,path:'./public/assets/game/drill-weapon-'+key+'.webp',width:weaponVisualWidths[key],height:weaponVisualWidths[key]/2,originX,originY,muzzleX:.96,muzzleY:key==='machinegun'?.38:key==='acid'?.61:.5};}
 // Recipes are canonical. Purchase budgets follow the approved drill economy.
 export const WEAPON_COMPONENTS=[
  {

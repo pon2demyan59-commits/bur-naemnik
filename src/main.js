@@ -1,4 +1,5 @@
 import { startViewportSync } from './viewport-sync.js';
+import { WEAPON_CATALOG, weaponVisual } from './weapon-catalog.js';
 import { showGamePanel, createSettingsPanel, bindGameDialogControls } from './game-menus.js';
 import { readSave, readSettings, resetSave } from './storage.js';
 import { Base } from './base-scene.js';
@@ -103,6 +104,7 @@ class Boot extends Phaser.Scene {
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
+    for(const weapon of WEAPON_CATALOG){const visual=weaponVisual(weapon.id);this.load.image(visual.texture,visual.path);}
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
       loading.textContent = 'Не удалось загрузить оформление. Обновите страницу.';

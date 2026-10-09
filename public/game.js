@@ -130,7 +130,21 @@ function createTouchJoystick(element, onInput, canStart = () => true) {
 }
 
 // Compact roof-mounted cannon, facing right in drill-local coordinates.
+
 function drawMountedTurret(scene,root,upgraded=false,weapon='basic') {
+ const visual=weaponVisual(weapon);
+ if(scene.textures?.exists(visual.texture)){
+  const base=scene.add.graphics(),barrel=scene.add.container(0,0),flash=scene.add.graphics();
+  base.fillStyle(0x07191e,.45);base.fillEllipse(0,2,24,18);
+  base.fillStyle(0x203c3b);base.fillCircle(0,0,10);
+  base.lineStyle(1,upgraded?0xe4b85c:0x8aa998);base.strokeCircle(0,0,9);
+  const image=scene.add.image(0,0,visual.texture).setOrigin(visual.originX,visual.originY).setDisplaySize(visual.width,visual.height);
+  barrel.add(image);root.add([base,barrel,flash]);
+  const muzzle=visual.width*(visual.muzzleX-visual.originX),muzzleY=visual.height*(visual.muzzleY-visual.originY),color={flame:0xff9950,electric:0x7cdaff,acid:0x8fe67a,plasma:0xc0a1ff,rail:0x9aeaff}[weapon]||0xffad46;
+  flash.fillStyle(color);flash.fillTriangle(muzzle,muzzleY,muzzle+10,muzzleY-4,muzzle+10,muzzleY+4);
+  flash.fillStyle(0xffefdb);flash.fillTriangle(muzzle,muzzleY,muzzle+7,muzzleY-2,muzzle+7,muzzleY+2);flash.setVisible(false);
+  return {barrel,flash,image};
+ }
  const base=scene.add.graphics(),barrel=scene.add.container(0,0),steel=scene.add.graphics(),armor=scene.add.graphics(),flash=scene.add.graphics();
  root.add([base,barrel,armor,flash]);barrel.add(steel);
  const outline=0x172e32,accent=upgraded?0xe4b85c:0xdb9149;
@@ -2567,6 +2581,10 @@ class WorkshopView {
 }
 
 
+// Roof sprites face right. Width is in drill-local pixels, independent of camera zoom.
+const weaponVisualWidths={basic:46,machinegun:50,shotgun:46,heavy:52,flame:48,electric:50,acid:48,rocket:50,rail:60,plasma:54};
+const weaponMountOrigins={basic:[.26,.5],machinegun:[.27,.38],shotgun:[.28,.5],heavy:[.25,.5],flame:[.28,.5],electric:[.28,.5],acid:[.29,.5],rocket:[.29,.5],rail:[.26,.5],plasma:[.3,.5]};
+function weaponVisual(id){const key=Object.hasOwn(weaponVisualWidths,id)?id:'basic',[originX,originY]=weaponMountOrigins[key];return {id:key,texture:'drill-weapon-'+key,path:'./public/assets/game/drill-weapon-'+key+'.webp',width:weaponVisualWidths[key],height:weaponVisualWidths[key]/2,originX,originY,muzzleX:.96,muzzleY:key==='machinegun'?.38:key==='acid'?.61:.5};}
 // Recipes are canonical. Purchase budgets follow the approved drill economy.
 const WEAPON_COMPONENTS=[
  {
@@ -3856,9 +3874,11 @@ function formatStructureRecipe(recipe){return recipe.ingredients.map(p=>p.name+'
 function filterStructureRecipes(category,query=''){const term=String(query).trim().toLocaleLowerCase('ru');return STRUCTURE_RECIPES.filter(r=>r.category===category&&(!term||(r.name+' '+formatStructureRecipe(r)).toLocaleLowerCase('ru').includes(term)));}
 
 const recipeArtFiles={hq:'headquarters-top',architect:'architect-house-top',housing:'housing-top',power:'power-top',warehouse:'warehouse-house-top',porodnik:'porodnik',workshop:'workshop',armory:'armory-v2',repair:'repair-shop',smelter:'smelter-top',alloy:'alloy-top',assembly:'assembly-top',lab:'lab-top',fame:'fame-top',lift:'freight-lift'};
+
 const recipeBenefits={hq:'Штаб Демьяна П. и новые сюжетные задания.',architect:'Чертежи и строительство собственного убежища.',housing:'Уютное жильё для первых 10 спасённых жителей.',power:'Источник энергии для производств убежища.',warehouse:'Запасы каждого материала вне грузового отсека.',porodnik:'Превращает лишнюю породу в кредиты.',workshop:'Улучшения бура и мощные буровые насадки.',armory:'Изготовление, установка и усиление оружия.',repair:'Восстанавливает прочность повреждённого бура.',smelter:'Превращает добытую руду в металлические слитки.',alloy:'Создаёт сплавы для сложных рецептов.',assembly:'Производит защиту, ловушки и боевые башни.',lab:'Помогает открывать новые рецепты опытным путём.',fame:'Хранит трофеи и открывает их усиления.',lift:'Связывает убежище с этажами шахты.'};
 function recipeBenefit(r){return recipeBenefits[r.id]||({Преграды:'Укрепление периметра и защита подходов.',Препятствия:'Задерживает противников на пути к убежищу.',Ловушки:'Подготовь сюрприз на пути монстров.',Башни:'Огневая поддержка и оборона убежища.','Оружие для бура':'Новый способ расправляться с обитателями шахты.'}[r.category]||'Новый проект для убежища.');}
 function recipeArt(r){
+ if(r.category==='Оружие для бура'){const weapon=WEAPON_CATALOG.find(w=>'weapon-'+w.id===r.id);if(weapon)return weaponVisual(weapon.id).path;}
  if(['Преграды','Препятствия','Ловушки','Башни'].includes(r.category)&&/^defense-(0[1-9]|10|13|18|19|23|24|28|3[1-9]|40)$/.test(r.id))return './public/assets/game/'+r.id+'.webp';
  if(recipeArtFiles[r.id])return './public/assets/game/'+recipeArtFiles[r.id]+'.webp';
  const n=Number(r.id.match(/\d+$/)?.[0]||0),color=['#9dbfaf','#e1c58d','#abbee7','#ca9d8c','#a6c98b'][n%5];let shape='';
@@ -4012,7 +4032,8 @@ function createWeaponPanel(scene,onInstall){
   const next=JSON.stringify([selected,scene.credits,q.weapons,q.components,q.blueprints,q.blueprint,q.weaponLevels,q.installed,q.equippedWeapon,busy]);if(next===signature)return;signature=next;
   catalog.replaceChildren();
   for(const entry of WEAPON_CATALOG){const button=node('button','','weapon-choice'+(entry.id===selected?' is-selected':''));button.setAttribute('aria-pressed',String(entry.id===selected));button.dataset.weapon=entry.id;const owned=q.weapons[entry.id]||0;button.append(node('span',entry.name),node('small',q.installed&&q.equippedWeapon===entry.id?'НА БУРЕ':owned?'В АРСЕНАЛЕ · '+owned:hasWeaponBlueprint(q,entry.id)?'ЧЕРТЁЖ ИЗУЧЕН':'НЕТ ЧЕРТЕЖА'),metrics(entry,q.weaponLevels[entry.id]||0),node('small',Object.entries(entry.recipe).map(([id,n])=>WEAPON_COMPONENTS.find(p=>p.id===id).name+' ×'+n).join(' · '),'weapon-card-materials'),node('strong',entry.id==='basic'?'ПЕРВАЯ ПУШКА · ПОДАРОК':'С НУЛЯ · '+weaponFullCost(entry).toLocaleString('ru-RU')+' КР.','weapon-card-price'));button.addEventListener('click',()=>{selected=entry.id;message='';render();});catalog.append(button);}
-  detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id);preview.setAttribute('aria-hidden','true');preview.append(node('i','','weapon-mount'),node('i','','weapon-barrels'));detail.append(preview,node('h3',w.name));
+  for(const button of catalog.children){const image=node('img','','weapon-card-image');image.src=weaponVisual(button.dataset.weapon).path;image.alt='';button.append(image);}
+  detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id),portrait=node('img','','weapon-portrait');portrait.src=weaponVisual(w.id).path;portrait.alt=w.name+' · вид сверху';preview.append(portrait);detail.append(preview,node('h3',w.name));
   const level=q.weaponLevels[w.id]||0;detail.append(metrics(w,level),node('p',`Уровень улучшения: ${level}/100 · Экземпляров: ${q.weapons[w.id]||0}`,'weapon-stats'),node('p',w.id==='basic'?'Первая пушка — подарок оружейника. Дополнительные экземпляры изготовляются по рецепту.':'Полный комплект с нуля: '+weaponFullCost(w).toLocaleString('ru-RU')+' кр. Включает чертёж и все материалы.','weapon-note'));
   if(!hasWeaponBlueprint(q,w.id)){
    detail.append(node('p',w.id==='basic'?'Чертёж находится на втором этаже, в оружейном шкафу.':'Оружейник может передать чертёж за кредиты.','weapon-note'));
@@ -6219,6 +6240,7 @@ function bindGameDialogControls(dialog,doc=document){
 
 
 
+
 const Phaser = globalThis.Phaser;
 const ui = document.querySelector('#ui');
 const dialog = document.querySelector('#dialog');
@@ -6318,6 +6340,7 @@ class Boot extends Phaser.Scene {
     this.load.image('freight-lift', './public/assets/game/freight-lift.webp');
     this.load.image('bunker-door', './public/assets/game/bunker-door.webp');
     this.load.image('drill', './public/assets/game/drill-compact.webp');
+    for(const weapon of WEAPON_CATALOG){const visual=weaponVisual(weapon.id);this.load.image(visual.texture,visual.path);}
     this.load.on('loaderror', () => {
       const loading = document.querySelector('#loading'); loading.hidden = false;
       loading.textContent = 'Не удалось загрузить оформление. Обновите страницу.';

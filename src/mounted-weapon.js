@@ -1,5 +1,19 @@
 // Compact roof-mounted cannon, facing right in drill-local coordinates.
+import { weaponVisual } from './weapon-catalog.js';
 export function drawMountedTurret(scene,root,upgraded=false,weapon='basic') {
+ const visual=weaponVisual(weapon);
+ if(scene.textures?.exists(visual.texture)){
+  const base=scene.add.graphics(),barrel=scene.add.container(0,0),flash=scene.add.graphics();
+  base.fillStyle(0x07191e,.45);base.fillEllipse(0,2,24,18);
+  base.fillStyle(0x203c3b);base.fillCircle(0,0,10);
+  base.lineStyle(1,upgraded?0xe4b85c:0x8aa998);base.strokeCircle(0,0,9);
+  const image=scene.add.image(0,0,visual.texture).setOrigin(visual.originX,visual.originY).setDisplaySize(visual.width,visual.height);
+  barrel.add(image);root.add([base,barrel,flash]);
+  const muzzle=visual.width*(visual.muzzleX-visual.originX),muzzleY=visual.height*(visual.muzzleY-visual.originY),color={flame:0xff9950,electric:0x7cdaff,acid:0x8fe67a,plasma:0xc0a1ff,rail:0x9aeaff}[weapon]||0xffad46;
+  flash.fillStyle(color);flash.fillTriangle(muzzle,muzzleY,muzzle+10,muzzleY-4,muzzle+10,muzzleY+4);
+  flash.fillStyle(0xffefdb);flash.fillTriangle(muzzle,muzzleY,muzzle+7,muzzleY-2,muzzle+7,muzzleY+2);flash.setVisible(false);
+  return {barrel,flash,image};
+ }
  const base=scene.add.graphics(),barrel=scene.add.container(0,0),steel=scene.add.graphics(),armor=scene.add.graphics(),flash=scene.add.graphics();
  root.add([base,barrel,armor,flash]);barrel.add(steel);
  const outline=0x172e32,accent=upgraded?0xe4b85c:0xdb9149;

@@ -1,4 +1,4 @@
-import { WEAPON_CATALOG, WEAPON_COMPONENTS, weaponDefinition, weaponStats, weaponFullCost } from './weapon-catalog.js';
+import { WEAPON_CATALOG, WEAPON_COMPONENTS, weaponDefinition, weaponStats, weaponFullCost, weaponVisual } from './weapon-catalog.js';
 import { hasWeaponBlueprint, buyWeaponBlueprint, buyWeaponParts, weaponPartsPrice, weaponMissingParts, craftWeapon, equipCraftedWeapon, installWeapon, buyWeaponUpgrade, weaponUpgradePrice } from './armory-state.js';
 
 export function createWeaponPanel(scene,onInstall){
@@ -19,7 +19,8 @@ export function createWeaponPanel(scene,onInstall){
   const next=JSON.stringify([selected,scene.credits,q.weapons,q.components,q.blueprints,q.blueprint,q.weaponLevels,q.installed,q.equippedWeapon,busy]);if(next===signature)return;signature=next;
   catalog.replaceChildren();
   for(const entry of WEAPON_CATALOG){const button=node('button','','weapon-choice'+(entry.id===selected?' is-selected':''));button.setAttribute('aria-pressed',String(entry.id===selected));button.dataset.weapon=entry.id;const owned=q.weapons[entry.id]||0;button.append(node('span',entry.name),node('small',q.installed&&q.equippedWeapon===entry.id?'НА БУРЕ':owned?'В АРСЕНАЛЕ · '+owned:hasWeaponBlueprint(q,entry.id)?'ЧЕРТЁЖ ИЗУЧЕН':'НЕТ ЧЕРТЕЖА'),metrics(entry,q.weaponLevels[entry.id]||0),node('small',Object.entries(entry.recipe).map(([id,n])=>WEAPON_COMPONENTS.find(p=>p.id===id).name+' ×'+n).join(' · '),'weapon-card-materials'),node('strong',entry.id==='basic'?'ПЕРВАЯ ПУШКА · ПОДАРОК':'С НУЛЯ · '+weaponFullCost(entry).toLocaleString('ru-RU')+' КР.','weapon-card-price'));button.addEventListener('click',()=>{selected=entry.id;message='';render();});catalog.append(button);}
-  detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id);preview.setAttribute('aria-hidden','true');preview.append(node('i','','weapon-mount'),node('i','','weapon-barrels'));detail.append(preview,node('h3',w.name));
+  for(const button of catalog.children){const image=node('img','','weapon-card-image');image.src=weaponVisual(button.dataset.weapon).path;image.alt='';button.append(image);}
+  detail.replaceChildren();const preview=node('div','','weapon-preview weapon-'+w.id),portrait=node('img','','weapon-portrait');portrait.src=weaponVisual(w.id).path;portrait.alt=w.name+' · вид сверху';preview.append(portrait);detail.append(preview,node('h3',w.name));
   const level=q.weaponLevels[w.id]||0;detail.append(metrics(w,level),node('p',`Уровень улучшения: ${level}/100 · Экземпляров: ${q.weapons[w.id]||0}`,'weapon-stats'),node('p',w.id==='basic'?'Первая пушка — подарок оружейника. Дополнительные экземпляры изготовляются по рецепту.':'Полный комплект с нуля: '+weaponFullCost(w).toLocaleString('ru-RU')+' кр. Включает чертёж и все материалы.','weapon-note'));
   if(!hasWeaponBlueprint(q,w.id)){
    detail.append(node('p',w.id==='basic'?'Чертёж находится на втором этаже, в оружейном шкафу.':'Оружейник может передать чертёж за кредиты.','weapon-note'));
